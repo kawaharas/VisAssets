@@ -32,7 +32,7 @@ namespace VIS
 
 		public override void OnInspectorGUI()
 		{
-//			base.DrawDefaultInspector();
+			base.DrawDefaultInspector();
 
 			var arrows = target as Arrows;
 

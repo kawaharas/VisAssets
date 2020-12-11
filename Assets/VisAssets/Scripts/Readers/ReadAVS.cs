@@ -11,7 +11,7 @@ using SimpleFileBrowser;
 
 namespace VIS
 {
-	public class ReadField : ReadModuleTemplate
+	public class ReadAVS : ReadModuleTemplate
 	{
 		public string filename = string.Empty;
 		string textString  = string.Empty;
