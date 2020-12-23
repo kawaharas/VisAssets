@@ -59,5 +59,7 @@ sysinfo.txt
 crashlytics-build.properties
 
 # Ignore Package Uninstaller
-# /[Aa]ssets/[Mm]ovinarc/
+/[Aa]ssets/[Mm]ovinarc/
 
+# Ignore PlugIns
+/[Aa]ssets/[Pp]lugins/
