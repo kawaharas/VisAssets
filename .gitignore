@@ -59,10 +59,13 @@ sysinfo.txt
 crashlytics-build.properties
 
 # Ignore Package Uninstaller
-/[Aa]ssets/[Mm]ovinarc/
+/[Aa]ssets/[Mm]ovinarc*
+
+# Ignore UnityVS
+/[Aa]ssets/[Uu]nityVS*
 
 # Ignore PlugIns
-/[Aa]ssets/[Pp]lugins/
+/[Aa]ssets/[Pp]lugins*
 
 # Ignore Samples
-/[Aa]ssets/[Ss]treaming[Aa]ssets/
+/[Aa]ssets/[Ss]treaming[Aa]ssets*
