@@ -63,3 +63,6 @@ crashlytics-build.properties
 
 # Ignore PlugIns
 /[Aa]ssets/[Pp]lugins/
+
+# Ignore Samples
+/[Aa]ssets/[Ss]treaming[Aa]ssets/
