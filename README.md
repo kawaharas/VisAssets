@@ -24,17 +24,22 @@
  ReadModuleTemplate, FilterModuleTemplate and MapperModuleTemplate.
  These are placed in Assets/VisAssets/Scripts/ModuleTemplates.
 
- Attach following scripts and components to an Enpty GameObject.
+ 1) Create your own C# script that inherits from the template class.
+ 2) Create an Empty GameObject.
+ 3) Attach following scripts and components to the GameObject.
 
-|  |Activation.cs |DataField.cs |{YourOwnScript}.cs |MeshFilter |MeshRenderer |Material |
-|---|:-:|:-:|:-:|:-:|:-:|:-:|
-|ReadModule   | * | * | * | | | |
-|FilterModule | * | * | * | | | |
-|MapperModule | * | | * | * | * | * |
+    |  |Activation.cs |DataField.cs |{YourOwnScript}.cs |MeshFilter |MeshRenderer |Material |
+    |---|:-:|:-:|:-:|:-:|:-:|:-:|
+    |ReadModule   | o | o | o | | | |
+    |FilterModule | o | o | o | | | |
+    |MapperModule | o | | o | o | o | o |
 
- Activation.cs and DataField.cs will be automatically attached to the GameObject by the template class, if they are not attach.  
- MeshFilter and MeshRenderer must attach to the MapperModule for rendering visualization results on the scene.
- Material and shader also must set appropriately.
+    Activation.cs and DataField.cs will be automatically attached to the GameObject by the template class, if they are not attach.  
+    MeshFilter and MeshRenderer must attach to the MapperModule for rendering visualization results on the scene.
+    Material and shader also must set appropriately.
+
+ 4) Set Tag of GameObject to "VisModule".
+ 5) Prefabricate the GameObject.
 
 ## Sample modules
 
@@ -53,6 +58,6 @@
 
 ## Sample dataset for the sample modules
 
-- ASCII data: include in unitypackage
+- ASCII data: include in unitypackage (sample3D3.txt)
 - VFIVE data: from https://www.jamstec.go.jp/ceist/aeird/avcrg/vfive.ja.html (sample_little.tar.gz)
 - GrADS data: from http://cola.gmu.edu/grads/ (example.tar.gz)
