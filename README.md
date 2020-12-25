@@ -55,9 +55,22 @@
 |Slicer |Draw a colorslice |MapperModuleTemplate |
 |Isosurface |Draw an isosurface |MapperModuleTemplate |
 |Arrows |Draw vector arrows |MapperModuleTemplate |
+|UIManager |User Interface | |
+|Animator |Control of time evolution data | |
 
 ## Sample dataset for the sample modules
 
 - ASCII data: include in unitypackage (sample3D3.txt)
 - VFIVE data: from https://www.jamstec.go.jp/ceist/aeird/avcrg/vfive.ja.html (sample_little.tar.gz)
 - GrADS data: from http://cola.gmu.edu/grads/ (example.tar.gz)
+
+
+## Sample Scenes
+
+There are three sample scenes in Assets/VisAssets/Scenes.  
+Open them and play on Unity Editor.
+
+- ReadFieldSample.scene
+- ReadV5Sample.scene
+- ReadGrADSSample.scene
+
