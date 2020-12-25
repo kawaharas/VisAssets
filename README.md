@@ -77,6 +77,6 @@ Open them and play on Unity Editor.
 ## Citation
 
  Hideo Miyachi and Shintaro Kawahara,
- "Development of VR Visualization Framework with Game Engine",
+ ["Development of VR Visualization Framework with Game Engine"](https://www.jstage.jst.go.jp/article/tjsst/12/2/12_59/_article/-char/ja/),
  Transaction of the Japan Society for Simulation Technology, Vol.12, No.2, pp59-67 (2020), doi:10.11308/tjsst.12.59
  *(written in Japanese)*
