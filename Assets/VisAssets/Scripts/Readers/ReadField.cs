@@ -10,7 +10,7 @@ namespace VIS
 {
 	using FieldType = DataElement.FieldType;
 
-	public class ReadData : ReadModuleTemplate
+	public class ReadField : ReadModuleTemplate
 	{
 		public string filename = "C:/Temp/Sample3D3.txt";
 		public bool dummy_data = false;

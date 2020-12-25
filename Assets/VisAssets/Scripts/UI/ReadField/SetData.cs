@@ -34,7 +34,7 @@ namespace VIS
 //				target.GetComponent<ReadData>().filename = str;
 //				target.GetComponent<ReadData>().Exec();
 
-				var readfield = target.GetComponent<ReadData>();
+				var readfield = target.GetComponent<ReadField>();
 				if (readfield != null)
 				{
 					readfield.filename = str;

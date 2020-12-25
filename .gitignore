@@ -68,4 +68,15 @@ crashlytics-build.properties
 /[Aa]ssets/[Pp]lugins*
 
 # Ignore Samples
-/[Aa]ssets/[Ss]treaming[Aa]ssets*
+/[Aa]ssets/[Ss]treaming[Aa]ssets/example*
+
+# unused files
+/[Aa]ssets/VisAssets/Scenes/VisAssets*
+/[Aa]ssets/VisAssets/Scripts/Readers/unused*
+/[Aa]ssets/VisAssets/Scripts/Filters/unused*
+/[Aa]ssets/VisAssets/Scripts/Mappers/unused*
+/[Aa]ssets/VisAssets/Shaders/unused*
+/[Aa]ssets/VisAssets/Prefabs/OLD*
+
+# working files
+/[Aa]ssets/VisAssets/Scripts/Readers/ReadAVS*
