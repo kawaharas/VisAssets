@@ -1,12 +1,11 @@
 # VisAssets
 
- VisAssets‚ÍUnity—p‚Ì‰Â‹‰»ƒtƒŒ[ƒ€ƒ[ƒN‚Å‚·B 
- Unity‚ÌƒqƒGƒ‰ƒ‹ƒL[ƒEƒBƒ“ƒhƒEã‚Å‰Â‹‰»ƒ‚ƒWƒ…[ƒ‹‚ğÚ‘±‚·‚é‚±‚Æ‚É‚æ‚è‰Â‹‰»ƒAƒvƒŠƒP[ƒVƒ‡ƒ“‚ğ\’z‚·‚é‚±‚Æ‚ª‚Å‚«‚Ü‚·B
+ VisAssets‚ÍUnity—p‚Ì‰Â‹‰»ƒtƒŒ[ƒ€ƒ[ƒN‚Å‚·B  
+ Unity‚ÌƒqƒGƒ‰ƒ‹ƒL[ƒEƒBƒ“ƒhƒEã‚Åƒ‚ƒWƒ…[ƒ‹‚ğÚ‘±‚·‚é‚±‚Æ‚É‚æ‚è‰Â‹‰»ƒAƒvƒŠƒP[ƒVƒ‡ƒ“‚ğ\’z‚·‚é‚±‚Æ‚ª‚Å‚«‚Ü‚·B
 
 
 ## ŠÈ’P‚Èg‚¢•û
 
- UnityƒvƒƒWƒFƒNƒg‚Éunitypackage‚ğƒCƒ“ƒ|[ƒg‚µ‚Ü‚·B  
  Assets/VisAssets/Prefabs“à‚ÌƒTƒ“ƒvƒ‹ƒ‚ƒWƒ…[ƒ‹‚©‚ç•K—v‚Èƒ‚ƒWƒ…[ƒ‹‚ğƒqƒGƒ‰ƒ‹ƒL[ƒEƒBƒ“ƒhƒE‚Éƒhƒ‰ƒbƒOƒAƒ“ƒhƒhƒƒbƒv‚µ‚Ü‚·B
 
 ## ƒ‚ƒWƒ…[ƒ‹ŠÔ‚ÌÚ‘±ƒ‹[ƒ‹
@@ -14,11 +13,11 @@
 - ƒtƒBƒ‹ƒ^ƒŠƒ“ƒOƒ‚ƒWƒ…[ƒ‹‚ÍƒtƒBƒ‹ƒ^ƒŠƒ“ƒOƒ‚ƒWƒ…[ƒ‹‚Æƒ}ƒbƒsƒ“ƒOƒ‚ƒWƒ…[ƒ‹‚Ìe‚É‚È‚é‚±‚Æ‚ª‚Å‚«‚Ü‚·B
 - ƒ}ƒbƒsƒ“ƒOƒ‚ƒWƒ…[ƒ‹‚Í‚¢‚¸‚ê‚Ìƒ‚ƒWƒ…[ƒ‹‚Ìe‚É‚à‚È‚é‚±‚Æ‚ª‚Å‚«‚Ü‚¹‚ñB
 
- ƒ‚ƒWƒ…[ƒ‹‚ª“KØ‚ÉÚ‘±‚³‚ê‚Ä‚¢‚È‚¢ê‡A‚»‚Ìƒ‚ƒWƒ…[ƒ‹‚ÍÀs‚É”ñƒAƒNƒeƒBƒu‰»‚³‚ê‚Ü‚·B
+    ¦ƒ‚ƒWƒ…[ƒ‹‚ª“KØ‚ÉÚ‘±‚³‚ê‚Ä‚¢‚È‚¢ê‡A‚»‚Ìƒ‚ƒWƒ…[ƒ‹‚ÍÀs‚É”ñƒAƒNƒeƒBƒu‰»‚³‚ê‚Ü‚·B
 
 ## V‚½‚Èƒ‚ƒWƒ…[ƒ‹‚ÌŠJ”­
 
- ƒeƒ“ƒvƒŒ[ƒgƒNƒ‰ƒX‚ğŒp³‚µ‚½C#ƒXƒNƒŠƒvƒg‚ÌƒI[ƒo[ƒ‰ƒCƒhŠÖ”‚É‰Â‹‰»ƒ‹[ƒ`ƒ“‚ğÀ‘•‚·‚é‚±‚Æ‚ÅAV‚µ‚¢ƒ‚ƒWƒ…[ƒ‹‚ğŠJ”­‚·‚é‚±‚Æ‚ª‚Å‚«‚Ü‚·BŒ»İVisAssets‚É‚ÍAReadModuleTemplateAFilterModuleTemplateAMapperModuleTemplate‚Ì3í—Ş‚Ìƒeƒ“ƒvƒŒ[ƒgƒNƒ‰ƒX‚ª‚ ‚è‚Ü‚·B‚±‚ê‚ç‚Í Assets/VisAssets/Scripts/ModuleTemplates “à‚É‚ ‚è‚Ü‚·B
+ ƒeƒ“ƒvƒŒ[ƒgƒNƒ‰ƒX‚ğŒp³‚µ‚½C#ƒXƒNƒŠƒvƒg‚ÌƒI[ƒo[ƒ‰ƒCƒhŠÖ”‚É‰Â‹‰»ƒ‹[ƒ`ƒ“‚ğÀ‘•‚·‚é‚±‚Æ‚ÅAV‚½‚Èƒ‚ƒWƒ…[ƒ‹‚ğŠJ”­‚·‚é‚±‚Æ‚ª‚Å‚«‚Ü‚·BŒ»İVisAssets‚É‚ÍAReadModuleTemplateAFilterModuleTemplateAMapperModuleTemplate‚Ì3í—Ş‚Ìƒeƒ“ƒvƒŒ[ƒgƒNƒ‰ƒX‚ª‚ ‚è‚Ü‚·B‚±‚ê‚ç‚Í Assets/VisAssets/Scripts/ModuleTemplates “à‚É‚ ‚è‚Ü‚·B
 
  1) ƒeƒ“ƒvƒŒ[ƒgƒNƒ‰ƒX‚ğŒp³‚µ‚½C#ƒXƒNƒŠƒvƒg‚ğì¬‚µ‚Ü‚·B
  2) ‹ó‚ÌƒQ[ƒ€ƒIƒuƒWƒFƒNƒg‚ğì¬‚µ‚Ü‚·B
@@ -30,14 +29,11 @@
     |FilterModule | o | o | o | | | |
     |MapperModule | o | | o | o | o | o |
 
-    Activation.cs and DataField.cs will be automatically attached to the GameObject by the template class, if they are not attach.  
-    MeshFilter and MeshRenderer must attach to the MapperModule for rendering visualization results on the scene.
-    Material and shader also must set appropriately.
+    Activation.cs‚ÆDataField.cs‚ªƒAƒ^ƒbƒ`‚³‚ê‚Ä‚¢‚È‚¢ê‡Aƒeƒ“ƒvƒŒ[ƒgƒNƒ‰ƒX‚Í‚»‚ê‚ç‚ğ©“®“I‚ÉƒQ[ƒ€ƒIƒuƒWƒFƒNƒg‚ÉƒAƒ^ƒbƒ`‚µ‚Ü‚·B 
+    ƒV[ƒ“ã‚Å‰Â‹‰»Œ‹‰Ê‚ğƒŒƒ“ƒ_ƒŠƒ“ƒO‚·‚é‚½‚ßAMeshFilter‚ÆMeshRenderer‚ğƒ}ƒbƒsƒ“ƒOƒ‚ƒWƒ…[ƒ‹‚ÉƒAƒ^ƒbƒ`‚·‚é•K—v‚ª‚ ‚è‚Ü‚·B
+    ‚Ü‚½Aƒ}ƒeƒŠƒAƒ‹‚âƒVƒF[ƒ_‚É‚Â‚¢‚Ä‚à“KØ‚Éİ’è‚·‚é•K—v‚ª‚ ‚è‚Ü‚·B
 
-Activation.cs‚ÆDataField.cs‚ªƒAƒ^ƒbƒ`‚³‚ê‚Ä‚¢‚È‚¢ê‡Aƒeƒ“ƒvƒŒ[ƒgƒNƒ‰ƒX‚Í‚»‚ê‚ç‚ğ©“®“I‚ÉƒQ[ƒ€ƒIƒuƒWƒFƒNƒg‚ÉƒAƒ^ƒbƒ`‚µ‚Ü‚·B 
-ƒV[ƒ“ã‚Å‰Â‹‰»Œ‹‰Ê‚ğƒŒƒ“ƒ_ƒŠƒ“ƒO‚·‚é‚½‚ßAMeshFilter‚ÆMeshRenderer‚ğƒ}ƒbƒsƒ“ƒOƒ‚ƒWƒ…[ƒ‹‚ÉƒAƒ^ƒbƒ`‚·‚é•K—v‚ª‚ ‚è‚Ü‚·B‚Ü‚½Aƒ}ƒeƒŠƒAƒ‹‚âƒVƒF[ƒ_‚É‚Â‚¢‚Ä‚à“KØ‚Éİ’è‚·‚é•K—v‚ª‚ ‚è‚Ü‚·B
-
- 4) ƒQ[ƒ€ƒIƒuƒWƒFƒNƒg‚Ìƒ^ƒO–¼‚ğ"VisModule"‚É•ÏX‚µ‚Ü‚·B
+ 4) ƒQ[ƒ€ƒIƒuƒWƒFƒNƒg‚Ìƒ^ƒO–¼‚ğ "VisModule" ‚É•ÏX‚µ‚Ü‚·B
  5) ƒQ[ƒ€ƒIƒuƒWƒFƒNƒg‚ğƒvƒŒƒnƒu‰»‚µ‚Ü‚·B
 
 ## ƒTƒ“ƒvƒ‹ƒ‚ƒWƒ…[ƒ‹
@@ -73,3 +69,8 @@ Activation.cs‚ÆDataField.cs‚ªƒAƒ^ƒbƒ`‚³‚ê‚Ä‚¢‚È‚¢ê‡Aƒeƒ“ƒvƒŒ[ƒgƒNƒ‰ƒX‚Í‚»‚ê‚
 - ReadV5Sample.scene
 - ReadGrADSSample.scene
 
+## Citation
+
+ ‹{’n‰p¶, ìŒ´T‘¾˜Y,  
+ "ƒQ[ƒ€ƒGƒ“ƒWƒ“‚ğ—p‚¢‚½VR‰Â‹‰»ƒtƒŒ[ƒ€ƒ[ƒN‚ÌŠJ”­",  
+ “ú–{ƒVƒ~ƒ…ƒŒ[ƒVƒ‡ƒ“Šw‰ï˜_•¶, Vol.12, No.2, pp59-67 (2020), doi:10.11308/tjsst.12.59
