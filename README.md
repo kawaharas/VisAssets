@@ -74,3 +74,9 @@ Open them and play on Unity Editor.
 - ReadV5Sample.scene
 - ReadGrADSSample.scene
 
+## Citation
+
+ Hideo Miyachi and Shintaro Kawahara,
+ "Development of VR Visualization Framework with Game Engine",
+ Transaction of the Japan Society for Simulation Technology, Vol.12, No.2, pp59-67 (2020), doi:10.11308/tjsst.12.59
+ *(written in Japanese)*
