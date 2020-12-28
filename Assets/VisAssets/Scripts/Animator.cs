@@ -76,7 +76,6 @@ namespace VIS
 	}
 #endif
 
-//	public class Animator : MonoBehaviour
 	public class Animator : ModuleTemplate
 	{
 		[Range(0, 1f)]
@@ -91,7 +90,6 @@ namespace VIS
 			SetupUI();
 		}
 
-//		void Update()
 		void FixedUpdate()
 		{
 			if (onPlay)
@@ -113,7 +111,6 @@ namespace VIS
 
 		public void CheckMaximumSteps()
 		{
-			Debug.Log("CheckMaximumSteps() was called.");
 			GameObject[] gos = GameObject.FindGameObjectsWithTag("VisModule");
 			for (int i = 0; i < gos.Length; i++)
 			{
@@ -122,16 +119,13 @@ namespace VIS
 				{
 					if (activation.moduleType == ModuleTemplate.ModuleType.READING)
 					{
-						Debug.Log("module name = " + gos[i].name);
 						if (gos[i].GetComponent<DataField>() != null)
 						{
 							if (gos[i].GetComponent<DataField>().elements != null)
 							{
-								Debug.Log("gos[i].GetComponent<DataField>().elements.Length = " + gos[i].GetComponent<DataField>().elements.Length);
 								for (int n = 0; n < gos[i].GetComponent<DataField>().elements.Length; n++)
 								{
 									maximumSteps = Math.Max(maximumSteps, gos[i].GetComponent<DataField>().elements[n].steps);
-									Debug.Log("gos[i].GetComponent<DataField>().elements[n].steps = " + gos[i].GetComponent<DataField>().elements[n].steps);
 								}
 							}
 						}

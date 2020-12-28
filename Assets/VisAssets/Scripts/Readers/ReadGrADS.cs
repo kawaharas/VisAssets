@@ -3,8 +3,8 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Networking;
 using System;
-using System.Linq;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using SimpleFileBrowser;
@@ -73,7 +73,6 @@ namespace VIS
 
 		public override int BodyFunc()
 		{
-//			filename = "C:/Users/kawahara/Downloads/example/model.ctl";
 			StartCoroutine(Load());
 			return 1;
 		}
@@ -86,7 +85,6 @@ namespace VIS
 			}
 		}
 
-//		private IEnumerator ReadCtlFile(string filename)
 		private IEnumerator ReadCtlFile(string filename, Action<string> callback = null)
 		{
 			string url;
@@ -94,25 +92,12 @@ namespace VIS
 			if (Application.platform == RuntimePlatform.Android)
 			{
 				url = filename;
-//				public static byte[] FileBrowserHelpers.ReadBytesFromFile(string sourcePath);
 				ctlfile = FileBrowserHelpers.ReadTextFromFile(filename);
-/*
-				// Android
-				string asset_name = System.IO.Path.GetFileName(filename);
-				string bundleUrl = Path.Combine(Application.streamingAssetsPath, asset_name);
-
-				UnityWebRequest request = UnityWebRequestAssetBundle.GetAssetBundle(bundleUrl);
-				yield return request.SendWebRequest();
-
-				AssetBundle assetBundle = DownloadHandlerAssetBundle.GetContent(request);
-				assetBundle.Unload(false);
-*/
 			}
 			else
 			{
-//				string url = "file://" + filename;
 				url = "file://" + filename;
-				UnityWebRequest www = UnityWebRequest.Get(url);
+				var www = UnityWebRequest.Get(url);
 				yield return www.SendWebRequest();
 
 				if (www.isHttpError || www.isNetworkError)
@@ -139,10 +124,7 @@ namespace VIS
 			else
 			{
 				string url = "file://" + filename;
-				debugURL = url;
-
-//				UnityWebRequest www = UnityWebRequest.Get(url);
-				UnityWebRequest www = new UnityWebRequest(url);
+				var www = new UnityWebRequest(url);
 				www.downloadHandler = new DownloadHandlerBuffer();
 				yield return www.SendWebRequest();
 
@@ -428,10 +410,7 @@ namespace VIS
 			foreach (Transform child in transform)
 			{
 				child.gameObject.transform.localPosition = new Vector3(-offsets[0], -offsets[1], -offsets[2]);
-//				child.gameObject.transform.localScale = new Vector3(ScaleX, ScaleY, ScaleZ);
 			}
-//			transform.localScale = new Vector3(scale, scale, -scale);
-//			transform.localScale = new Vector3(ScaleX, ScaleY, ScaleZ * 20f);
 			transform.localScale = new Vector3(ScaleX, ScaleY, -ScaleZ * 10000f); // if z-axis is pressure coordinates
 		}
 
@@ -524,8 +503,7 @@ namespace VIS
 					}
 				}
 
-
-				// test
+				// TEST
 				if (coords[i].First() > coords[i].Last())
 				{
 //					coords[i].Reverse();

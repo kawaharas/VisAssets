@@ -93,7 +93,6 @@ namespace VIS
 
 			channel = element_id;
 
-//			activation.SetParameterChanged(1);
 			ParameterChanged();
 		}
 

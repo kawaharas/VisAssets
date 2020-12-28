@@ -9,7 +9,7 @@ namespace VIS
 {
 	public class UIVisibility : MonoBehaviour
 	{
-		private float sensitivity = 0.3f;
+		private float sensitivity = 0.2f;
 		private float time_diff;
 		public bool IsTapped;
 		public bool IsVisible;
@@ -30,8 +30,6 @@ namespace VIS
 						if (Input.GetMouseButtonDown(0))
 						{
 							IsTapped = false;
-//							XRSettings.LoadDeviceByName("None");
-//							XRSettings.enabled = false;
 							StartCoroutine(LoadDevice("None"));
 							time_diff = 0.0f;
 						}
@@ -48,7 +46,6 @@ namespace VIS
 				}
 				else
 				{
-//					TogglePanelVisibility();
 					IsTapped = false;
 					time_diff = 0.0f;
 				}

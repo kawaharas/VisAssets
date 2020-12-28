@@ -3,8 +3,8 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Networking;
 using System;
-using System.Linq;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using SimpleFileBrowser;
@@ -51,8 +51,6 @@ namespace VIS
 
 		public override int BodyFunc()
 		{
-//			int ret = Read();
-//			return ret;
 			if (filename == "") return 0;
 
 			StartCoroutine(Load());
@@ -80,14 +78,6 @@ namespace VIS
 			List<string> datafile = new List<string>();
 			string[] coordfile = new string[3];
 
-//			if (filename == "") return 0;
-/*
-			WWW www = new WWW("file://" + filename);
-			yield return www;
-			string filePath = System.IO.Path.GetDirectoryName(filename);
-			MemoryStream memoryStream = new MemoryStream(Encoding.UTF8.GetBytes(www.text));
-			StreamReader streamReader = new StreamReader(memoryStream, Encoding.GetEncoding("Shift_JIS"));
-*/
 			string filePath = System.IO.Path.GetDirectoryName(filename);
 			MemoryStream memoryStream = new MemoryStream();
 			StreamWriter writer = new StreamWriter(memoryStream);
@@ -199,16 +189,6 @@ namespace VIS
 			}
 			streamReader.Close();
 
-			string debugString = "";
-			debugString += "N1: " + dims[0] + '\n';
-			debugString += "N2: " + dims[1] + '\n';
-			debugString += "N3: " + dims[2] + '\n';
-			debugString += "XFILE: " + coordfile[0] + '\n';
-			debugString += "YFILE: " + coordfile[1] + '\n';
-			debugString += "ZFILE: " + coordfile[2] + '\n';
-			debugString += "LABEL: " + label.Count + '\n';
-//			Debug.Log(debugString);
-
 			List<float>[] coords = new List<float>[4]; // 0:x, 1:y, 2:z, 3:(x, y, z)
 			List<Vector3> coords3d = new List<Vector3>();
 			for (int i = 0; i < 4; i++)
@@ -217,70 +197,7 @@ namespace VIS
 			}
 			for (int i = 0; i < 3; i++)
 			{
-				yield return StartCoroutine(ReadBinData2(coordfile[i], coords[i], dims[i], header));
-				/*
-								StartCoroutine(ReadBinary(coordfile[i], ResponseCallbackBinary));
-								yield return StartCoroutine(ReadBinary(coordfile[i]));
-								try
-								{
-				//					using (MemoryStream memoryStream = new MemoryStream(bytedata))
-									using (MemoryStream ms = new MemoryStream(bytedata))
-									using (BinaryReader reader = new BinaryReader(ms))
-									{
-										if (header)
-										{
-											// read record length of fortran file (unformatted-sequential).
-											var bytes = reader.ReadBytes(4);
-											// byteswap is necessary because the record length of VFIVE sample data
-											// (little-endian ver.) is big-endian.
-											Array.Reverse(bytes);
-											uint record = BitConverter.ToUInt32(bytes, 0);
-										}
-
-										int dataLength = sizeof(float);
-										if (precision == PRECISION.DOUBLE)
-										{
-											dataLength = sizeof(double);
-										}
-										var buffer = new byte[dims[i] * dataLength];
-										var length = reader.Read(buffer, 0, dims[i] * dataLength);
-										if (length != dims[i] * dataLength)
-										{
-											Debug.Log("ERROR: Failed to load data.");
-										}
-										for (int n = 0; n < dims[i]; n++)
-										{
-											if (byteswap)
-											{
-												Array.Reverse(buffer, n * dataLength, dataLength);
-											}
-											float value = 0f;
-											if (precision == PRECISION.SINGLE)
-											{
-												value = BitConverter.ToSingle(buffer, n * dataLength);
-											}
-											else
-											{
-												value = (float)BitConverter.ToDouble(buffer, n * dataLength);
-											}
-											coords[i].Add(value);
-										}
-
-										reader.Close();
-									}
-								}
-								catch (IOException exception)
-								{
-									Debug.Log("Exception : " + exception.Message);
-								}
-				*/
-				/*
-
-				//				ReadData(coordfile[i], coords[i], dims[i], header);
-								yield return StartCoroutine(ReadDataWWW(coordfile[i], coords[i], dims[i], header));
-								Debug.Log("coordfile[" + i + "] = " + coordfile[i]);
-				//				ReadDataWWW(coordfile[i], coords[i], dims[i], header);
-				*/
+				yield return StartCoroutine(LoadBinaryData(coordfile[i], coords[i], dims[i], header));
 			}
 
 			// merge coordinates to 4th list
@@ -303,14 +220,8 @@ namespace VIS
 				df.elements[i].SetDims(dims[0], dims[1], dims[2]);
 
 				List<float> values = new List<float>();
-/*
-//				ReadData(datafile[i], values, dims[0] * dims[1] * dims[2], header);
-//				StartCoroutine(ReadDataWWW(datafile[i], values, dims[0] * dims[1] * dims[2], header));
-				yield return StartCoroutine(ReadDataWWW(datafile[i], values, dims[0] * dims[1] * dims[2], header));
-				Debug.Log("datafile[" + i + "] = " + datafile[i]);
-				//				ReadDataWWW(datafile[i], values, dims[0] * dims[1] * dims[2], header);
-*/
-				yield return StartCoroutine(ReadBinData2(datafile[i], values, dims[0] * dims[1] * dims[2], header));
+
+				yield return StartCoroutine(LoadBinaryData(datafile[i], values, dims[0] * dims[1] * dims[2], header));
 
 				df.elements[i].SetCoords(coords);
 				df.elements[i].SetValues(values);
@@ -347,15 +258,7 @@ namespace VIS
 			transform.localScale = new Vector3(scale, scale, -scale);
 			df.dataLoaded = true;
 		}
-/*
-		public int Read()
-		{
-			if (filename == "") return 0;
 
-			StartCoroutine(Load());
-			return 1;
-		}
-*/
 		private IEnumerator ReadV5File(string filename, Action<string> callback = null)
 		{
 			string url;
@@ -368,7 +271,7 @@ namespace VIS
 			else
 			{
 				url = "file://" + filename;
-				UnityWebRequest www = UnityWebRequest.Get(url);
+				var www = UnityWebRequest.Get(url);
 				yield return www.SendWebRequest();
 
 				if (www.isHttpError || www.isNetworkError)
@@ -386,16 +289,6 @@ namespace VIS
 			}
 		}
 
-		private void ResponseCallbackText(string inputdata)
-		{
-			v5file = inputdata;
-		}
-
-		private void ResponseCallbackBinary(byte[] inputdata)
-		{
-			bytedata = inputdata;
-		}
-
 		private IEnumerator ReadBinary(string filename, Action<byte[]> callback = null)
 		{
 			if (Application.platform == RuntimePlatform.Android)
@@ -405,7 +298,7 @@ namespace VIS
 			else
 			{
 				string url = "file://" + filename;
-				UnityWebRequest www = new UnityWebRequest(url);
+				var www = new UnityWebRequest(url);
 				www.downloadHandler = new DownloadHandlerBuffer();
 				yield return www.SendWebRequest();
 
@@ -424,67 +317,15 @@ namespace VIS
 			}
 		}
 
-/*
-//		public void ReadDataWWW(string filename, List<float> v, int size, bool header = true, bool byteswap = false)
-		IEnumerator ReadDataWWW(string filename, List<float> v, int size, bool header = true, bool byteswap = false)
+		private void ResponseCallbackText(string inputdata)
 		{
-			string url;
-
-			url = "file://" + filename;
-			WWW www = new WWW(url);
-//			WWW www = new WWW("file://" + filename);
-//			yield return www;
-			MemoryStream memoryStream = new MemoryStream(www.bytes);
-
-//			var stream = new FileStream(filename, FileMode.Open, FileAccess.Read);
-//			var reader = new BinaryReader(stream);
-			var reader = new BinaryReader(memoryStream);
-			if (reader != null)
-			{
-				if (header)
-				{
-					// read record length of fortran file (unformatted-sequential).
-					var bytes = reader.ReadBytes(4);
-					// byteswap is necessary because the record length of VFIVE sample data
-					// (little-endian ver.) is big-endian.
-					Array.Reverse(bytes);
-					uint record = BitConverter.ToUInt32(bytes, 0);
-				}
-
-				int dataLength = sizeof(float);
-				if (precision == PRECISION.DOUBLE)
-				{
-					dataLength = sizeof(double);
-				}
-				var buffer = new byte[size * dataLength];
-				var length = reader.Read(buffer, 0, size * dataLength);
-				if (length != size * dataLength)
-				{
-					Debug.Log("ERROR: Failed to load data.");
-				}
-				for (int n = 0; n < size; n++)
-				{
-					if (byteswap)
-					{
-						Array.Reverse(buffer, n * dataLength, dataLength);
-					}
-					float value = 0f;
-					if (precision == PRECISION.SINGLE)
-					{
-						value = BitConverter.ToSingle(buffer, n * dataLength);
-					}
-					else
-					{
-						value = (float)BitConverter.ToDouble(buffer, n * dataLength);
-					}
-					v.Add(value);
-				}
-
-				reader.Close();
-			}
-			yield return null;
+			v5file = inputdata;
 		}
-*/
+
+		private void ResponseCallbackBinary(byte[] inputdata)
+		{
+			bytedata = inputdata;
+		}
 
 		private void ReadData(string filename, List<float> v, int size, bool header = true, bool byteswap = false)
 		{
@@ -538,7 +379,7 @@ namespace VIS
 			}
 		}
 
-		private IEnumerator ReadBinData2(string filename, List<float> v, int size, bool header = true, bool byteswap = false)
+		private IEnumerator LoadBinaryData(string filename, List<float> v, int size, bool header = true, bool byteswap = false)
 		{
 			StartCoroutine(ReadBinary(filename, ResponseCallbackBinary));
 			yield return StartCoroutine(ReadBinary(filename));

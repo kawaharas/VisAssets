@@ -46,29 +46,6 @@ namespace VIS
 			EditorStyles.label.fixedHeight = 18f;
 			EditorStyles.label.alignment = TextAnchor.MiddleLeft;
 
-			//			GUILayout.Box("", GUILayout.ExpandWidth(true), GUILayout.Height(1));
-
-			/*
-						GUIContent[] labels = new GUIContent[3];
-						int[] channels = new int[3];
-						bool[] states = new bool[3];
-						GUILayout.Space(10f);
-
-						for (int i = 0; i < extractVector.channelStates.Length; ++i)
-						{
-							labels[i] = new GUIContent("Channel " + i);
-							EditorGUILayout.BeginHorizontal();
-			//				{
-								states[i] = EditorGUILayout.ToggleLeft(labels[i], extractVector.channelStates[i], GUILayout.Width(95f));
-								EditorGUI.BeginDisabledGroup(!extractVector.channelStates[i]);
-								channels[i] = EditorGUILayout.Popup("", extractVector.channels[i], extractVector.varNames);
-								EditorGUI.EndDisabledGroup();
-			//				}
-							EditorGUILayout.EndHorizontal();
-							GUILayout.Space(10f);
-						}
-			*/
-
 			for (int i = 0; i < extractVector.channelStates.Length; ++i)
 			{
 				channelStates[i] = extractVector.channelStates[i];
@@ -321,11 +298,7 @@ namespace VIS
 				string obj_name = "Channels/Toggle " + axis.ToString();
 				var toggle = UIPanel.transform.Find(obj_name).GetComponent<Toggle>();
 //				toggle.isOn = false;
-//			}
 
-//			for (int n = 0; n < 3; n++)
-//			{
-//				string obj_name = "Channel" + n.ToString() + "/Dropdown";
 				obj_name = "Channel" + n.ToString() + "/Dropdown";
 				var dropdown = UIPanel.transform.Find(obj_name).GetComponent<Dropdown>();
 				dropdown.ClearOptions();

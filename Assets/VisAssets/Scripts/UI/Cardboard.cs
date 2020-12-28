@@ -8,8 +8,6 @@ namespace VIS
 {
 	public class Cardboard : MonoBehaviour
 	{
-		private bool xrState = false;
-
 		void Start()
 		{
 			var button = GetComponent<Button>();
@@ -27,10 +25,6 @@ namespace VIS
 
 		void OnClick()
 		{
-			//			xrState = !xrState;
-			//			XRSettings.enabled = xrState;
-//			XRSettings.LoadDeviceByName("Cardboard");
-//			XRSettings.enabled = true;
 			StartCoroutine(LoadDevice("Cardboard"));
 		}
 
