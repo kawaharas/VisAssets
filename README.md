@@ -6,7 +6,7 @@
  
 ## How to use?
 
- The First step is to import unitypackage into your Unity project.  
+ The First step is to import VisAssets and [RuntimeFileBrowser](https://github.com/yasirkula/UnitySimpleFileBrowser) into your Unity project.  
  Then, you can find the sample modules in Assets/VisAssets/Prefabs.  
  From there, drag and drop the modules you need into the hierarchy window.
  
@@ -61,8 +61,8 @@
 ## Sample dataset for the sample modules
 
 - ASCII data: include in unitypackage (sample3D3.txt)
-- VFIVE data: from https://www.jamstec.go.jp/ceist/aeird/avcrg/vfive.ja.html (sample_little.tar.gz)
-- GrADS data: from http://cola.gmu.edu/grads/ (example.tar.gz)
+- VFIVE data: from [here](https://www.jamstec.go.jp/ceist/aeird/avcrg/vfive.ja.html) (sample_little.tar.gz)
+- GrADS data: from [here](http://cola.gmu.edu/grads/) (example.tar.gz)
 
 
 ## Sample Scenes

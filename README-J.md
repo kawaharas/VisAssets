@@ -6,6 +6,7 @@
 
 ## 簡単な使い方
 
+ VisAssetsと[RuntimeFileBrowser](https://github.com/yasirkula/UnitySimpleFileBrowser)をプロジェクトにインポートします。  
  Assets/VisAssets/Prefabs内のサンプルモジュールから必要なモジュールをヒエラルキーウィンドウにドラッグアンドドロップします。
 
 ## モジュール間の接続ルール
@@ -56,8 +57,8 @@
 ## サンプルモジュールのテストに用いたデータセット
 
 - テキストファイル: 本パッケージに同梱 (sample3D3.txt)
-- VFIVE用データ: https://www.jamstec.go.jp/ceist/aeird/avcrg/vfive.ja.html より取得 (sample_little.tar.gz)
-- GrADS用データ: http://cola.gmu.edu/grads/ より取得 (example.tar.gz)
+- VFIVE用データ: [https://www.jamstec.go.jp/ceist/aeird/avcrg/vfive.ja.html](https://www.jamstec.go.jp/ceist/aeird/avcrg/vfive.ja.html)から取得 (sample_little.tar.gz)
+- GrADS用データ: [http://cola.gmu.edu/grads/](http://cola.gmu.edu/grads/)から取得 (example.tar.gz)
 
 
 ## サンプルアプリケーション
