@@ -325,185 +325,7 @@ namespace VIS
 
 			int step = 1;
 			SetData(step);
-/*
-			memoryStream = new MemoryStream(bytedata);
 
-			try
-			{
-				using (BinaryReader reader = new BinaryReader(memoryStream))
-				{
-					// skip a header record of "header_size" bytes
-//					if (header_size != 0)
-//					{
-//						var header = new byte[header_size];
-//						reader.Read(header, 0, header_size);
-//					}
-					if ((header_size != 0) && (reader.BaseStream.CanSeek))
-					{
-						reader.BaseStream.Position = header_size;
-					}
-
-					for (int i = 0; i < varnum; i++)
-					{
-						var values = new List<float>();
-						var size = df.elements[i].dims[0] * df.elements[i].dims[1] * df.elements[i].dims[2];
-						var datasize = size * sizeof(float);
-						var buffer = new byte[datasize];
-						var length = reader.Read(buffer, 0, datasize);
-						if (length != datasize)
-						{
-							Debug.Log("ERROR: Failed to load data.");
-						}
-						for (int n = 0; n < size; n++)
-						{
-							if (options[(int)Options.BIG_ENDIAN])
-							{
-								Array.Reverse(buffer, n * datasize, datasize);
-							}
-							var value = BitConverter.ToSingle(buffer, n * sizeof(float));
-							values.Add(value);
-						}
-						df.elements[i].SetValues(values);
-
-
-
-
-
-
-						if (useUndef)
-						{
-							df.elements[i].SetUndef(undef);
-						}
-
-						if (varInfo[i].levs == 0)
-						{
-							df.elements[i].SetDims(dims[0], dims[1], 1);
-							List<float>[] coords_tmp = new List<float>[4];
-							coords_tmp[0] = new List<float>(coords[0]);
-							coords_tmp[1] = new List<float>(coords[1]);
-							coords_tmp[2] = new List<float>();
-							coords_tmp[2].Add(coords[2][0]);
-							coords_tmp[3] = new List<float>();
-							// merge coordinates to 4th list
-							for (int z = 0; z < 1; z++)
-							{
-								for (int y = 0; y < dims[1]; y++)
-								{
-									for (int x = 0; x < dims[0]; x++)
-									{
-										coords_tmp[3].Add(coords_tmp[0][x]);
-										coords_tmp[3].Add(coords_tmp[1][y]);
-										coords_tmp[3].Add(coords_tmp[2][z]);
-									}
-								}
-							}
-							df.elements[i].SetCoords(coords_tmp);
-
-							var values = new List<float>();
-							var size = dims[0] * dims[1] * 1;
-							var datasize = size * sizeof(float);
-							var buffer = new byte[datasize];
-							var length = reader.Read(buffer, 0, datasize);
-							if (length != datasize)
-							{
-								Debug.Log("ERROR: Failed to load data.");
-							}
-							for (int n = 0; n < size; n++)
-							{
-								if (options[(int)Options.BIG_ENDIAN])
-								{
-									Array.Reverse(buffer, n * datasize, datasize);
-								}
-								var value = BitConverter.ToSingle(buffer, n * sizeof(float));
-								values.Add(value);
-							}
-							df.elements[i].SetValues(values);
-						}
-						else if (varInfo[i].levs == dims[2])
-						{
-							df.elements[i].SetDims(dims[0], dims[1], dims[2]);
-							df.elements[i].SetCoords(coords);
-
-							var values = new List<float>();
-							var size = dims[0] * dims[1] * dims[2];
-							var datasize = size * sizeof(float);
-							var buffer = new byte[datasize];
-							var length = reader.Read(buffer, 0, datasize);
-							if (length != datasize)
-							{
-								Debug.Log("ERROR: Failed to load data.");
-							}
-							for (int n = 0; n < size; n++)
-							{
-								if (options[(int)Options.BIG_ENDIAN])
-								{
-									Array.Reverse(buffer, n * datasize, datasize);
-								}
-								var value = BitConverter.ToSingle(buffer, n * sizeof(float));
-								values.Add(value);
-							}
-							df.elements[i].SetValues(values);
-						}
-						else
-						{
-							df.elements[i].SetDims(dims[0], dims[1], varInfo[i].levs);
-							List<float>[] coords_tmp = new List<float>[4];
-							coords_tmp[0] = new List<float>(coords[0]);
-							coords_tmp[1] = new List<float>(coords[1]);
-							coords_tmp[2] = new List<float>();
-							for (int n = 0; n < varInfo[i].levs; n++)
-							{
-								coords_tmp[2].Add(coords[2][n]);
-							}
-							coords_tmp[3] = new List<float>();
-							// merge coordinates to 4th list
-							for (int z = 0; z < varInfo[i].levs; z++)
-							{
-								for (int y = 0; y < dims[1]; y++)
-								{
-									for (int x = 0; x < dims[0]; x++)
-									{
-										coords_tmp[3].Add(coords[0][x]);
-										coords_tmp[3].Add(coords[1][y]);
-										coords_tmp[3].Add(coords_tmp[2][z]);
-									}
-								}
-							}
-							df.elements[i].SetCoords(coords_tmp);
-
-							var values = new List<float>();
-							var size = dims[0] * dims[1] * varInfo[i].levs;
-							var datasize = size * sizeof(float);
-							var buffer = new byte[datasize];
-							var length = reader.Read(buffer, 0, datasize);
-							if (length != datasize)
-							{
-								Debug.Log("ERROR: Failed to load data.");
-							}
-							for (int n = 0; n < size; n++)
-							{
-								if (options[(int)Options.BIG_ENDIAN])
-								{
-									Array.Reverse(buffer, n * datasize, datasize);
-								}
-								var value = BitConverter.ToSingle(buffer, n * sizeof(float));
-								values.Add(value);
-							}
-							df.elements[i].SetValues(values);
-						}
-						df.elements[i].SetFieldType(DataElement.FieldType.RECTILINEAR);
-						df.elements[i].varName = varInfo[i].description;
-						df.elements[i].SetActive(true);
-
-					}
-				}
-			}
-			catch (IOException exception)
-			{
-				Debug.Log("Exception : " + exception.Message);
-			}
-			memoryStream.Close();
-*/
 			CalcOffsets();
 
 			// turn on flag when data loading is complete
@@ -519,6 +341,7 @@ namespace VIS
 				if (varInfo[i].levs == dims[2])
 				{
 					df.elements[i].SetDims(dims[0], dims[1], dims[2]);
+					df.elements[i].SetSteps(dims[3]);
 					df.elements[i].SetCoords(coords);
 				}
 				else
@@ -551,6 +374,7 @@ namespace VIS
 						}
 					}
 					df.elements[i].SetDims(dims[0], dims[1], levels);
+					df.elements[i].SetSteps(dims[3]);
 					df.elements[i].SetCoords(coords_tmp);
 				}
 				df.elements[i].SetFieldType(DataElement.FieldType.RECTILINEAR);
@@ -561,6 +385,8 @@ namespace VIS
 				}
 				df.elements[i].SetActive(true);
 			}
+
+			InitAnimator();
 		}
 
 		private void CalcOffsets()

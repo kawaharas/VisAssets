@@ -39,10 +39,18 @@ namespace VIS
 			UNDEFINED
 		}
 
+		[ReadOnly]
+		public ModuleTemplate.ModuleType moduleType = ModuleTemplate.ModuleType.UNDEFINED;
+
 //		public int parent_changed    = 0;
 //		public int parameter_changed = 0;
 		public int parent_changed    = (int)(ModuleState.UNCHANGED);
 		public int parameter_changed = (int)(ModuleState.UNCHANGED);
+
+		public void SetModuleType(ModuleTemplate.ModuleType type)
+		{
+			moduleType = type;
+		}
 
 		public void SetParentChanged(int i)
 		{

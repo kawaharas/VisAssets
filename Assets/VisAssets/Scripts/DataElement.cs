@@ -76,6 +76,11 @@ namespace VIS
 			}
 		}
 
+		public void SetSteps(int t)
+		{
+			steps = t;
+		}
+
 		public void SetCoords(List<float>[] c)
 		{
 			coords = new float[4][];

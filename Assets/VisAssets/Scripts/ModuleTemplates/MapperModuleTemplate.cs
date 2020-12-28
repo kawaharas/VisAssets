@@ -11,6 +11,8 @@ namespace VIS
 		private GameObject parent;
 		private bool connection;
 
+		[ReadOnly]
+		public ModuleType moduleType = ModuleType.MAPPING;
 		[HideInInspector]
 		public Activation  activation;
 		[SerializeField, HideInInspector]
@@ -23,6 +25,8 @@ namespace VIS
 			{
 				activation = this.gameObject.AddComponent<Activation>();
 			}
+			activation.SetModuleType(ModuleType.MAPPING);
+
 			if (this.GetComponent<MeshFilter>() == null)
 			{
 				this.gameObject.AddComponent<MeshFilter>();

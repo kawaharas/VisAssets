@@ -26,6 +26,7 @@ namespace VIS
 			{
 				activation = this.gameObject.AddComponent<Activation>();
 			}
+			activation.SetModuleType(ModuleType.FILTERING);
 
 			df = this.GetComponent<DataField>();
 			if (df == null)

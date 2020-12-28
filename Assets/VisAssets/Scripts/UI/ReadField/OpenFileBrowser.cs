@@ -28,7 +28,7 @@ namespace VIS
 
 		IEnumerator ShowLoadDialogCoroutine()
 		{
-			yield return FileBrowser.WaitForLoadDialog(false, false, null, "Load File", "Load");
+			yield return FileBrowser.WaitForLoadDialog(FileBrowser.PickMode.Files, false, null, "Load File", "Load");
 			if (FileBrowser.Success)
 			{
 				inputField.GetComponent<InputField>().text = FileBrowser.Result[0];

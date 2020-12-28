@@ -27,6 +27,7 @@ namespace VIS
 			{
 				activation = this.gameObject.AddComponent<Activation>();
 			}
+			activation.SetModuleType(ModuleType.READING);
 
 			df = this.GetComponent<DataField>();
 			if (df == null)
@@ -90,6 +91,17 @@ namespace VIS
 		{
 		}
 
+		public void InitAnimator()
+		{
+			var animator = GameObject.Find("Animator");
+			if (animator != null)
+			{
+				if (animator.tag.Equals("VisModule"))
+				{
+					animator.GetComponent<Animator>().CheckMaximumSteps();
+				}
+			}
+		}
 
 		public void SetStep(int step)
 		{

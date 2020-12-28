@@ -15,6 +15,14 @@ namespace VIS
 		GameObject UIPrefab;
 		bool disableUI = false;
 
+		public enum ModuleType
+		{
+			READING,
+			FILTERING,
+			MAPPING,
+			UNDEFINED
+		}
+
 		enum ModuleName
 		{
 			Arrows = 0,
