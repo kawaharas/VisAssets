@@ -124,6 +124,9 @@ namespace VIS
 			previousChannelStates = new bool[] { false, false, false };
 
 			df.CreateElements(3);
+
+			var transform = GetComponent<Transform>();
+			transform.hideFlags = HideFlags.HideInInspector;
 		}
 
 		public override int BodyFunc()

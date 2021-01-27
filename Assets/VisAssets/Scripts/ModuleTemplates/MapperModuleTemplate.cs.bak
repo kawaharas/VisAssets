@@ -35,9 +35,6 @@ namespace VIS
 			{
 				this.gameObject.AddComponent<MeshRenderer>();
 			}
-
-			var transform = GetComponent<Transform>();
-			transform.hideFlags = HideFlags.HideInInspector;
 		}
 
 		void Start()

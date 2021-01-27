@@ -5,18 +5,19 @@ using UnityEngine;
 namespace VIS
 {
 	[RequireComponent(typeof(Activation))]
+	[RequireComponent(typeof(DataField))]
 
-	public class MapperModuleTemplate : ModuleTemplate
+	public class FilterModuleTemplate : ModuleTemplate
 	{
 		private GameObject parent;
 		private bool connection;
 
-		[ReadOnly]
-		public ModuleType moduleType = ModuleType.MAPPING;
 		[HideInInspector]
-		public Activation  activation;
-		[SerializeField, HideInInspector]
-		public DataField   pdf;
+		public Activation activation;
+		[HideInInspector]
+		public DataField  df;
+		[HideInInspector]
+		public DataField  pdf;
 
 		void Awake()
 		{
@@ -25,19 +26,14 @@ namespace VIS
 			{
 				activation = this.gameObject.AddComponent<Activation>();
 			}
-			activation.SetModuleType(ModuleType.MAPPING);
+			activation.SetModuleType(ModuleType.FILTERING);
 
-			if (this.GetComponent<MeshFilter>() == null)
+			df = this.GetComponent<DataField>();
+			if (df == null)
 			{
-				this.gameObject.AddComponent<MeshFilter>();
+				df = this.gameObject.AddComponent<DataField>();
 			}
-			if (this.GetComponent<MeshRenderer>() == null)
-			{
-				this.gameObject.AddComponent<MeshRenderer>();
-			}
-
-			var transform = GetComponent<Transform>();
-			transform.hideFlags = HideFlags.HideInInspector;
+			df.dataType = DataField.DataType.FILTERED;
 		}
 
 		void Start()
@@ -48,7 +44,7 @@ namespace VIS
 			{
 				parent = transform.parent.gameObject;
 				pdf = parent.GetComponent<DataField>();
-				if (pdf != null)
+				if (pdf!= null)
 				{
 					if ((pdf.dataType == DataField.DataType.RAW) ||
 						(pdf.dataType == DataField.DataType.FILTERED))
@@ -67,7 +63,7 @@ namespace VIS
 			else
 			{
 				string errString = "";
-				errString += "ERROR: Mapper modules should put under a Read Module or a Filter Module.\n";
+				errString += "ERROR: Filter Modules should put under a Read Module or a Filter Module.\n";
 				errString += "Module name : " + this.name + " is stoped.";
 				Debug.Log(errString);
 				gameObject.SetActive(false);
@@ -77,12 +73,7 @@ namespace VIS
 		void Update()
 		{
 			if (!connection) return;
-/*
-			if (!connection)
-			{
-				if (!CheckConnection()) return;
-			}
-*/
+
 			int parentupdate = activation.GetParentChanged();
 			int paramupdate  = activation.GetParameterChanged();
 			int update = parentupdate + paramupdate;
@@ -90,6 +81,9 @@ namespace VIS
 			if (update != 0)
 			{
 				if (!IsDataLoadedToParent()) return;
+
+				// turn off flag until data loading is complete
+				df.dataLoaded = false;
 
 				if (paramupdate == 1)
 				{
@@ -101,57 +95,27 @@ namespace VIS
 					ResetUICore();
 				}
 				GetParameters();
-				if (BodyFunc() != 1)
+				if (BodyFunc() == 1)
 				{
-					Debug.Log("ERROR: in mapper module func");
+					// turn on flag when data loading is complete
+					df.dataLoaded = true;
+					SetParentChangedIntoAllChildren();
+				}
+				else
+				{
+					// error
+//					Debug.Log("ERROR: in filter module func");
 				}
 				activation.SetParameterChanged(0);
 				activation.SetParentChanged(0);
 			}
-			IdleFunc();
 		}
 
-		bool CheckConnection()
+		void OnValidate()
 		{
-			connection = false;
+			if (!IsDataLoadedToParent()) return;
 
-			if (transform.parent)
-			{
-				parent = transform.parent.gameObject;
-				pdf = parent.GetComponent<DataField>();
-				if (pdf != null)
-				{
-					if ((pdf.dataType == DataField.DataType.RAW) |
-						(pdf.dataType == DataField.DataType.FILTERED))
-					{
-						connection = true;
-					}
-				}
-			}
-
-			if (connection)
-			{
-//				if (!gameObject.activeSelf)
-				if (!gameObject.activeInHierarchy)
-				{
-					gameObject.SetActive(true);
-				}
-
-				GetParameters();
-				InitModule();
-				SetupUI();
-				return true;
-			}
-			else
-			{
-				string errString = "";
-				errString += "ERROR: Mapper modules should put under a Read Module or a Filter Module.\n";
-				errString += "Module name : " + this.name + " is stoped.";
-				Debug.Log(errString);
-				gameObject.SetActive(false);
-
-				return false;
-			}
+			activation.SetParameterChanged(1);
 		}
 
 		public virtual void InitModule()
@@ -161,10 +125,6 @@ namespace VIS
 		public virtual int BodyFunc()
 		{
 			return 0;
-		}
-
-		public virtual void IdleFunc()
-		{
 		}
 
 		public virtual void SetParameters()
@@ -179,6 +139,21 @@ namespace VIS
 		{
 		}
 
+		public void SetParentChangedIntoAllChildren()
+		{
+			int child_num = this.gameObject.transform.childCount;
+
+			for (int i = 0; i < child_num; i++)
+			{
+				Transform child = this.gameObject.transform.GetChild(i);
+				if (child.GetComponent<Activation>())
+				{
+					Activation c = child.GetComponent<Activation>();
+					c.SetParentChanged(1);
+				}
+			}
+		}
+
 		public bool IsDataLoadedToParent()
 		{
 			if (pdf == null)
@@ -188,6 +163,7 @@ namespace VIS
 
 			if (!pdf.dataLoaded)
 			{
+				df.dataLoaded = false;
 				return false;
 			}
 

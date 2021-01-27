@@ -129,6 +129,8 @@ namespace VIS
 
 			InitSliceParams();
 
+			var transform = GetComponent<Transform>();
+			transform.hideFlags = HideFlags.HideInInspector;
 			var meshFilter = GetComponent<MeshFilter>();
 			if (meshFilter != null)
 			{

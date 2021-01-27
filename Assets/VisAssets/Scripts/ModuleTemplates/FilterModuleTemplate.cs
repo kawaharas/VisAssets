@@ -34,6 +34,9 @@ namespace VIS
 				df = this.gameObject.AddComponent<DataField>();
 			}
 			df.dataType = DataField.DataType.FILTERED;
+
+			var transform = GetComponent<Transform>();
+			transform.hideFlags = HideFlags.HideInInspector;
 		}
 
 		void Start()

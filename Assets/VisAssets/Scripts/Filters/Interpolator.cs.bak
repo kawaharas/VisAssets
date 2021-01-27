@@ -102,6 +102,9 @@ namespace VIS
 			idims     = new int[3] { -1, -1, -1 };
 			useUndef  = false;
 			activeElements = new List<int>();
+
+			var transform = GetComponent<Transform>();
+			transform.hideFlags = HideFlags.HideInInspector;
 		}
 
 		public override int BodyFunc()

@@ -109,6 +109,8 @@ namespace VIS
 			min = 0;
 			max = 1f;
 
+			var transform = GetComponent<Transform>();
+			transform.hideFlags = HideFlags.HideInInspector;
 			var meshFilter = GetComponent<MeshFilter>();
 			if (meshFilter != null)
 			{
@@ -302,10 +304,7 @@ namespace VIS
 			mesh.RecalculateBounds();
 
 			var meshFilter = GetComponent<MeshFilter>();
-			if (meshFilter != null)
-			{
-				meshFilter.mesh = mesh;
-			}
+			meshFilter.mesh = mesh;
 		}
 
 		private void AddGeometry(List<int> edge)

@@ -65,6 +65,8 @@ namespace VIS
 			color    = new Color(1f, 1f, 1f);
 			material = new Material(Shader.Find("Sprites/Default"));
 
+			var transform = GetComponent<Transform>();
+			transform.hideFlags = HideFlags.HideInInspector;
 			mesh = new Mesh();
 			mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
 			var meshFilter   = GetComponent<MeshFilter>();
