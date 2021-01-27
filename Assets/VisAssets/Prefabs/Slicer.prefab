@@ -15,7 +15,7 @@ GameObject:
   - component: {fileID: 6990718307034070344}
   m_Layer: 0
   m_Name: Slicer
-  m_TagString: Untagged
+  m_TagString: VisModule
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -46,6 +46,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ddeb0049803ed404ba907c4860b87946, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  moduleType: 3
   parent_changed: 0
   parameter_changed: 0
 --- !u!114 &8787979129257345832
@@ -62,6 +63,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   UIPanel: {fileID: 0}
   FixedModuleName: 
+  moduleType: 2
   activation: {fileID: 0}
   pdf: {fileID: 0}
   axis: 0
@@ -115,6 +117,7 @@ MeshRenderer:
   m_MotionVectors: 1
   m_LightProbeUsage: 1
   m_ReflectionProbeUsage: 1
+  m_RayTracingMode: 2
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
@@ -126,6 +129,7 @@ MeshRenderer:
   m_ProbeAnchor: {fileID: 0}
   m_LightProbeVolumeOverride: {fileID: 0}
   m_ScaleInLightmap: 1
+  m_ReceiveGI: 1
   m_PreserveUVs: 0
   m_IgnoreNormalsForChartDetection: 0
   m_ImportantGI: 0

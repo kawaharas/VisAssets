@@ -14,7 +14,7 @@ GameObject:
   - component: {fileID: 7823653957748791832}
   m_Layer: 0
   m_Name: Interpolator
-  m_TagString: Untagged
+  m_TagString: VisModule
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -45,6 +45,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ddeb0049803ed404ba907c4860b87946, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  moduleType: 3
   parent_changed: 0
   parameter_changed: 0
 --- !u!114 &7823653957748791833
@@ -62,11 +63,16 @@ MonoBehaviour:
   UIPanel: {fileID: 0}
   FixedModuleName: 
   activation: {fileID: 0}
-  dataField: {fileID: 0}
-  dataField_parent: {fileID: 0}
-  NX: 50
-  NY: 50
-  NZ: 50
+  df: {fileID: 0}
+  pdf: {fileID: 0}
+  safetyValue: 50
+  idims: 
+  activeElements: 
+  parentActiveElements: 
+  dims: 
+  idims_max: 
+  useUndef: 0
+  undef: 0
 --- !u!114 &7823653957748791832
 MonoBehaviour:
   m_ObjectHideFlags: 0
