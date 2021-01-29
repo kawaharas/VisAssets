@@ -3,8 +3,10 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace VIS
+namespace VIS.UI.Isosurface
 {
+	using VIS;
+
 	public class IsoSlider : MonoBehaviour
 	{
 		private GameObject target = null;

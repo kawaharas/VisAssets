@@ -4,8 +4,10 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace VIS
+namespace VIS.UI.Downsize
 {
+	using VIS;
+
 	public class IPValue : MonoBehaviour
 	{
 		private GameObject target = null;
@@ -23,14 +25,14 @@ namespace VIS
 		{
 			if (target != null)
 			{
-				var interpolator = target.GetComponent<Interpolator>();
-				if (interpolator != null)
+				var downsize = target.GetComponent<Downsize>();
+				if (downsize != null)
 				{
 					var value = Convert.ToInt16(str);
 					int[] dims = new int[3];
-					dims[0] = interpolator.idims[0];
-					dims[1] = interpolator.idims[1];
-					dims[2] = interpolator.idims[2];
+					dims[0] = downsize.idims[0];
+					dims[1] = downsize.idims[1];
+					dims[2] = downsize.idims[2];
 					var axis = transform.parent.gameObject.name;
 					switch (axis)
 					{
@@ -46,7 +48,7 @@ namespace VIS
 						default:
 							break;
 					}
-					interpolator.SetDims(dims);
+					downsize.SetDims(dims);
 					GetComponent<InputField>().text = value.ToString();
 					placeholder.GetComponent<Text>().text = value.ToString();
 					slider.GetComponent<Slider>().value = value;

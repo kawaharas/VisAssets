@@ -15,34 +15,34 @@ namespace VIS
 
 #if UNITY_EDITOR
 	[CanEditMultipleObjects]
-	[CustomEditor(typeof(Interpolator))]
-	public class InterpolatorEditor : Editor
+	[CustomEditor(typeof(Downsize))]
+	public class DownsizeEditor : Editor
 	{
 		public override void OnInspectorGUI()
 		{
-			var interpolator = target as Interpolator;
+			var downsize = target as Downsize;
 
 			serializedObject.Update();
 			EditorGUI.BeginChangeCheck();
 
 			bool IsVisible = false;
-			if (interpolator.activeElements.Count > 0)
+			if (downsize.activeElements.Count > 0)
 			{
 				IsVisible = true;
 			}
 			int[] idims = new int[3] { -1, -1, -1 };
 			EditorGUI.BeginDisabledGroup(!IsVisible);
 			GUILayout.Space(10f);
-			for (int i = 0; i < interpolator.idims_max.Length; i++)
+			for (int i = 0; i < downsize.idims_max.Length; i++)
 			{
 				string str = "I" + (char)('X' + i) + ": ";
-				if (interpolator.idims[i] > 1)
+				if (downsize.idims[i] > 1)
 				{
-					idims[i] = EditorGUILayout.IntSlider(str, interpolator.idims[i], 2, interpolator.idims_max[i]);
+					idims[i] = EditorGUILayout.IntSlider(str, downsize.idims[i], 2, downsize.idims_max[i]);
 				}
 				else
 				{
-					idims[i] = EditorGUILayout.IntSlider(str, interpolator.idims[i], 1, interpolator.idims_max[i]);
+					idims[i] = EditorGUILayout.IntSlider(str, downsize.idims[i], 1, downsize.idims_max[i]);
 				}
 				GUILayout.Space(3f);
 			}
@@ -69,8 +69,8 @@ namespace VIS
 
 			if (EditorGUI.EndChangeCheck())
 			{
-				Undo.RecordObject(target, "Interpolator");
-				interpolator.SetDims(idims);
+				Undo.RecordObject(target, "Downsize");
+				downsize.SetDims(idims);
 				EditorUtility.SetDirty(target);
 			}
 
@@ -79,7 +79,7 @@ namespace VIS
 	}
 #endif
 
-	public class Interpolator : FilterModuleTemplate
+	public class Downsize : FilterModuleTemplate
 	{
 		public int safetyValue = 50;
 

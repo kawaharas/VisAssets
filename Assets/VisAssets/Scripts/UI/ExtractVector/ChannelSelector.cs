@@ -8,7 +8,7 @@ namespace VIS.UI.ExtractVector
 {
 	using VIS;
 
-	public class VectorSelector : MonoBehaviour
+	public class ChannelSelector : MonoBehaviour
 	{
 		private GameObject target = null;
 		public int vectorID;
