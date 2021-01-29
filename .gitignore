@@ -75,6 +75,7 @@ crashlytics-build.properties
 /[Aa]ssets/VisAssets/Scripts/Readers/unused*
 /[Aa]ssets/VisAssets/Scripts/Filters/unused*
 /[Aa]ssets/VisAssets/Scripts/Mappers/unused*
+/[Aa]ssets/VisAssets/Scripts/UI/Common/unused*
 /[Aa]ssets/VisAssets/Shaders/unused*
 /[Aa]ssets/VisAssets/Prefabs/OLD*
 *.bak
