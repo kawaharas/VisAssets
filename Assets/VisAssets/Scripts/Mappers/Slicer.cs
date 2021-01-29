@@ -65,7 +65,7 @@ namespace VIS
 				}
 				else
 				{
-					slicer.SetShift(currentShift);
+					slicer.SetColorShift(currentShift);
 				}
 				EditorUtility.SetDirty(target);
 			}
@@ -89,9 +89,9 @@ namespace VIS
 
 		public enum FILTER_MODE
 		{
-			POINT,
+			TRILINEAR,
 			BILINEAR,
-			TRILINEAR
+			POINT
 		};
 
 		[SerializeField, Range(0, 2)]
@@ -104,7 +104,7 @@ namespace VIS
 		[SerializeField]
 		public float min, max;
 		[SerializeField]
-		public FILTER_MODE filterMode = FILTER_MODE.TRILINEAR;
+		public FILTER_MODE filterMode;
 		[SerializeField, Range(0, 1f)]
 		public float shift; // shift hue value to calculate RGB color
 		[SerializeField]
@@ -150,7 +150,8 @@ namespace VIS
 			// 3. set a shader (e.g. "Unlit/SliceShader") to last of elements
 			material = new Material(Shader.Find("Unlit/SliceShader"));
 
-			axis = prev_axis  = 0;
+			filterMode = FILTER_MODE.TRILINEAR;
+			axis  = prev_axis  = 0;
 			slice = prev_slice = 0;
 			value = prev_value = 0;
 			min = 0;
@@ -338,6 +339,13 @@ namespace VIS
 */
 		}
 
+		public void SetMode(int mode)
+		{
+			filterMode = (FILTER_MODE)mode;
+
+			ParameterChanged();
+		}
+
 		public void SetAxis(int _axis)
 		{
 			if (_axis != prev_axis)
@@ -376,7 +384,7 @@ namespace VIS
 			activation.SetParameterChanged(1);
 		}
 
-		public void SetShift(float _shift)
+		public void SetColorShift(float _shift)
 		{
 			shift = _shift;
 

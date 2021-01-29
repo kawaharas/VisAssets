@@ -4,17 +4,17 @@ using UnityEngine;
 
 namespace VIS
 {
-	public class CtrlOBJ2 : MonoBehaviour
+	public class CtrlOBJ : MonoBehaviour
 	{
 		public GameObject obj;
 
-		//回転用
-		public Vector2 startPosition; //タッチした座標
-		Quaternion startRotation; //タッチしたときの回転
-		float w, h, d;  //スクリーンサイズ
-		public float tx, ty;    //変数
+		// for rotation
+		public Vector2 startPosition; // screen position when touched
+		Quaternion startRotation;     // rotation when touched
+		float w, h, d;                // screen size
+		public float tx, ty;
 
-		//ピンチイン ピンチアウト用
+		// for pinch-in and pinch-out
 		public float minScale = 1.0f;
 		public float maxScale = 5.0f;
 		float dist = 0.0f;
@@ -24,17 +24,20 @@ namespace VIS
 		public bool IsDrag = false;
 		public float sensitivity = 5f;
 		public bool InitScaleSet = false;
+		public bool active = true;
 
 		void Start()
 		{
 			w = Screen.width;
 			h = Screen.height;
 			d = Mathf.Sqrt(Mathf.Pow(w, 2) + Mathf.Pow(h, 2));
+			obj = this.gameObject;
 			initScale = obj.transform.localScale;
 		}
 
 		void Update()
 		{
+			if (!active) return;
 			var df = obj.GetComponent<DataField>();
 
 			if (df != null)

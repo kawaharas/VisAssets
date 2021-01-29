@@ -21,7 +21,7 @@ namespace VIS
 		SerializedProperty threshold;
 		SerializedProperty min;
 		SerializedProperty max;
-		SerializedProperty shading;
+		SerializedProperty shadingMode;
 
 		private void OnEnable()
 		{
@@ -29,7 +29,7 @@ namespace VIS
 			threshold = serializedObject.FindProperty("threshold");
 			min = serializedObject.FindProperty("min");
 			max = serializedObject.FindProperty("max");
-			shading = serializedObject.FindProperty("shading");
+			shadingMode = serializedObject.FindProperty("shadingMode");
 		}
 
 		public override void OnInspectorGUI()
@@ -42,8 +42,8 @@ namespace VIS
 			EditorGUI.BeginChangeCheck();
 
 			GUILayout.Space(10f);
-			var label = new GUIContent("Shading: ");
-			EditorGUILayout.PropertyField(shading, label, true);
+			var label = new GUIContent("Shading Mode: ");
+			EditorGUILayout.PropertyField(shadingMode, label, true);
 			GUILayout.Space(6f);
 			var _threshold = EditorGUILayout.Slider("Threshold: ", threshold.floatValue, min.floatValue, max.floatValue);
 			GUILayout.Space(6f);
@@ -84,7 +84,7 @@ namespace VIS
 		[SerializeField]
 		public Color color;
 		[SerializeField]
-		public SHADING_MODE shading = SHADING_MODE.FLAT;
+		public SHADING_MODE shadingMode;
 
 		int[] coord_idx = new int[8];
 		float[] vlocal  = new float[8];
@@ -104,6 +104,7 @@ namespace VIS
 //			material  = new Material(Shader.Find("Custom/SurfaceShader"));
 			material = new Material(Shader.Find("Custom/SimplePhong"));
 
+			shadingMode = SHADING_MODE.FLAT;
 			threshold = 0;
 			slider = 0;
 			min = 0;
@@ -158,6 +159,13 @@ namespace VIS
 			Calc();
 
 			activation.SetParameterChanged(1);
+		}
+
+		public void SetShadingMode(int mode)
+		{
+			shadingMode = (SHADING_MODE)mode;
+
+			ParameterChanged();
 		}
 
 		public void SetValue(float value)
@@ -259,7 +267,7 @@ namespace VIS
 			}
 
 			Vector3[] finalNormals = null;
-			if (shading == SHADING_MODE.SMOOTH)
+			if (shadingMode == SHADING_MODE.SMOOTH)
 			{
 				finalNormals = new Vector3[normals.Count()];
 				for (int n = 0; n < normals.Count(); n++)
@@ -290,7 +298,7 @@ namespace VIS
 			mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
 			mesh.SetVertices(vertices);
 			mesh.SetColors(colors);
-			if (shading == SHADING_MODE.SMOOTH)
+			if (shadingMode == SHADING_MODE.SMOOTH)
 			{
 				mesh.normals = finalNormals;
 			}

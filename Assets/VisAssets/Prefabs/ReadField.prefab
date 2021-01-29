@@ -12,8 +12,7 @@ GameObject:
   - component: {fileID: 5371124302536753470}
   - component: {fileID: 5371124302536753471}
   - component: {fileID: 980028169445324378}
-  - component: {fileID: 1463797061655509048}
-  - component: {fileID: 3473984287390664133}
+  - component: {fileID: 8195596288451878298}
   m_Layer: 0
   m_Name: ReadField
   m_TagString: VisModule
@@ -86,20 +85,7 @@ MonoBehaviour:
   dataType: 0
   dataLoaded: 0
   elements: []
---- !u!114 &1463797061655509048
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5371124302536753409}
-  m_Enabled: 0
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2a8feef17161b5d4eae97f5fc532c44e, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  active: 1
---- !u!114 &3473984287390664133
+--- !u!114 &8195596288451878298
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -111,13 +97,4 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f0e602d050608ef49b71de49b9ee04f5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  obj: {fileID: 0}
-  startPosition: {x: 0, y: 0}
-  tx: 0
-  ty: 0
-  minScale: 1
-  maxScale: 5
-  scale: 1
-  IsDrag: 0
-  sensitivity: 5
-  InitScaleSet: 0
+  active: 1

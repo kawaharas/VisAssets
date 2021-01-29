@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace VIS
 {
-	public class CtrlOBJ : MonoBehaviour
+	public class CtrlOBJ_old : MonoBehaviour
 	{
 		Vector3 prevPos = Vector3.zero;
 		Vector3 posDelta = Vector3.zero;

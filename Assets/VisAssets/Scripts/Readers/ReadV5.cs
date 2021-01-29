@@ -20,7 +20,7 @@ namespace VIS
 		};
 
 		[SerializeField]
-		public PRECISION precision = PRECISION.SINGLE;
+		public PRECISION precision = PRECISION.DOUBLE;
 		[SerializeField]
 		public bool byteswap = false;
 		[SerializeField]
@@ -197,7 +197,7 @@ namespace VIS
 			}
 			for (int i = 0; i < 3; i++)
 			{
-				yield return StartCoroutine(LoadBinaryData(coordfile[i], coords[i], dims[i], header));
+				yield return StartCoroutine(LoadBinaryData(coordfile[i], coords[i], dims[i], header, byteswap));
 			}
 
 			// merge coordinates to 4th list
@@ -221,7 +221,7 @@ namespace VIS
 
 				List<float> values = new List<float>();
 
-				yield return StartCoroutine(LoadBinaryData(datafile[i], values, dims[0] * dims[1] * dims[2], header));
+				yield return StartCoroutine(LoadBinaryData(datafile[i], values, dims[0] * dims[1] * dims[2], header, byteswap));
 
 				df.elements[i].SetCoords(coords);
 				df.elements[i].SetValues(values);
@@ -409,20 +409,49 @@ namespace VIS
 				{
 					Debug.Log("ERROR: Failed to load data.");
 				}
+
 				for (int n = 0; n < size; n++)
 				{
 					if (byteswap)
 					{
-						Array.Reverse(buffer, n * dataLength, dataLength);
+//						Array.Reverse(buffer, n * dataLength, dataLength);
 					}
 					float value = 0f;
 					if (precision == PRECISION.SINGLE)
 					{
-						value = BitConverter.ToSingle(buffer, n * dataLength);
+						if (byteswap)
+						{
+							byte[] tmp = new byte[4];
+							tmp[3] = buffer[n * dataLength + 0];
+							tmp[2] = buffer[n * dataLength + 1];
+							tmp[1] = buffer[n * dataLength + 2];
+							tmp[0] = buffer[n * dataLength + 3];
+							value = (float)BitConverter.ToDouble(tmp, 0);
+						}
+						else
+						{
+							value = BitConverter.ToSingle(buffer, n * dataLength);
+						}
 					}
 					else
 					{
-						value = (float)BitConverter.ToDouble(buffer, n * dataLength);
+						if (byteswap)
+						{
+							byte[] tmp = new byte[8];
+							tmp[7] = buffer[n * dataLength + 0];
+							tmp[6] = buffer[n * dataLength + 1];
+							tmp[5] = buffer[n * dataLength + 2];
+							tmp[4] = buffer[n * dataLength + 3];
+							tmp[3] = buffer[n * dataLength + 4];
+							tmp[2] = buffer[n * dataLength + 5];
+							tmp[1] = buffer[n * dataLength + 6];
+							tmp[0] = buffer[n * dataLength + 7];
+							value = (float)BitConverter.ToDouble(tmp, 0);
+						}
+						else
+						{
+							value = (float)BitConverter.ToDouble(buffer, n * dataLength);
+						}
 					}
 					v.Add(value);
 				}

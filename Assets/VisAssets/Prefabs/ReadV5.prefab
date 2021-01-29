@@ -12,7 +12,7 @@ GameObject:
   - component: {fileID: 8557487580331029527}
   - component: {fileID: 8557487580331029529}
   - component: {fileID: 8557487580331029528}
-  - component: {fileID: 100217894989591598}
+  - component: {fileID: 4795315511997176777}
   m_Layer: 0
   m_Name: ReadV5
   m_TagString: VisModule
@@ -46,6 +46,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ddeb0049803ed404ba907c4860b87946, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  moduleType: 3
   parent_changed: 0
   parameter_changed: 0
 --- !u!114 &8557487580331029529
@@ -63,8 +64,16 @@ MonoBehaviour:
   UIPanel: {fileID: 0}
   FixedModuleName: 
   activation: {fileID: 0}
-  dataField: {fileID: 0}
+  df: {fileID: 0}
+  animator: {fileID: 0}
+  loadAtStartup: 0
+  current_step: 0
+  precision: 0
+  byteswap: 0
+  header: 1
+  offsets: []
   filename: C:/Users/kawahara/Desktop/sample_little/dynamo.v5
+  v5file: 
 --- !u!114 &8557487580331029528
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -80,7 +89,7 @@ MonoBehaviour:
   dataType: 0
   dataLoaded: 0
   elements: []
---- !u!114 &100217894989591598
+--- !u!114 &4795315511997176777
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -89,7 +98,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 8557487580331029531}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2a8feef17161b5d4eae97f5fc532c44e, type: 3}
+  m_Script: {fileID: 11500000, guid: f0e602d050608ef49b71de49b9ee04f5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   active: 1
