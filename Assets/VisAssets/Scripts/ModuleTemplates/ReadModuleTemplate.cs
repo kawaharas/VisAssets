@@ -18,7 +18,7 @@ namespace VIS
 		[SerializeField]
 		public bool loadAtStartup = false;
 
-		public int current_step;
+		public int currentStep;
 
 		void Awake()
 		{
@@ -36,7 +36,7 @@ namespace VIS
 			}
 			df.dataType = DataField.DataType.RAW;
 
-			current_step = 0;
+			currentStep = 0;
 			var modules = GameObject.FindGameObjectsWithTag("VisModule");
 			for (int i = 0; i < modules.Length; i++)
 			{
@@ -49,7 +49,7 @@ namespace VIS
 //			animator = GameObject.Find("Animator");
 			if (animator != null)
 			{
-				current_step = animator.GetComponent<Animator>().currentStep;
+				currentStep = animator.GetComponent<Animator>().currentStep;
 			}
 		}
 
@@ -105,9 +105,9 @@ namespace VIS
 
 		public void SetStep(int step)
 		{
-			if (step != current_step)
+			if (step != currentStep)
 			{
-				current_step = step;
+				currentStep = step;
 				SetData(step);
 				SetParentChangedIntoAllChildren();
 			}

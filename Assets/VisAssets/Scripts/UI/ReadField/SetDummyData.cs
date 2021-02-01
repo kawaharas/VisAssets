@@ -22,7 +22,7 @@ namespace VIS
 			if (target != null)
 			{
 				fileSelector.GetComponent<CanvasGroup>().interactable = !value;
-				target.GetComponent<ReadField>().dummy_data = value;
+				target.GetComponent<ReadField>().useDummyData = value;
 			}
 		}
 	}

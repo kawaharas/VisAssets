@@ -941,12 +941,27 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 5371124302536753471, guid: 01ca1d71eced28d45a876569c39bb3a1,
         type: 3}
+      propertyPath: filename
+      value: sample3d3.txt
+      objectReference: {fileID: 0}
+    - target: {fileID: 5371124302536753471, guid: 01ca1d71eced28d45a876569c39bb3a1,
+        type: 3}
       propertyPath: dummy_data
       value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 5371124302536753471, guid: 01ca1d71eced28d45a876569c39bb3a1,
         type: 3}
+      propertyPath: useDummyData
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 5371124302536753471, guid: 01ca1d71eced28d45a876569c39bb3a1,
+        type: 3}
       propertyPath: loadAtStartup
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 5371124302536753471, guid: 01ca1d71eced28d45a876569c39bb3a1,
+        type: 3}
+      propertyPath: useEmbeddedData
       value: 1
       objectReference: {fileID: 0}
     m_RemovedComponents: []

@@ -58,7 +58,7 @@ namespace VIS
 				var label = new GUIContent("Channel " + i);
 				EditorGUILayout.BeginHorizontal();
 				channelStates[i] = EditorGUILayout.ToggleLeft(label, channelStates[i], GUILayout.Width(95f));
-				EditorGUI.BeginDisabledGroup(!channelStates[0]);
+				EditorGUI.BeginDisabledGroup(!channelStates[i]);
 				selectedChannels[i] = EditorGUILayout.Popup("", extractVector.channels[i], extractVector.varNames);
 				EditorGUI.EndDisabledGroup();
 				EditorGUILayout.EndHorizontal();

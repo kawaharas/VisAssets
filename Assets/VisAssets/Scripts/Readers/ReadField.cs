@@ -1,20 +1,85 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
-using UnityEngine;
-using UnityEngine.Networking;
-using System;
 using System.IO;
 using System.Text;
+using UnityEngine;
+using UnityEngine.Networking;
 using SimpleFileBrowser;
+#if UNITY_EDITOR
+using UnityEditor;
+using UnityEditor.Compilation;
+#endif
 
 namespace VIS
 {
 	using FieldType = DataElement.FieldType;
 
+#if UNITY_EDITOR
+	[CustomEditor(typeof(ReadField))]
+	public class ReadFieldEditor : Editor
+	{
+		SerializedProperty filename;
+		SerializedProperty loadAtStartup;
+		SerializedProperty useEmbeddedData;
+		SerializedProperty useDummyData;
+
+		public void OnEnable()
+		{
+			filename        = serializedObject.FindProperty("filename");
+			loadAtStartup   = serializedObject.FindProperty("loadAtStartup");
+			useEmbeddedData = serializedObject.FindProperty("useEmbeddedData");
+			useDummyData    = serializedObject.FindProperty("useDummyData");
+		}
+
+		public override void OnInspectorGUI()
+		{
+			var readField = target as ReadField;
+
+			serializedObject.Update();
+			EditorGUI.BeginChangeCheck();
+
+			EditorGUILayout.Space();
+			filename.stringValue = EditorGUILayout.TextField("Filename:", filename.stringValue);
+			GUILayout.Space(5f);
+			loadAtStartup.boolValue = EditorGUILayout.ToggleLeft("Load At Startup", loadAtStartup.boolValue);
+			GUILayout.Space(5f);
+			useEmbeddedData.boolValue = EditorGUILayout.ToggleLeft("Use Embedded Data", useEmbeddedData.boolValue);
+			GUILayout.Space(5f);
+
+			var message = new GUIContent("If you use an embedded data, it must be placed in \"Assets/StreamingAssets\".");
+			EditorGUILayout.BeginHorizontal(GUI.skin.box);
+			GUILayout.Space(5f);
+			GUIStyle style = new GUIStyle(GUI.skin.label);
+			style.alignment = TextAnchor.MiddleLeft;
+			style.wordWrap = true;
+			style.fontSize = 10;
+			style.CalcSize(message);
+			EditorGUILayout.LabelField(message, style);
+			GUILayout.Space(5f);
+			EditorGUILayout.EndHorizontal();
+
+			EditorGUI.BeginDisabledGroup(useEmbeddedData.boolValue);
+			useDummyData.boolValue = EditorGUILayout.ToggleLeft("Use Dummy Data", useDummyData.boolValue);
+			EditorGUI.EndDisabledGroup();
+			GUILayout.Space(5f);
+			readField.currentStep = EditorGUILayout.IntField("Current Step:", readField.currentStep);
+			EditorGUILayout.Space();
+
+			if (EditorGUI.EndChangeCheck())
+			{
+			}
+
+			serializedObject.ApplyModifiedProperties();
+		}
+	}
+#endif
+
 	public class ReadField : ReadModuleTemplate
 	{
-		public string filename = "C:/Temp/Sample3D3.txt";
-		public bool dummy_data = false;
+		public string filename = string.Empty;
+		public bool useDummyData;
+		public bool useEmbeddedData;
 		string textString = string.Empty;
 
 		public override void InitModule()
@@ -25,13 +90,20 @@ namespace VIS
 		{
 			int ret;
 
-			if (dummy_data)
+			if (useEmbeddedData)
 			{
-				ret = SetDummyData();
+				ret = ReadDataFile();
 			}
 			else
 			{
-				ret = ReadDataFile();
+				if (useDummyData)
+				{
+					ret = SetDummyData();
+				}
+				else
+				{
+					ret = ReadDataFile();
+				}
 			}
 
 			return ret;
@@ -43,7 +115,7 @@ namespace VIS
 
 		public void Exec()
 		{
-			if ((filename != "") || (dummy_data == true))
+			if ((filename != "") || (useDummyData == true))
 			{
 				activation.SetParameterChanged(1);
 			}
@@ -55,12 +127,30 @@ namespace VIS
 
 			if (Application.platform == RuntimePlatform.Android)
 			{
-				url = filename;
-				textString = FileBrowserHelpers.ReadTextFromFile(filename);
+				if (useEmbeddedData)
+				{
+					url = System.IO.Path.Combine(Application.streamingAssetsPath, filename);
+				}
+				else
+				{
+					url = filename;
+				}
+				textString = FileBrowserHelpers.ReadTextFromFile(url);
+
+//				url = filename;
+//				textString = FileBrowserHelpers.ReadTextFromFile(filename);
 			}
 			else
 			{
-				url = "file://" + filename;
+				if (useEmbeddedData)
+				{
+					url = System.IO.Path.Combine(Application.streamingAssetsPath, filename);
+				}
+				else
+				{
+					url = "file://" + filename;
+				}
+//				url = "file://" + filename;
 				var www = UnityWebRequest.Get(url);
 				yield return www.SendWebRequest();
 
@@ -195,7 +285,7 @@ namespace VIS
 			}
 			catch (IOException e)
 			{
-				Debug.Log("Exception : ");
+				Debug.Log("Exception : " + e);
 			}
 
 			df.CreateElements(vlen);
