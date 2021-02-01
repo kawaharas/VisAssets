@@ -1,16 +1,75 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
-using UnityEngine;
-using UnityEngine.Networking;
-using System;
 using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
+using UnityEngine;
+using UnityEngine.Networking;
 using SimpleFileBrowser;
+#if UNITY_EDITOR
+using UnityEditor;
+using UnityEditor.Compilation;
+#endif
 
 namespace VIS
 {
+#if UNITY_EDITOR
+	[CustomEditor(typeof(ReadGrADS))]
+	public class ReadGrADSEditor : Editor
+	{
+		SerializedProperty filename;
+		SerializedProperty loadAtStartup;
+		SerializedProperty useEmbeddedData;
+
+		public void OnEnable()
+		{
+			filename = serializedObject.FindProperty("filename");
+			loadAtStartup = serializedObject.FindProperty("loadAtStartup");
+			useEmbeddedData = serializedObject.FindProperty("useEmbeddedData");
+		}
+
+		public override void OnInspectorGUI()
+		{
+			var readField = target as ReadField;
+
+			serializedObject.Update();
+			EditorGUI.BeginChangeCheck();
+
+			EditorGUILayout.Space();
+			filename.stringValue = EditorGUILayout.TextField("Filename:", filename.stringValue);
+			GUILayout.Space(5f);
+			loadAtStartup.boolValue = EditorGUILayout.ToggleLeft("Load At Startup", loadAtStartup.boolValue);
+			GUILayout.Space(5f);
+			useEmbeddedData.boolValue = EditorGUILayout.ToggleLeft("Use Embedded Data", useEmbeddedData.boolValue);
+			GUILayout.Space(5f);
+
+			var message = new GUIContent("If you use an embedded data, it must be placed in \"Assets/StreamingAssets\".");
+			EditorGUILayout.BeginHorizontal(GUI.skin.box);
+			GUILayout.Space(5f);
+			GUIStyle style = new GUIStyle(GUI.skin.label);
+			style.alignment = TextAnchor.MiddleLeft;
+			style.wordWrap = true;
+			style.fontSize = 10;
+			style.CalcSize(message);
+			EditorGUILayout.LabelField(message, style);
+			GUILayout.Space(5f);
+			EditorGUILayout.EndHorizontal();
+
+			EditorGUILayout.Space();
+
+			if (EditorGUI.EndChangeCheck())
+			{
+			}
+
+			serializedObject.ApplyModifiedProperties();
+
+			base.OnInspectorGUI();
+		}
+	}
+#endif
+
 	public class ReadGrADS : ReadModuleTemplate
 	{
 		[SerializeField]
@@ -28,6 +87,7 @@ namespace VIS
 
 		public string filename = string.Empty;
 		public string ctlfile  = string.Empty;
+		public bool useEmbeddedData;
 		byte[] bytedata;
 
 		int[]  dims;
@@ -91,12 +151,26 @@ namespace VIS
 
 			if (Application.platform == RuntimePlatform.Android)
 			{
-				url = filename;
-				ctlfile = FileBrowserHelpers.ReadTextFromFile(filename);
+				if (useEmbeddedData)
+				{
+					url = System.IO.Path.Combine(Application.streamingAssetsPath, filename);
+				}
+				else
+				{
+					url = filename;
+				}
+				ctlfile = FileBrowserHelpers.ReadTextFromFile(url);
 			}
 			else
 			{
-				url = "file://" + filename;
+				if (useEmbeddedData)
+				{
+					url = System.IO.Path.Combine(Application.streamingAssetsPath, filename);
+				}
+				else
+				{
+					url = "file://" + filename;
+				}
 				var www = UnityWebRequest.Get(url);
 				yield return www.SendWebRequest();
 
@@ -117,13 +191,30 @@ namespace VIS
 
 		private IEnumerator ReadBinary(string filename, Action<byte[]> callback = null)
 		{
+			string url;
+
 			if (Application.platform == RuntimePlatform.Android)
 			{
-				bytedata = FileBrowserHelpers.ReadBytesFromFile(filename);
+				if (useEmbeddedData)
+				{
+					url = System.IO.Path.Combine(Application.streamingAssetsPath, filename);
+				}
+				else
+				{
+					url = filename;
+				}
+				bytedata = FileBrowserHelpers.ReadBytesFromFile(url);
 			}
 			else
 			{
-				string url = "file://" + filename;
+				if (useEmbeddedData)
+				{
+					url = System.IO.Path.Combine(Application.streamingAssetsPath, filename);
+				}
+				else
+				{
+					url = "file://" + filename;
+				}
 				var www = new UnityWebRequest(url);
 				www.downloadHandler = new DownloadHandlerBuffer();
 				yield return www.SendWebRequest();

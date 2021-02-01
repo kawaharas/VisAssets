@@ -136,9 +136,6 @@ namespace VIS
 					url = filename;
 				}
 				textString = FileBrowserHelpers.ReadTextFromFile(url);
-
-//				url = filename;
-//				textString = FileBrowserHelpers.ReadTextFromFile(filename);
 			}
 			else
 			{
@@ -150,7 +147,6 @@ namespace VIS
 				{
 					url = "file://" + filename;
 				}
-//				url = "file://" + filename;
 				var www = UnityWebRequest.Get(url);
 				yield return www.SendWebRequest();
 
