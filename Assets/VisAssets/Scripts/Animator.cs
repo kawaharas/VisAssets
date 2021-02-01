@@ -133,5 +133,15 @@ namespace VIS
 				}
 			}
 		}
+
+		public void TogglePlayState()
+		{
+			onPlay = !onPlay;
+		}
+
+		public void SetTimeOut(float value)
+		{
+			timeOut = value;
+		}
 	}
 }

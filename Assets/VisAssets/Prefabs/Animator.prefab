@@ -12,7 +12,7 @@ GameObject:
   - component: {fileID: 617888935430504443}
   m_Layer: 0
   m_Name: Animator
-  m_TagString: Untagged
+  m_TagString: VisModule
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -43,7 +43,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 21c746556b4077f43b489678409a308c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  UIPanel: {fileID: 0}
+  FixedModuleName: 
   timeOut: 0.5
   currentStep: 0
-  totalSteps: 5
+  maximumSteps: 1
   onPlay: 0
