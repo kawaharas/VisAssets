@@ -67,13 +67,14 @@ MonoBehaviour:
   df: {fileID: 0}
   animator: {fileID: 0}
   loadAtStartup: 0
-  current_step: 0
+  currentStep: 0
   precision: 0
   byteswap: 0
   header: 1
   offsets: []
   filename: C:/Users/kawahara/Desktop/sample_little/dynamo.v5
   v5file: 
+  useEmbeddedData: 0
 --- !u!114 &8557487580331029528
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -101,4 +102,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f0e602d050608ef49b71de49b9ee04f5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  obj: {fileID: 8557487580331029531}
+  startPosition: {x: 0, y: 0}
+  tx: 0
+  ty: 0
+  minScale: 1
+  maxScale: 5
+  scale: 1
+  IsDrag: 0
+  sensitivity: 5
+  InitScaleSet: 0
   active: 1

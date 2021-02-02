@@ -37,7 +37,11 @@ namespace VIS
 
 		void Update()
 		{
-			if (!active) return;
+			if (Application.platform != RuntimePlatform.Android)
+			{
+				if (!active) return;
+			}
+
 			var df = obj.GetComponent<DataField>();
 
 			if (df != null)

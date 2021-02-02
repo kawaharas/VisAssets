@@ -6,6 +6,12 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
-    path: Assets/VisAssets/Scenes/VisAssets.unity
-    guid: 4c945d0ad341d67469d5834eadff47d5
+    path: Assets/VisAssets/Scenes/ReadFieldSample.unity
+    guid: a13af4eb1056f864580d45842537c80e
+  - enabled: 0
+    path: Assets/VisAssets/Scenes/ReadGrADSSample.unity
+    guid: bd038fc0b0e0aaf419c552baef502ae9
+  - enabled: 0
+    path: Assets/VisAssets/Scenes/ReadV5Sample.unity
+    guid: 7e9933e336098854bacdd290f26b4970
   m_configObjects: {}

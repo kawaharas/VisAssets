@@ -10,6 +10,7 @@ using SimpleFileBrowser;
 using UnityEditor;
 using UnityEditor.Compilation;
 #endif
+using UnityEngine.UI;
 
 namespace VIS
 {
@@ -39,9 +40,9 @@ namespace VIS
 			serializedObject.Update();
 			EditorGUI.BeginChangeCheck();
 
-			EditorGUILayout.Space();
-			filename.stringValue = EditorGUILayout.TextField("Filename:", filename.stringValue);
-			GUILayout.Space(5f);
+			EditorGUILayout.LabelField("Filename:");
+			filename.stringValue = EditorGUILayout.TextField(filename.stringValue);
+			GUILayout.Space(10f);
 			loadAtStartup.boolValue = EditorGUILayout.ToggleLeft("Load At Startup", loadAtStartup.boolValue);
 			GUILayout.Space(5f);
 			useEmbeddedData.boolValue = EditorGUILayout.ToggleLeft("Use Embedded Data", useEmbeddedData.boolValue);
@@ -69,7 +70,6 @@ namespace VIS
 			if (EditorGUI.EndChangeCheck())
 			{
 			}
-
 			serializedObject.ApplyModifiedProperties();
 		}
 	}
@@ -81,6 +81,7 @@ namespace VIS
 		public bool useDummyData;
 		public bool useEmbeddedData;
 		string textString = string.Empty;
+		public string debugString = string.Empty;
 
 		public override void InitModule()
 		{
@@ -130,12 +131,26 @@ namespace VIS
 				if (useEmbeddedData)
 				{
 					url = System.IO.Path.Combine(Application.streamingAssetsPath, filename);
+					if (url.Contains("://"))
+					{
+						var www = new UnityWebRequest(url);
+						www.downloadHandler = new DownloadHandlerBuffer();
+						yield return www.SendWebRequest();
+						textString = www.downloadHandler.text;
+					}
+					else
+					{
+						textString = FileBrowserHelpers.ReadTextFromFile(url);
+					}
 				}
 				else
 				{
 					url = filename;
+					textString = FileBrowserHelpers.ReadTextFromFile(url);
 				}
-				textString = FileBrowserHelpers.ReadTextFromFile(url);
+				debugString += url + '\n';
+
+				UIPanel.transform.Find("DebugText").GetComponent<Text>().text = debugString;
 			}
 			else
 			{
@@ -147,6 +162,8 @@ namespace VIS
 				{
 					url = "file://" + filename;
 				}
+//				debugString += url;
+//				UIPanel.transform.Find("DebugText").GetComponent<Text>().text = debugString + '\n';
 				var www = UnityWebRequest.Get(url);
 				yield return www.SendWebRequest();
 

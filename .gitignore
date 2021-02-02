@@ -69,6 +69,7 @@ crashlytics-build.properties
 
 # Ignore Samples
 /[Aa]ssets/[Ss]treaming[Aa]ssets/example*
+/[Aa]ssets/[Ss]treaming[Aa]ssets/sample_little*
 
 # unused files
 /[Aa]ssets/VisAssets/Scenes/VisAssets*

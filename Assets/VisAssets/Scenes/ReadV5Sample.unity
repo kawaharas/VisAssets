@@ -409,7 +409,7 @@ PrefabInstance:
     - target: {fileID: 8557487580331029529, guid: f7d10cc3409e67e419e331aea7d63322,
         type: 3}
       propertyPath: filename
-      value: C:/Users/kawahara/Downloads/sample_little/dynamo.v5
+      value: sample_little/dynamo.v5
       objectReference: {fileID: 0}
     - target: {fileID: 8557487580331029529, guid: f7d10cc3409e67e419e331aea7d63322,
         type: 3}
@@ -418,13 +418,28 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8557487580331029529, guid: f7d10cc3409e67e419e331aea7d63322,
         type: 3}
+      propertyPath: debugString
+      value: 
+      objectReference: {fileID: 0}
+    - target: {fileID: 8557487580331029529, guid: f7d10cc3409e67e419e331aea7d63322,
+        type: 3}
       propertyPath: loadAtStartup
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 8557487580331029529, guid: f7d10cc3409e67e419e331aea7d63322,
+        type: 3}
+      propertyPath: useEmbeddedData
       value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 8557487580331029531, guid: f7d10cc3409e67e419e331aea7d63322,
         type: 3}
       propertyPath: m_Name
       value: ReadV5
+      objectReference: {fileID: 0}
+    - target: {fileID: 8557487580331029531, guid: f7d10cc3409e67e419e331aea7d63322,
+        type: 3}
+      propertyPath: m_IsActive
+      value: 1
       objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: f7d10cc3409e67e419e331aea7d63322, type: 3}

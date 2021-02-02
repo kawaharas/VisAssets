@@ -12,6 +12,7 @@ using SimpleFileBrowser;
 using UnityEditor;
 using UnityEditor.Compilation;
 #endif
+using UnityEngine.UI;
 
 namespace VIS
 {
@@ -37,9 +38,9 @@ namespace VIS
 			serializedObject.Update();
 			EditorGUI.BeginChangeCheck();
 
-			EditorGUILayout.Space();
-			filename.stringValue = EditorGUILayout.TextField("Filename:", filename.stringValue);
-			GUILayout.Space(5f);
+			EditorGUILayout.LabelField("Filename:");
+			filename.stringValue = EditorGUILayout.TextField(filename.stringValue);
+			GUILayout.Space(10f);
 			loadAtStartup.boolValue = EditorGUILayout.ToggleLeft("Load At Startup", loadAtStartup.boolValue);
 			GUILayout.Space(5f);
 			useEmbeddedData.boolValue = EditorGUILayout.ToggleLeft("Use Embedded Data", useEmbeddedData.boolValue);
@@ -53,6 +54,7 @@ namespace VIS
 			style.wordWrap = true;
 			style.fontSize = 10;
 			style.CalcSize(message);
+			GUI.backgroundColor = Color.white;
 			EditorGUILayout.LabelField(message, style);
 			GUILayout.Space(5f);
 			EditorGUILayout.EndHorizontal();
@@ -62,10 +64,7 @@ namespace VIS
 			if (EditorGUI.EndChangeCheck())
 			{
 			}
-
 			serializedObject.ApplyModifiedProperties();
-
-			base.OnInspectorGUI();
 		}
 	}
 #endif
@@ -83,8 +82,6 @@ namespace VIS
 		[SerializeField]
 		float minz, maxz;
 
-		string debugURL;
-
 		public string filename = string.Empty;
 		public string ctlfile  = string.Empty;
 		public bool useEmbeddedData;
@@ -100,6 +97,7 @@ namespace VIS
 		int header_size;
 
 		List<float>[] coords = new List<float>[4]; // 0:x, 1:y, 2:z, 3:(x, y, z)
+		public string debugString = string.Empty;
 
 		public enum Options
 		{
@@ -154,12 +152,26 @@ namespace VIS
 				if (useEmbeddedData)
 				{
 					url = System.IO.Path.Combine(Application.streamingAssetsPath, filename);
+					if (url.Contains("://"))
+					{
+						var www = new UnityWebRequest(url);
+						www.downloadHandler = new DownloadHandlerBuffer();
+						yield return www.SendWebRequest();
+						ctlfile = www.downloadHandler.text;
+					}
+					else
+					{
+						ctlfile = FileBrowserHelpers.ReadTextFromFile(url);
+					}
 				}
 				else
 				{
 					url = filename;
+					ctlfile = FileBrowserHelpers.ReadTextFromFile(url);
 				}
-				ctlfile = FileBrowserHelpers.ReadTextFromFile(url);
+				debugString += url + '\n';
+
+				UIPanel.transform.Find("DebugText").GetComponent<Text>().text = debugString;
 			}
 			else
 			{
@@ -198,12 +210,26 @@ namespace VIS
 				if (useEmbeddedData)
 				{
 					url = System.IO.Path.Combine(Application.streamingAssetsPath, filename);
+					if (url.Contains("://"))
+					{
+						var www = new UnityWebRequest(url);
+						www.downloadHandler = new DownloadHandlerBuffer();
+						yield return www.SendWebRequest();
+						bytedata = www.downloadHandler.data;
+					}
+					else
+					{
+						bytedata = FileBrowserHelpers.ReadBytesFromFile(url);
+					}
 				}
 				else
 				{
 					url = filename;
+					bytedata = FileBrowserHelpers.ReadBytesFromFile(url);
 				}
-				bytedata = FileBrowserHelpers.ReadBytesFromFile(url);
+				debugString += url + '\n';
+
+				UIPanel.transform.Find("DebugText").GetComponent<Text>().text = debugString;
 			}
 			else
 			{
@@ -218,6 +244,9 @@ namespace VIS
 				var www = new UnityWebRequest(url);
 				www.downloadHandler = new DownloadHandlerBuffer();
 				yield return www.SendWebRequest();
+				debugString += url + '\n';
+
+				UIPanel.transform.Find("DebugText").GetComponent<Text>().text = debugString;
 
 				if (www.isHttpError || www.isNetworkError)
 				{
@@ -265,8 +294,8 @@ namespace VIS
 			{
 				options[i] = false;
 			}
-
 			string filePath = System.IO.Path.GetDirectoryName(filename);
+
 //			MemoryStream memoryStream = new MemoryStream(Encoding.UTF8.GetBytes(ctlfile));
 			MemoryStream memoryStream = new MemoryStream();
 			StreamWriter writer = new StreamWriter(memoryStream);
@@ -376,15 +405,15 @@ namespace VIS
 			memoryStream.Close();
 
 			// merge coordinates to 4th list
-			for (int z = 0; z < dims[2]; z++)
+			for (int k = 0; k < dims[2]; k++)
 			{
-				for (int y = 0; y < dims[1]; y++)
+				for (int j = 0; j < dims[1]; j++)
 				{
-					for (int x = 0; x < dims[0]; x++)
+					for (int i = 0; i < dims[0]; i++)
 					{
-						coords[3].Add(coords[0][x]);
-						coords[3].Add(coords[1][y]);
-						coords[3].Add(coords[2][z]);
+						coords[3].Add(coords[0][i]);
+						coords[3].Add(coords[1][j]);
+						coords[3].Add(coords[2][k]);
 					}
 				}
 			}
@@ -393,8 +422,7 @@ namespace VIS
 
 			SetParamsToDataElements();
 
-			StartCoroutine(ReadBinary(datafile, ResponseCallbackBinary));
-			yield return StartCoroutine(ReadBinary(datafile));
+			yield return StartCoroutine(ReadBinary(datafile, ResponseCallbackBinary));
 
 			int step = 1;
 			SetData(step);
@@ -403,8 +431,6 @@ namespace VIS
 
 			// turn on flag when data loading is complete
 			df.dataLoaded = true;
-
-			yield return null;
 		}
 
 		private void SetParamsToDataElements()
@@ -606,24 +632,5 @@ namespace VIS
 				// return error_code
 			}
 		}
-/*
-		void OnGUI()
-		{
-			string debugString = "";
-			debugString += ctlfile + '\n';
-			debugString += debugURL + '\n';
-//			if (df.elements != null)
-			if (df.dataLoaded)
-			{
-					for (int i = 0; i < df.elements.Length; i++)
-				{
-					debugString += df.elements[i].varName + ", ";
-					debugString += "min: " + df.elements[i].min + ", ";
-					debugString += "max: " + df.elements[i].max + '\n';
-				}
-			}
-			GUI.TextArea(new Rect(0, 0, 500, 500), debugString);
-		}
-*/
 	}
 }

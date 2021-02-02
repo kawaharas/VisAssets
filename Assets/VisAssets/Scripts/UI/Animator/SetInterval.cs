@@ -10,7 +10,6 @@ namespace VIS.UI.Animator
 	public class SetInterval : MonoBehaviour
 	{
 		private GameObject target = null;
-		private bool playState = false;
 
 		void Start()
 		{

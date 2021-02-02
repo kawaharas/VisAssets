@@ -1,16 +1,92 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
-using UnityEngine;
-using UnityEngine.Networking;
-using System;
 using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
+using UnityEngine;
+using UnityEngine.Networking;
 using SimpleFileBrowser;
+#if UNITY_EDITOR
+using UnityEditor;
+using UnityEditor.Compilation;
+#endif
+using UnityEngine.UI;
 
 namespace VIS
 {
+#if UNITY_EDITOR
+	[CustomEditor(typeof(ReadV5))]
+	public class ReadV5Editor : Editor
+	{
+		SerializedProperty filename;
+		SerializedProperty precision;
+		SerializedProperty byteswap;
+		SerializedProperty header;
+		SerializedProperty loadAtStartup;
+		SerializedProperty useEmbeddedData;
+
+		public void OnEnable()
+		{
+			filename = serializedObject.FindProperty("filename");
+			precision = serializedObject.FindProperty("precision");
+			byteswap = serializedObject.FindProperty("byteswap");
+			header = serializedObject.FindProperty("header");
+			loadAtStartup = serializedObject.FindProperty("loadAtStartup");
+			useEmbeddedData = serializedObject.FindProperty("useEmbeddedData");
+		}
+
+		public override void OnInspectorGUI()
+		{
+			var readField = target as ReadField;
+
+			serializedObject.Update();
+			EditorGUI.BeginChangeCheck();
+
+			EditorGUILayout.Space();
+			EditorGUILayout.LabelField("Filename:");
+			filename.stringValue = EditorGUILayout.TextField(filename.stringValue);
+			GUILayout.Space(10f);
+			var label = new GUIContent("Precision:");
+			EditorGUILayout.PropertyField(precision, label, true);
+			GUILayout.Space(5f);
+			EditorGUILayout.BeginHorizontal();
+			GUILayout.Space(10.0f);
+			byteswap.boolValue = EditorGUILayout.ToggleLeft("Byteswap", byteswap.boolValue, GUILayout.MaxWidth(100.0f));
+			header.boolValue = EditorGUILayout.ToggleLeft("Header", header.boolValue, GUILayout.MaxWidth(100.0f));
+			GUILayout.FlexibleSpace();
+			EditorGUILayout.EndHorizontal();
+
+			GUILayout.Space(10f);
+
+			loadAtStartup.boolValue = EditorGUILayout.ToggleLeft("Load At Startup", loadAtStartup.boolValue);
+			GUILayout.Space(5f);
+			useEmbeddedData.boolValue = EditorGUILayout.ToggleLeft("Use Embedded Data", useEmbeddedData.boolValue);
+			GUILayout.Space(5f);
+
+			var message = new GUIContent("If you use an embedded data, it must be placed in \"Assets/StreamingAssets\".");
+			EditorGUILayout.BeginHorizontal(GUI.skin.box);
+			GUILayout.Space(5f);
+			GUIStyle style = new GUIStyle(GUI.skin.label);
+			style.alignment = TextAnchor.MiddleLeft;
+			style.wordWrap = true;
+			style.fontSize = 10;
+			style.CalcSize(message);
+			EditorGUILayout.LabelField(message, style);
+			GUILayout.Space(5f);
+			EditorGUILayout.EndHorizontal();
+
+			EditorGUILayout.Space();
+
+			if (EditorGUI.EndChangeCheck())
+			{
+			}
+			serializedObject.ApplyModifiedProperties();
+		}
+	}
+#endif
+
 	public class ReadV5 : ReadModuleTemplate
 	{
 		public enum PRECISION
@@ -19,26 +95,23 @@ namespace VIS
 			DOUBLE
 		};
 
-		[SerializeField]
+		public string filename = string.Empty;
 		public PRECISION precision = PRECISION.DOUBLE;
-		[SerializeField]
 		public bool byteswap = false;
-		[SerializeField]
 		public bool header = true; // true: with header, false: without header
-		[SerializeField]
-		public float[] offsets;
+		public bool useEmbeddedData;
+
+		string v5file;
+		byte[] bytedata;
+
+		float[] offsets;
 		float scale;
 		float[] axis_width;
 		float minx, maxx;
 		float miny, maxy;
 		float minz, maxz;
 
-		string debugURL;
-
-		public string filename = "C:/Temp/sample_little/dynamo.v5";
-		public string v5file   = string.Empty;
-		byte[] bytedata;
-		string datafile;
+		string debugString = string.Empty;
 
 		public override void InitModule()
 		{
@@ -77,8 +150,8 @@ namespace VIS
 			List<string> label = new List<string>();
 			List<string> datafile = new List<string>();
 			string[] coordfile = new string[3];
-
 			string filePath = System.IO.Path.GetDirectoryName(filename);
+
 			MemoryStream memoryStream = new MemoryStream();
 			StreamWriter writer = new StreamWriter(memoryStream);
 			writer.Write(v5file);
@@ -100,7 +173,6 @@ namespace VIS
 					else if (keyword.Contains("SCAL") && keyword.IndexOf("SCAL") == 0)
 					{
 						string indexString = Regex.Replace(keyword, @"[^0-9]", "");
-						//							string indexString = keyword.Replace("SCAL", "").Replace("_LABEL", "");
 						int index = Convert.ToInt32(indexString);
 						if (keyword.Contains("_LABEL"))
 						{
@@ -108,7 +180,14 @@ namespace VIS
 						}
 						else
 						{
-							datafile.Add((filePath + '/' + stringList[1]).Replace('\\', '/'));
+							var tmpStr = string.Empty;
+							if (stringList[1].StartsWith("./"))
+							{
+								tmpStr = stringList[1].Remove(0, 2);
+								stringList[1] = tmpStr;
+							}
+							tmpStr = (filePath + '/' + stringList[1]).Replace('\\', '/');
+							datafile.Add(tmpStr);
 						}
 					}
 					else if (keyword.Contains("VECT") && keyword.IndexOf("VECT") == 0)
@@ -140,6 +219,12 @@ namespace VIS
 						}
 						else
 						{
+							var tmpStr = string.Empty;
+							if (stringList[1].StartsWith("./"))
+							{
+								tmpStr = stringList[1].Remove(0, 2);
+								stringList[1] = tmpStr;
+							}
 							datafile.Add((filePath + '/' + stringList[1]).Replace('\\', '/'));
 						}
 					}
@@ -173,12 +258,27 @@ namespace VIS
 								vectors = Convert.ToInt32(stringList[1]);
 								break;
 							case "XFILE":
+								if (stringList[1].StartsWith("./"))
+								{
+									var tmpStr = stringList[1].Remove(0, 2);
+									stringList[1] = tmpStr;
+								}
 								coordfile[0] = (filePath + '/' + stringList[1]).Replace('\\', '/');
-							break;
+								break;
 							case "YFILE":
+								if (stringList[1].StartsWith("./"))
+								{
+									var tmpStr = stringList[1].Remove(0, 2);
+									stringList[1] = tmpStr;
+								}
 								coordfile[1] = (filePath + '/' + stringList[1]).Replace('\\', '/');
 								break;
 							case "ZFILE":
+								if (stringList[1].StartsWith("./"))
+								{
+									var tmpStr = stringList[1].Remove(0, 2);
+									stringList[1] = tmpStr;
+								}
 								coordfile[2] = (filePath + '/' + stringList[1]).Replace('\\', '/');
 								break;
 							default:
@@ -188,6 +288,7 @@ namespace VIS
 				}
 			}
 			streamReader.Close();
+			memoryStream.Close();
 
 			List<float>[] coords = new List<float>[4]; // 0:x, 1:y, 2:z, 3:(x, y, z)
 			List<Vector3> coords3d = new List<Vector3>();
@@ -214,7 +315,9 @@ namespace VIS
 					}
 				}
 			}
+
 			df.CreateElements(datafile.Count);
+
 			for (int i = 0; i < datafile.Count; i++)
 			{
 				df.elements[i].SetDims(dims[0], dims[1], dims[2]);
@@ -256,6 +359,8 @@ namespace VIS
 				child.gameObject.transform.localPosition = new Vector3(-offsets[0], -offsets[1], offsets[2]);
 			}
 			transform.localScale = new Vector3(scale, scale, -scale);
+
+			// turn on flag when data loading is complete
 			df.dataLoaded = true;
 		}
 
@@ -265,12 +370,40 @@ namespace VIS
 
 			if (Application.platform == RuntimePlatform.Android)
 			{
-				url = filename;
-				v5file = FileBrowserHelpers.ReadTextFromFile(filename);
+				if (useEmbeddedData)
+				{
+					url = System.IO.Path.Combine(Application.streamingAssetsPath, filename);
+					if (url.Contains("://"))
+					{
+						var www = new UnityWebRequest(url);
+						www.downloadHandler = new DownloadHandlerBuffer();
+						yield return www.SendWebRequest();
+						v5file = www.downloadHandler.text;
+					}
+					else
+					{
+						v5file = FileBrowserHelpers.ReadTextFromFile(url);
+					}
+				}
+				else
+				{
+					url = filename;
+					v5file = FileBrowserHelpers.ReadTextFromFile(url);
+				}
+				debugString += url + '\n';
+
+				UIPanel.transform.Find("DebugText").GetComponent<Text>().text = debugString;
 			}
 			else
 			{
-				url = "file://" + filename;
+				if (useEmbeddedData)
+				{
+					url = System.IO.Path.Combine(Application.streamingAssetsPath, filename);
+				}
+				else
+				{
+					url = "file://" + filename;
+				}
 				var www = UnityWebRequest.Get(url);
 				yield return www.SendWebRequest();
 
@@ -291,16 +424,50 @@ namespace VIS
 
 		private IEnumerator ReadBinary(string filename, Action<byte[]> callback = null)
 		{
+			string url;
+
 			if (Application.platform == RuntimePlatform.Android)
 			{
-				bytedata = FileBrowserHelpers.ReadBytesFromFile(filename);
+				if (useEmbeddedData)
+				{
+					url = System.IO.Path.Combine(Application.streamingAssetsPath, filename);
+					if (url.Contains("://"))
+					{
+						var www = new UnityWebRequest(url);
+						www.downloadHandler = new DownloadHandlerBuffer();
+						yield return www.SendWebRequest();
+						bytedata = www.downloadHandler.data;
+					}
+					else
+					{
+						bytedata = FileBrowserHelpers.ReadBytesFromFile(url);
+					}
+				}
+				else
+				{
+					url = filename;
+					bytedata = FileBrowserHelpers.ReadBytesFromFile(url);
+				}
+				debugString += url + '\n';
+
+				UIPanel.transform.Find("DebugText").GetComponent<Text>().text = debugString;
 			}
 			else
 			{
-				string url = "file://" + filename;
+				if (useEmbeddedData)
+				{
+					url = System.IO.Path.Combine(Application.streamingAssetsPath, filename).Replace('\\', '/');
+				}
+				else
+				{
+					url = "file://" + filename;
+				}
 				var www = new UnityWebRequest(url);
 				www.downloadHandler = new DownloadHandlerBuffer();
 				yield return www.SendWebRequest();
+				debugString += url + '\n';
+
+				UIPanel.transform.Find("DebugText").GetComponent<Text>().text = debugString;
 
 				if (www.isHttpError || www.isNetworkError)
 				{
@@ -327,12 +494,13 @@ namespace VIS
 			bytedata = inputdata;
 		}
 
-		private void ReadData(string filename, List<float> v, int size, bool header = true, bool byteswap = false)
+		private IEnumerator LoadBinaryData(string filename, List<float> v, int size, bool header = true, bool byteswap = false)
 		{
-			if (File.Exists(filename))
+			yield return StartCoroutine(ReadBinary(filename, ResponseCallbackBinary));
+
+			using (MemoryStream memoryStream = new MemoryStream(bytedata))
+			using (BinaryReader reader = new BinaryReader(memoryStream))
 			{
-				var stream = new FileStream(filename, FileMode.Open, FileAccess.Read);
-				var reader = new BinaryReader(stream);
 				if (reader != null)
 				{
 					if (header)
@@ -356,107 +524,49 @@ namespace VIS
 					{
 						Debug.Log("ERROR: Failed to load data.");
 					}
+
 					for (int n = 0; n < size; n++)
 					{
-						if (byteswap)
-						{
-							Array.Reverse(buffer, n * dataLength, dataLength);
-						}
 						float value = 0f;
 						if (precision == PRECISION.SINGLE)
 						{
-							value = BitConverter.ToSingle(buffer, n * dataLength);
+							if (byteswap)
+							{
+								byte[] tmp = new byte[4];
+								tmp[3] = buffer[n * dataLength + 0];
+								tmp[2] = buffer[n * dataLength + 1];
+								tmp[1] = buffer[n * dataLength + 2];
+								tmp[0] = buffer[n * dataLength + 3];
+								value = (float)BitConverter.ToDouble(tmp, 0);
+							}
+							else
+							{
+								value = BitConverter.ToSingle(buffer, n * dataLength);
+							}
 						}
 						else
 						{
-							value = (float)BitConverter.ToDouble(buffer, n * dataLength);
+							if (byteswap)
+							{
+								byte[] tmp = new byte[8];
+								tmp[7] = buffer[n * dataLength + 0];
+								tmp[6] = buffer[n * dataLength + 1];
+								tmp[5] = buffer[n * dataLength + 2];
+								tmp[4] = buffer[n * dataLength + 3];
+								tmp[3] = buffer[n * dataLength + 4];
+								tmp[2] = buffer[n * dataLength + 5];
+								tmp[1] = buffer[n * dataLength + 6];
+								tmp[0] = buffer[n * dataLength + 7];
+								value = (float)BitConverter.ToDouble(tmp, 0);
+							}
+							else
+							{
+								value = (float)BitConverter.ToDouble(buffer, n * dataLength);
+							}
 						}
 						v.Add(value);
 					}
-
-					reader.Close();
 				}
-			}
-		}
-
-		private IEnumerator LoadBinaryData(string filename, List<float> v, int size, bool header = true, bool byteswap = false)
-		{
-			StartCoroutine(ReadBinary(filename, ResponseCallbackBinary));
-			yield return StartCoroutine(ReadBinary(filename));
-
-			var stream = new FileStream(filename, FileMode.Open, FileAccess.Read);
-			var reader = new BinaryReader(stream);
-			if (reader != null)
-			{
-				if (header)
-				{
-					// read record length of fortran file (unformatted-sequential).
-					var bytes = reader.ReadBytes(4);
-					// byteswap is necessary because the record length of VFIVE sample data
-					// (little-endian ver.) is big-endian.
-					Array.Reverse(bytes);
-					uint record = BitConverter.ToUInt32(bytes, 0);
-				}
-
-				int dataLength = sizeof(float);
-				if (precision == PRECISION.DOUBLE)
-				{
-					dataLength = sizeof(double);
-				}
-				var buffer = new byte[size * dataLength];
-				var length = reader.Read(buffer, 0, size * dataLength);
-				if (length != size * dataLength)
-				{
-					Debug.Log("ERROR: Failed to load data.");
-				}
-
-				for (int n = 0; n < size; n++)
-				{
-					if (byteswap)
-					{
-//						Array.Reverse(buffer, n * dataLength, dataLength);
-					}
-					float value = 0f;
-					if (precision == PRECISION.SINGLE)
-					{
-						if (byteswap)
-						{
-							byte[] tmp = new byte[4];
-							tmp[3] = buffer[n * dataLength + 0];
-							tmp[2] = buffer[n * dataLength + 1];
-							tmp[1] = buffer[n * dataLength + 2];
-							tmp[0] = buffer[n * dataLength + 3];
-							value = (float)BitConverter.ToDouble(tmp, 0);
-						}
-						else
-						{
-							value = BitConverter.ToSingle(buffer, n * dataLength);
-						}
-					}
-					else
-					{
-						if (byteswap)
-						{
-							byte[] tmp = new byte[8];
-							tmp[7] = buffer[n * dataLength + 0];
-							tmp[6] = buffer[n * dataLength + 1];
-							tmp[5] = buffer[n * dataLength + 2];
-							tmp[4] = buffer[n * dataLength + 3];
-							tmp[3] = buffer[n * dataLength + 4];
-							tmp[2] = buffer[n * dataLength + 5];
-							tmp[1] = buffer[n * dataLength + 6];
-							tmp[0] = buffer[n * dataLength + 7];
-							value = (float)BitConverter.ToDouble(tmp, 0);
-						}
-						else
-						{
-							value = (float)BitConverter.ToDouble(buffer, n * dataLength);
-						}
-					}
-					v.Add(value);
-				}
-
-				reader.Close();
 			}
 		}
 	}
