@@ -104,22 +104,12 @@ namespace VIS
 		string v5file;
 		byte[] bytedata;
 
-		float[] offsets;
-		float scale;
-		float[] axis_width;
-		float minx, maxx;
-		float miny, maxy;
-		float minz, maxz;
-
 		string debugString = string.Empty;
 
 		public override void InitModule()
 		{
-			offsets = new float[3];
-			axis_width  = new float[3];
-
 			// upper direction is defined as z-axis in VFIVE.
-//			transform.rotation = Quaternion.AngleAxis(-90, new Vector3(1, 0, 0));
+			transform.rotation = Quaternion.AngleAxis(90, new Vector3(1, 0, 0));
 		}
 
 		public override int BodyFunc()
@@ -178,6 +168,14 @@ namespace VIS
 						{
 							label.Add(stringList[1]);
 						}
+						else if (keyword.Contains("SCALMIN"))
+						{
+							// not implemented yet
+						}
+						else if (keyword.Contains("SCALMAX"))
+						{
+							// not implemented yet
+						}
 						else
 						{
 							var tmpStr = string.Empty;
@@ -216,6 +214,14 @@ namespace VIS
 							label.Add(stringList[1] + " (U)");
 							label.Add(stringList[1] + " (V)");
 							label.Add(stringList[1] + " (W)");
+						}
+						else if (keyword.Contains("VECTMIN"))
+						{
+							// not implemented yet
+						}
+						else if (keyword.Contains("VECTMAX"))
+						{
+							// not implemented yet
 						}
 						else
 						{
@@ -316,8 +322,8 @@ namespace VIS
 				}
 			}
 
+			// set data to datafield
 			df.CreateElements(datafile.Count);
-
 			for (int i = 0; i < datafile.Count; i++)
 			{
 				df.elements[i].SetDims(dims[0], dims[1], dims[2]);
@@ -333,35 +339,10 @@ namespace VIS
 				df.elements[i].SetActive(true);
 			}
 
-			// calculate offsets and the normalized scale
-			float max = float.MinValue;
-			for (int i = 0; i < 3; i++)
-			{
-				axis_width[i] = coords[i][dims[i] - 1] - coords[i][0];
-				if (max < axis_width[i])
-				{
-					max = axis_width[i];
-				}
-				offsets[i] = coords[i][0] + (coords[i][dims[i] - 1] - coords[i][0]) / 2f;
-			}
-			minx = coords[0][0];
-			miny = coords[1][0];
-			minz = coords[2][0];
-			maxx = coords[0][dims[0] - 1];
-			maxy = coords[1][dims[1] - 1];
-			maxz = coords[2][dims[2] - 1];
-			if (scale == 0)
-			{
-				scale = 1f / max * 6f;
-			}
-			foreach (Transform child in transform)
-			{
-				child.gameObject.transform.localPosition = new Vector3(-offsets[0], -offsets[1], offsets[2]);
-			}
-			transform.localScale = new Vector3(scale, scale, -scale);
-
 			// turn on flag when data loading is complete
 			df.dataLoaded = true;
+
+			Centering(true);
 		}
 
 		private IEnumerator ReadV5File(string filename, Action<string> callback = null)
@@ -457,11 +438,17 @@ namespace VIS
 				if (useEmbeddedData)
 				{
 					url = System.IO.Path.Combine(Application.streamingAssetsPath, filename).Replace('\\', '/');
+//				Debug.Log(Application.streamingAssetsPath + filename);
+					url = Application.streamingAssetsPath + filename;
+#if UNITY_EDITOR
+					url = "file://" + Application.streamingAssetsPath + filename;
+#endif
 				}
 				else
 				{
 					url = "file://" + filename;
 				}
+				Debug.Log(url);
 				var www = new UnityWebRequest(url);
 				www.downloadHandler = new DownloadHandlerBuffer();
 				yield return www.SendWebRequest();
@@ -568,6 +555,13 @@ namespace VIS
 					}
 				}
 			}
+		}
+
+		public void SetPrecision(int mode)
+		{
+			precision = (PRECISION)mode;
+
+			ParameterChanged();
 		}
 	}
 }

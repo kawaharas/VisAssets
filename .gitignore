@@ -70,6 +70,8 @@ crashlytics-build.properties
 # Ignore Samples
 /[Aa]ssets/[Ss]treaming[Aa]ssets/example*
 /[Aa]ssets/[Ss]treaming[Aa]ssets/sample_little*
+/[Aa]ssets/[Ss]treaming[Aa]ssets/mm21*
+/[Aa]ssets/[Ss]treaming[Aa]ssets/deiki_park*
 
 # unused files
 /[Aa]ssets/VisAssets/Scenes/VisAssets*
@@ -83,3 +85,6 @@ crashlytics-build.properties
 
 # working files
 /[Aa]ssets/VisAssets/Scripts/Readers/ReadAVS*
+
+# 3-D models for test
+/[Aa]ssets/[Mm]odels*

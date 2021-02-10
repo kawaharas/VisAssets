@@ -68,12 +68,10 @@ MonoBehaviour:
   animator: {fileID: 0}
   loadAtStartup: 0
   currentStep: 0
+  filename: C:/Users/kawahara/Desktop/sample_little/dynamo.v5
   precision: 0
   byteswap: 0
   header: 1
-  offsets: []
-  filename: C:/Users/kawahara/Desktop/sample_little/dynamo.v5
-  v5file: 
   useEmbeddedData: 0
 --- !u!114 &8557487580331029528
 MonoBehaviour:
@@ -106,7 +104,7 @@ MonoBehaviour:
   startPosition: {x: 0, y: 0}
   tx: 0
   ty: 0
-  minScale: 1
+  minScale: 0.5
   maxScale: 5
   scale: 1
   IsDrag: 0

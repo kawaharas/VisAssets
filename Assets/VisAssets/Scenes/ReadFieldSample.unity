@@ -889,6 +889,11 @@ PrefabInstance:
       propertyPath: useEmbeddedData
       value: 1
       objectReference: {fileID: 0}
+    - target: {fileID: 8195596288451878298, guid: 01ca1d71eced28d45a876569c39bb3a1,
+        type: 3}
+      propertyPath: obj
+      value: 
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 01ca1d71eced28d45a876569c39bb3a1, type: 3}
 --- !u!1001 &2047812100

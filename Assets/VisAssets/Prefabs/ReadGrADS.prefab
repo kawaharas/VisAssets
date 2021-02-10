@@ -78,6 +78,7 @@ MonoBehaviour:
   filename: C:/Users/kawahara/Downloads/example/model.ctl
   ctlfile: 
   useEmbeddedData: 0
+  debugString: 
 --- !u!114 &8519707624033109254
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -109,7 +110,7 @@ MonoBehaviour:
   startPosition: {x: 0, y: 0}
   tx: 0
   ty: 0
-  minScale: 1
+  minScale: 0.5
   maxScale: 5
   scale: 1
   IsDrag: 0

@@ -71,6 +71,7 @@ MonoBehaviour:
   filename: 
   useDummyData: 0
   useEmbeddedData: 0
+  debugString: 
 --- !u!114 &980028169445324378
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -99,10 +100,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   obj: {fileID: 2236395068244410446, guid: 181ca4f4d435ec34e9c94598cf4769db, type: 3}
-  startPosition: {x: 0, y: 0}
-  tx: 0
-  ty: 0
-  minScale: 1
+  minScale: 0.5
   maxScale: 5
   scale: 1
   IsDrag: 0

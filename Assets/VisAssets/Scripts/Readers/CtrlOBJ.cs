@@ -9,13 +9,12 @@ namespace VIS
 		public GameObject obj;
 
 		// for rotation
-		public Vector2 startPosition; // screen position when touched
-		Quaternion startRotation;     // rotation when touched
-		float w, h, d;                // screen size
-		public float tx, ty;
+		Vector2    startPosition;  // screen position when touched
+		Quaternion startRotation;  // rotation when touched
+		float w, h, d;             // screen size
 
 		// for pinch-in and pinch-out
-		public float minScale = 1.0f;
+		public float minScale = 0.5f;
 		public float maxScale = 5.0f;
 		float dist = 0.0f;
 		float prev_dist = 0.0f;
@@ -67,12 +66,12 @@ namespace VIS
 					}
 					if (IsDrag)
 					{
-						tx = (Input.mousePosition.x - startPosition.x) / w * sensitivity;
-						ty = (Input.mousePosition.y - startPosition.y) / h * sensitivity;
+						float tx = (Input.mousePosition.x - startPosition.x) / w * sensitivity;
+						float ty = (Input.mousePosition.y - startPosition.y) / h * sensitivity;
 						obj.transform.rotation = startRotation;
 						obj.transform.Rotate(new Vector3(90 * ty, -90 * tx, 0), Space.World);
 					}
-					scale -= Input.mouseScrollDelta.y * 0.1f;
+					scale += Input.mouseScrollDelta.y * 0.1f;
 					scale = Mathf.Clamp(scale, minScale, maxScale);
 					obj.transform.localScale = initScale * scale;
 
@@ -87,8 +86,8 @@ namespace VIS
 						}
 						else if ((t1.phase == TouchPhase.Moved) || (t1.phase == TouchPhase.Stationary))
 						{
-							tx = (t1.position.x - startPosition.x) / w * sensitivity;
-							ty = (t1.position.y - startPosition.y) / h * sensitivity;
+							float tx = (t1.position.x - startPosition.x) / w * sensitivity;
+							float ty = (t1.position.y - startPosition.y) / h * sensitivity;
 							obj.transform.rotation = startRotation;
 							obj.transform.Rotate(new Vector3(90 * ty, -90 * tx, 0), Space.World);
 						}

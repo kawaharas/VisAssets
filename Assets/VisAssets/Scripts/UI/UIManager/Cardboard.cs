@@ -18,8 +18,8 @@ namespace VIS
 		{
 			if (XRSettings.enabled == false)
 			{
-				Camera.main.GetComponent<Transform>().localRotation =
-					InputTracking.GetLocalRotation(XRNode.CenterEye);
+//				Camera.main.GetComponent<Transform>().localRotation =
+//					InputTracking.GetLocalRotation(XRNode.CenterEye);
 			}
 		}
 

@@ -122,6 +122,53 @@ namespace VIS
 			}
 		}
 
+		public void Centering(bool normalize = false)
+		{
+			// calculate offsets and scale for normalizing
+			if (!df.dataLoaded) return;
+
+			float[] offset = new float[3];
+			float[] min = new float[3];
+			float[] max = new float[3];
+			float maxDist = float.MinValue;
+
+			for (int i = 0; i < 3; i++)
+			{
+				min[i] = float.MaxValue;
+				max[i] = float.MinValue;
+			}
+
+			for (int n = 0; n < df.elements.Length; n++)
+			{
+				DataElement element = df.elements[n];
+
+				for (int i = 0; i < 3; i++)
+				{
+					min[i] = Mathf.Min(min[i], element.coords[i][0]);
+					max[i] = Mathf.Max(max[i], element.coords[i][element.dims[i] - 1]);
+					maxDist = Mathf.Max(maxDist, max[i] - min[i]);
+				}
+			}
+
+			for (int i = 0; i < 3; i++)
+			{
+				offset[i] = min[i] + (max[i] - min[i]) / 2f;
+			}
+
+			foreach (Transform child in transform)
+			{
+				child.gameObject.transform.localPosition =
+					new Vector3(-offset[0], -offset[1], -offset[2]);
+			}
+
+			if (normalize)
+			{
+				float scale = 1f / maxDist * 10f;
+				// unity is left-handed coordinate system
+				transform.localScale = new Vector3(scale, scale, -scale);
+			}
+		}
+
 		public virtual void InitModule()
 		{
 		}
