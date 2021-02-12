@@ -216,7 +216,6 @@ namespace VIS
 				using (StreamReader streamReader = new StreamReader(memoryStream))
 				{
 					string line = streamReader.ReadLine();
-					Debug.Log(line);
 					string[] stringList = line.Split(',');
 					ndim = stringList.Length;
 					int size = 1;
@@ -230,7 +229,6 @@ namespace VIS
 					for (int i = 0; i < size; i++)
 					{
 						line = streamReader.ReadLine();
-						Debug.Log(line);
 						stringList = line.Split(',');
 						column = stringList.Length;
 						if (i == 0)

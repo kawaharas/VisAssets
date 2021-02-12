@@ -69,6 +69,7 @@ namespace VIS
 
 		public GameObject moduleSelector;
 		public GameObject paramChanger;
+		public GameObject laserPointer;
 
 		enum ModuleName
 		{
@@ -107,6 +108,8 @@ namespace VIS
 			{
 				var canvas = this.transform.Find("Canvas");
 				canvas.gameObject.SetActive(false);
+
+				SetupPointer();
 			}
 
 			supportedDevices = XRSettings.supportedDevices;
@@ -121,15 +124,13 @@ namespace VIS
 		{
 			if (XRSettings.enabled)
 			{
-				var inputDevices = new List<UnityEngine.XR.InputDevice>();
-				UnityEngine.XR.InputDevices.GetDevicesAtXRNode(UnityEngine.XR.XRNode.RightHand, inputDevices);
+				var inputDevices = new List<InputDevice>();
+				InputDevices.GetDevicesAtXRNode(XRNode.RightHand, inputDevices);
 				foreach (var device in inputDevices)
 				{
 					// joystick
-					if (device.TryGetFeatureValue(UnityEngine.XR.CommonUsages.primary2DAxis, out Vector2 position))
+					if (device.TryGetFeatureValue(CommonUsages.primary2DAxis, out Vector2 position))
 					{
-						Debug.Log("Joystick : " + position.x + "," + position.y);
-
 						GameObject[] gos = GameObject.FindGameObjectsWithTag("VisModule");
 						for (int i = 0; i < gos.Length; i++)
 						{
@@ -155,7 +156,7 @@ namespace VIS
 					}
 
 					// button
-					if (device.TryGetFeatureValue(UnityEngine.XR.CommonUsages.primaryButton, out inputValue) && inputValue)
+					if (device.TryGetFeatureValue(CommonUsages.primaryButton, out inputValue) && inputValue)
 					{
 						if (ButtonA == ButtonState.RELEASED)
 						{
@@ -167,7 +168,6 @@ namespace VIS
 						{
 							ButtonA = ButtonState.KEEP_PRESSING;
 						}
-						Debug.Log("Trigger button is pressed.");
 					}
 					else
 					{
@@ -176,6 +176,16 @@ namespace VIS
 						ButtonA = ButtonState.RELEASED;
 					}
 				}
+
+				if (ButtonA == ButtonState.PRESSED)
+				{
+					laserPointer.SetActive(true);
+				}
+				else if (ButtonA == ButtonState.RELEASED)
+				{
+					laserPointer.SetActive(false);
+				}
+				DrawPointer();
 			}
 
 			if (Application.platform == RuntimePlatform.Android)
@@ -256,6 +266,49 @@ namespace VIS
 				rectTransform.localRotation = direction;
 				rectTransform.sizeDelta = new Vector2(100, 100);
 				rectTransform.localScale = new Vector3(0.015f, 0.015f, 0.015f);
+			}
+		}
+
+		void SetupPointer()
+		{
+			if (laserPointer != null)
+			{
+				laserPointer.SetActive(false);
+				var renderer = laserPointer.GetComponent<LineRenderer>();
+				var material = renderer.material;
+				material.SetOverrideTag("RenderType", "Transparent");
+				material.SetColor("_Color", Color.red);
+				material.SetFloat("_Alpha", 200f);
+				material.SetFloat("_Emmision", 0.5f);
+			}
+		}
+
+		void DrawPointer()
+		{
+			if (laserPointer != null)
+			{
+				var inputDevices = new List<InputDevice>();
+				InputDevices.GetDevicesAtXRNode(XRNode.RightHand, inputDevices);
+				foreach (var device in inputDevices)
+				{
+					Vector3 origin;
+					Quaternion quaternion;
+					device.TryGetFeatureValue(CommonUsages.devicePosition, out origin);
+					device.TryGetFeatureValue(CommonUsages.deviceRotation, out quaternion);
+					var camera = Camera.main;
+					origin += camera.transform.position;
+					Vector3 tip = origin + quaternion * new Vector3(0f, 0f, 10f);
+					var renderer = laserPointer.GetComponent<LineRenderer>();
+					renderer.useWorldSpace = true;
+					renderer.SetPosition(0, origin);
+					renderer.SetPosition(1, tip);
+					renderer.startWidth = 0.01f;
+					renderer.endWidth = 0.01f;
+					RaycastHit hitInfo;
+					float distance = 10f;
+					Physics.Raycast(origin, quaternion.eulerAngles, out hitInfo, distance, 0);
+//					Debug.Log(hitInfo.collider.gameObject.name);
+				}
 			}
 		}
 	}
