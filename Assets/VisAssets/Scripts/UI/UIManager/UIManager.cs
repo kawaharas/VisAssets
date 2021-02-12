@@ -45,6 +45,13 @@ namespace VIS
 
 	public class UIManager : MonoBehaviour
 	{
+		public enum ButtonState
+		{
+			RELEASED,
+			PRESSED,
+			KEEP_PRESSING
+		}
+
 		GameObject[] go;
 		public int[] moduleCounter;
 		int moduleNum;
@@ -57,6 +64,11 @@ namespace VIS
 		public int selectedDeviceID = 0;
 		[ReadOnly]
 		public bool XRState;
+		public bool inputValue;
+		public ButtonState ButtonA = ButtonState.RELEASED;
+
+		public GameObject moduleSelector;
+		public GameObject paramChanger;
 
 		enum ModuleName
 		{
@@ -90,18 +102,12 @@ namespace VIS
 			}
 //			XRSettings.enabled = false;
 			XRState = XRSettings.enabled;
-/*
+
 			if (XRSettings.enabled)
 			{
 				var canvas = this.transform.Find("Canvas");
-				canvas.GetComponent<Canvas>().renderMode = RenderMode.WorldSpace;
-				var rectTransform = canvas.GetComponent<RectTransform>();
-				rectTransform.localPosition = new Vector3(10f, 5f, 0f);
-				rectTransform.sizeDelta = new Vector2(100, 100);
-				rectTransform.localScale = new Vector3(0.03f, 0.03f, 0.03f);
+				canvas.gameObject.SetActive(false);
 			}
-*/
-			ShowUIManager();
 
 			supportedDevices = XRSettings.supportedDevices;
 			Debug.Log("XRSettings.supportedDevices = " + supportedDevices.Length);
@@ -115,32 +121,40 @@ namespace VIS
 		{
 			if (XRSettings.enabled)
 			{
-				Vector3 headPosition;
-				Quaternion headRotation;
-				List<XRNodeState> nodeStates = new List<XRNodeState>();
-				InputTracking.GetNodeStates(nodeStates);
-				var headState = nodeStates.FirstOrDefault(node => node.nodeType == XRNode.Head);
-				headState.TryGetPosition(out headPosition);
-				headState.TryGetRotation(out headRotation);
+				var inputDevices = new List<UnityEngine.XR.InputDevice>();
+				UnityEngine.XR.InputDevices.GetDevicesAtXRNode(UnityEngine.XR.XRNode.RightHand, inputDevices);
+				foreach (var device in inputDevices)
+				{
+					// joystick
+//					if (device.TryGetFeatureValue(UnityEngine.XR.CommonUsages.primary2DAxis, out Vector2 position))
+//					{
+//						Debug.Log("Joystick : " + position.x + "," + position.y);
+//					}
 
-				var canvas = this.transform.Find("Canvas");
-				var rectTransform = canvas.GetComponent<RectTransform>();
-				var tmp = Quaternion.AngleAxis(headRotation.eulerAngles.y, -transform.forward);
-				rectTransform.localPosition = headPosition + headRotation * new Vector3(0f, 0f, 10f);
-				rectTransform.localRotation = headRotation;
+					// button
+					if (device.TryGetFeatureValue(UnityEngine.XR.CommonUsages.primaryButton, out inputValue) && inputValue)
+					{
+						if (ButtonA == ButtonState.RELEASED)
+						{
+							ShowUIManager();
+							ButtonA = ButtonState.PRESSED;
+
+						}
+						else if (ButtonA == ButtonState.PRESSED)
+						{
+							ButtonA = ButtonState.KEEP_PRESSING;
+						}
+						Debug.Log("Trigger button is pressed.");
+					}
+					else
+					{
+						var canvas = this.transform.Find("Canvas");
+						canvas.gameObject.SetActive(false);
+						ButtonA = ButtonState.RELEASED;
+					}
+				}
 			}
 
-
-			var inputDevices = new List<UnityEngine.XR.InputDevice>();
-//			InputDevices.GetDevicesWithCharacteristics(InputDeviceCharacteristics.HeadMounted, inputDevices);
-			UnityEngine.XR.InputDevices.GetDevices(inputDevices);
-//			Debug.Log("inputDevices.Count = " + inputDevices.Count);
-			foreach (var device in inputDevices)
-			{
-				var name = device.name;
-				var roll = device.characteristics.ToString();
-				Debug.Log(string.Format("name: '{0}', role: '{1}'", name, roll));
-			}
 			if (Application.platform == RuntimePlatform.Android)
 			{
 			}
@@ -157,30 +171,6 @@ namespace VIS
 					{
 						StartCoroutine(LoadDevice("Oculus"));
 					}
-					/*
-										Debug.Log("XRDevice.model = " + XRDevice.model); // 2018.4ではQuest接続時の戻り値が空
-										Debug.Log("XRSettings.loadedDeviceName = " + XRSettings.loadedDeviceName);
-										//					Debug.Log("InputDevice.name = " + InputDevice.name); // 2020.1ではOculus Linkの検出に使える?
-										var joysticks = Input.GetJoystickNames();
-										for (int i = 0; i < joysticks.Length; i++)
-										{
-											Debug.Log("Input.GetJoystickNames() = " + joysticks[i]);
-										}
-										StartCoroutine(LoadDevice("OpenVR"));
-										if (XRDevice.isPresent)
-										{
-											Debug.Log("XRDevice.model = " + XRDevice.model);
-											Debug.Log("XRSettings.loadedDeviceName = " + XRSettings.loadedDeviceName);
-											if (XRDevice.model.StartsWith("Oculus"))
-											{
-												StartCoroutine(LoadDevice("Oculus"));
-											}
-											else
-											{
-												StartCoroutine(LoadDevice("OpenVR"));
-											}
-										}
-					*/
 				}
 			}
 		}
@@ -205,13 +195,6 @@ namespace VIS
 						XRState = XRSettings.enabled;
 					}
 				}
-
-				var canvas = this.transform.Find("Canvas");
-				canvas.GetComponent<Canvas>().renderMode = RenderMode.WorldSpace;
-				var rectTransform = canvas.GetComponent<RectTransform>();
-				rectTransform.localPosition = new Vector3(10f, 5f, 0f);
-				rectTransform.sizeDelta = new Vector2(100, 100);
-				rectTransform.localScale = new Vector3(0.03f, 0.03f, 0.03f);
 			}
 		}
 
@@ -238,20 +221,18 @@ namespace VIS
 		{
 			if (XRSettings.enabled)
 			{
-				Vector3 headPosition;
-				Quaternion headRotation;
-				List<XRNodeState> nodeStates = new List<XRNodeState>();
-				InputTracking.GetNodeStates(nodeStates);
-				var headState = nodeStates.FirstOrDefault(node => node.nodeType == XRNode.Head);
-				headState.TryGetPosition(out headPosition);
-				headState.TryGetRotation(out headRotation);
-
 				var canvas = this.transform.Find("Canvas");
+				canvas.gameObject.SetActive(true);
 				canvas.GetComponent<Canvas>().renderMode = RenderMode.WorldSpace;
 				var rectTransform = canvas.GetComponent<RectTransform>();
-				rectTransform.localPosition = new Vector3(10f, 5f, 0f);
+				var camera = Camera.main;
+				var position = camera.transform.position;
+				var rotation = camera.transform.rotation.eulerAngles;
+				var direction = Quaternion.AngleAxis(rotation.y, Vector3.up);
+				rectTransform.localPosition = position + direction * new Vector3(0f, 0f, 10f);
+				rectTransform.localRotation = direction;
 				rectTransform.sizeDelta = new Vector2(100, 100);
-				rectTransform.localScale = new Vector3(0.03f, 0.03f, 0.03f);
+				rectTransform.localScale = new Vector3(0.015f, 0.015f, 0.015f);
 			}
 		}
 	}

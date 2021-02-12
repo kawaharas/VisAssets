@@ -17,6 +17,8 @@ namespace VIS
 		public GameObject animator;
 		[SerializeField]
 		public bool loadAtStartup = false;
+		public bool centering;
+		public bool autoResize;
 
 		public int currentStep;
 

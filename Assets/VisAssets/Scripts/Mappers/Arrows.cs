@@ -19,7 +19,8 @@ namespace VIS
 	{
 		SerializedProperty axis;
 		SerializedProperty slice;
-		SerializedProperty shift;
+		SerializedProperty scale_weight;
+		SerializedProperty normalize;
 		int previousAxis = 0;
 		float previousSlice = 0;
 
@@ -27,13 +28,12 @@ namespace VIS
 		{
 			axis  = serializedObject.FindProperty("axis");
 			slice = serializedObject.FindProperty("slice");
-			shift = serializedObject.FindProperty("shift");
+			scale_weight = serializedObject.FindProperty("scale_weight");
+			normalize = serializedObject.FindProperty("normalize");
 		}
 
 		public override void OnInspectorGUI()
 		{
-			base.DrawDefaultInspector();
-
 			var arrows = target as Arrows;
 
 			serializedObject.Update();
@@ -44,6 +44,9 @@ namespace VIS
 			GUILayout.Space(3f);
 			var currentSlice = EditorGUILayout.Slider("Slice: ", slice.floatValue, 0, 1f);
 			GUILayout.Space(3f);
+			scale_weight.floatValue = EditorGUILayout.Slider("Scale: ", scale_weight.floatValue, 0, 1f);
+			GUILayout.Space(3f);
+			normalize.boolValue = EditorGUILayout.ToggleLeft("Normalize", normalize.boolValue, GUILayout.MaxWidth(100.0f));
 
 			if (EditorGUI.EndChangeCheck())
 			{
@@ -58,10 +61,14 @@ namespace VIS
 					arrows.SetSlice(currentSlice);
 					previousSlice = currentSlice;
 				}
+				arrows.SetScale();
+				arrows.Normalize();
 				EditorUtility.SetDirty(target);
 			}
 
 			serializedObject.ApplyModifiedProperties();
+
+			base.DrawDefaultInspector();
 		}
 	}
 #endif
@@ -113,7 +120,7 @@ namespace VIS
 		int   prev_axis;
 		float prev_slice;
 		float prev_value;
-		int   idx;
+//		int   idx;
 		float ratio;
 		List<Vector3> vertices;
 
@@ -123,7 +130,7 @@ namespace VIS
 			useUndef = false;
 
 			scale = maxScale = 1f;
-			normalize = false;
+//			normalize = false;
 
 			elements = new DataElement[3];
 
@@ -492,18 +499,29 @@ namespace VIS
 			if (_slice != prev_slice)
 			{
 				value = value_min + (value_max - value_min) * _slice;
+
 				prev_slice = _slice;
-				slice = _slice;
+				slice      = _slice;
 			}
 
 			ParameterChanged();
 		}
 
-		void GetIndexOfCuttingEdge()
+		public void SetScale()
+		{
+			ParameterChanged();
+		}
+
+		public void Normalize()
+		{
+			ParameterChanged();
+		}
+
+		int GetIndexOfCuttingEdge()
 		{
 			// get a coordinate index for cutting edge
 			DataElement element = pdf.elements[activeElements[0]];
-			idx = 0;
+			int idx = 0;
 			ratio = 0;
 			if (element.fieldType == FieldType.RECTILINEAR)
 			{
@@ -565,12 +583,14 @@ namespace VIS
 				// not implemented yet
 				// element.fieldType == DataElement.FieldType.UNSTRUCTURE
 			}
+
+			return idx;
 		}
 
 		public void CalcSlice()
 		{
 			DataElement element = pdf.elements[activeElements[0]];
-			GetIndexOfCuttingEdge();
+			int idx = GetIndexOfCuttingEdge();
 
 			vertices.Clear();
 

@@ -915,6 +915,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8298286323118869100, guid: 8600d0b9d6da58f47b12db52df41ab13,
         type: 3}
+      propertyPath: loadAtStartup
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 8298286323118869100, guid: 8600d0b9d6da58f47b12db52df41ab13,
+        type: 3}
       propertyPath: useEmbeddedData
       value: 1
       objectReference: {fileID: 0}

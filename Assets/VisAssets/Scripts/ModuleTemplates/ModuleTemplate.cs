@@ -69,13 +69,17 @@ namespace VIS
 			{
 				UIPanel = Instantiate(UIPrefab, Vector3.zero, Quaternion.identity);
 				UIPanel.name = FixedModuleName;
-				UIPanel.transform.SetParent(GameObject.Find("ParamChanger").transform, false);
+				var paramChanger = UIManager.GetComponent<UIManager>().paramChanger;
+				UIPanel.transform.SetParent(paramChanger.transform, false);
+//				UIPanel.transform.SetParent(GameObject.Find("ParamChanger").transform, false);
 				UIPanel.transform.localScale = new Vector3(1.0f, 1.0f, 1.0f);
 				UIPanel.GetComponent<UIPanel>().TargetModule = this.gameObject;
 				UIPanel.SetActive(false);
 			}
 
-			var ModuleSelector = GameObject.Find("ModuleSelector");
+			var ModuleSelector = UIManager.GetComponent<UIManager>().moduleSelector;
+//			var dropdown = ModuleSelector.Find("Dropdown").GetComponent<Dropdown>();
+//			var ModuleSelector = GameObject.Find("ModuleSelector");
 			var dropdown = ModuleSelector.transform.Find("Dropdown").GetComponent<Dropdown>();
 			if (dropdown.options[0].text == "None")
 			{

@@ -84,6 +84,13 @@ MonoBehaviour:
   moduleCounter: 
   debugString: 
   cardboardButton: {fileID: 8613419606643331662}
+  supportedDevices: []
+  selectedDeviceID: 0
+  XRState: 0
+  triggerValue: 0
+  ButtonA: 0
+  paramChanger: {fileID: 1869723329094511922}
+  moduleSelector: {fileID: 5211452992038717548}
 --- !u!1 &1717589135672969518
 GameObject:
   m_ObjectHideFlags: 0

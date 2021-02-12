@@ -111,7 +111,6 @@ namespace VIS
 		public int[] dims;
 		[SerializeField]
 		public DataElement element;
-		Mesh mesh;
 
 		[SerializeField]
 		public Slice[] slices;
@@ -131,10 +130,10 @@ namespace VIS
 		Texture3D texture3d;
 		Color[]   texcolor3d;
 
-		public int idx = 0;
+//		public int idx = 0;
 		public int tri_idx = 0;
-		public int idx0 = 0;
-		public int idx1 = 0;
+//		public int idx0 = 0;
+//		public int idx1 = 0;
 		public float ratio, ratio2;
 
 		public override void InitModule()
@@ -163,10 +162,7 @@ namespace VIS
 				slices[i] = new Slice();
 			}
 
-			mesh = new Mesh();
-			mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
 			var meshFilter = GetComponent<MeshFilter>();
-			meshFilter.mesh = mesh;
 			meshFilter.hideFlags = HideFlags.HideInInspector;
 			var meshRenderer = GetComponent<MeshRenderer>();
 			meshRenderer.material = material;
@@ -238,9 +234,9 @@ namespace VIS
 		{
 		}
 
-//		public override void GetParameters()
-//		{
-//		}
+		public override void GetParameters()
+		{
+		}
 
 		// override from template class
 		void OnValidate()
@@ -368,7 +364,7 @@ namespace VIS
 				axis       = _axis;
 			}
 
-			activation.SetParameterChanged(1);
+			ParameterChanged();
 		}
 
 		public void SetSlice(float _slice)
@@ -381,20 +377,20 @@ namespace VIS
 				slice      = _slice;
 			}
 
-			activation.SetParameterChanged(1);
+			ParameterChanged();
 		}
 
 		public void SetColorShift(float _shift)
 		{
 			shift = _shift;
 
-			activation.SetParameterChanged(1);
+			ParameterChanged();
 		}
 
-		void GetIndexOfCuttingEdge()
+		int GetIndexOfCuttingEdge()
 		{
 			// get a coordinate index for cutting edge
-			idx = 0;
+			int idx = 0;
 			ratio = 0;
 			if (element.fieldType == FieldType.RECTILINEAR)
 			{
@@ -456,11 +452,13 @@ namespace VIS
 				// not implemented yet
 				// element.fieldType == FieldType.UNSTRUCTURE
 			}
+
+			return idx;
 		}
 
 		public void Calc()
 		{
-			GetIndexOfCuttingEdge();
+			int idx = GetIndexOfCuttingEdge();
 
 			vertices.Clear();
 			normals.Clear();
@@ -502,8 +500,8 @@ namespace VIS
 			{
 				for (int i = 0; i < slice_w; i++)
 				{
-					idx0 = 0;
-					idx1 = 0;
+					int idx0 = 0;
+					int idx1 = 0;
 					if (axis == 0)
 					{
 						idx0 = slice_d * (slice_w * j + i) + idx;
@@ -657,6 +655,8 @@ namespace VIS
 
 		Mesh CreatePlane()
 		{
+			var mesh = new Mesh();
+			mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
 			mesh.SetVertices(vertices);
 			mesh.SetUVs(0, texture_uv);
 			mesh.SetTriangles(triangles, 0);

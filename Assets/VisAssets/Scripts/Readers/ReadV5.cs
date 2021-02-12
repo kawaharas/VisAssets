@@ -26,6 +26,8 @@ namespace VIS
 		SerializedProperty header;
 		SerializedProperty loadAtStartup;
 		SerializedProperty useEmbeddedData;
+		SerializedProperty centering;
+		SerializedProperty autoResize;
 
 		public void OnEnable()
 		{
@@ -35,6 +37,8 @@ namespace VIS
 			header = serializedObject.FindProperty("header");
 			loadAtStartup = serializedObject.FindProperty("loadAtStartup");
 			useEmbeddedData = serializedObject.FindProperty("useEmbeddedData");
+			centering = serializedObject.FindProperty("centering");
+			autoResize = serializedObject.FindProperty("autoResize");
 		}
 
 		public override void OnInspectorGUI()
@@ -76,6 +80,13 @@ namespace VIS
 			EditorGUILayout.LabelField(message, style);
 			GUILayout.Space(5f);
 			EditorGUILayout.EndHorizontal();
+
+			GUILayout.Space(5f);
+			centering.boolValue = EditorGUILayout.ToggleLeft("Centering", centering.boolValue);
+			GUILayout.Space(5f);
+			EditorGUI.BeginDisabledGroup(!centering.boolValue);
+			autoResize.boolValue = EditorGUILayout.ToggleLeft("Auto Resize", autoResize.boolValue);
+			EditorGUI.EndDisabledGroup();
 
 			EditorGUILayout.Space();
 
@@ -342,7 +353,10 @@ namespace VIS
 			// turn on flag when data loading is complete
 			df.dataLoaded = true;
 
-			Centering(true);
+			if (centering)
+			{
+				Centering(autoResize);
+			}
 		}
 
 		private IEnumerator ReadV5File(string filename, Action<string> callback = null)
@@ -437,11 +451,9 @@ namespace VIS
 			{
 				if (useEmbeddedData)
 				{
-					url = System.IO.Path.Combine(Application.streamingAssetsPath, filename).Replace('\\', '/');
-//				Debug.Log(Application.streamingAssetsPath + filename);
-					url = Application.streamingAssetsPath + filename;
+					url = System.IO.Path.Combine(Application.streamingAssetsPath, filename);
 #if UNITY_EDITOR
-					url = "file://" + Application.streamingAssetsPath + filename;
+					url = "file://" + Application.streamingAssetsPath + '/' + filename;
 #endif
 				}
 				else
