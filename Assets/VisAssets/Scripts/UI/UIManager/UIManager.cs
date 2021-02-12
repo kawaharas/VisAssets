@@ -126,10 +126,33 @@ namespace VIS
 				foreach (var device in inputDevices)
 				{
 					// joystick
-//					if (device.TryGetFeatureValue(UnityEngine.XR.CommonUsages.primary2DAxis, out Vector2 position))
-//					{
-//						Debug.Log("Joystick : " + position.x + "," + position.y);
-//					}
+					if (device.TryGetFeatureValue(UnityEngine.XR.CommonUsages.primary2DAxis, out Vector2 position))
+					{
+						Debug.Log("Joystick : " + position.x + "," + position.y);
+
+						GameObject[] gos = GameObject.FindGameObjectsWithTag("VisModule");
+						for (int i = 0; i < gos.Length; i++)
+						{
+							var activation = gos[i].GetComponent<Activation>();
+							if (activation != null)
+							{
+								if (activation.moduleType == ModuleTemplate.ModuleType.READING)
+								{
+									float rotX = 0;
+									float rotY = 0;
+									if (Mathf.Abs(position.x) >= 0.5)
+									{
+										rotX = position.x;
+									}
+									if (Mathf.Abs(position.y) >= 0.5)
+									{
+										rotY = position.y;
+									}
+									gos[i].transform.Rotate(new Vector3(rotY, -rotX, 0), Space.World);
+								}
+							}
+						}
+					}
 
 					// button
 					if (device.TryGetFeatureValue(UnityEngine.XR.CommonUsages.primaryButton, out inputValue) && inputValue)
