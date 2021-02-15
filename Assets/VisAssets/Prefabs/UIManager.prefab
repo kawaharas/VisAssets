@@ -600,7 +600,6 @@ GameObject:
   - component: {fileID: 5878739845047412378}
   - component: {fileID: 8476761322445122382}
   - component: {fileID: 6329678784714737311}
-  - component: {fileID: 1779443407125489658}
   m_Layer: 0
   m_Name: Dropdown
   m_TagString: Untagged
@@ -753,19 +752,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 630a18b1c86d65e4fac744958c1d7b2d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
---- !u!65 &1779443407125489658
-BoxCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2583656708824568415}
-  m_Material: {fileID: 0}
-  m_IsTrigger: 1
-  m_Enabled: 1
-  serializedVersion: 2
-  m_Size: {x: 1, y: 1, z: 1}
-  m_Center: {x: 0, y: 0, z: 0}
 --- !u!1 &2682956268574878898
 GameObject:
   m_ObjectHideFlags: 0
@@ -1099,6 +1085,7 @@ GameObject:
   m_Component:
   - component: {fileID: 6299110840749675189}
   - component: {fileID: 1782212126190033368}
+  - component: {fileID: 5454677321311890905}
   m_Layer: 0
   m_Name: Laser Pointer
   m_TagString: Untagged
@@ -1217,6 +1204,19 @@ LineRenderer:
     generateLightingData: 0
   m_UseWorldSpace: 1
   m_Loop: 0
+--- !u!65 &5454677321311890905
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4304255218635611419}
+  m_Material: {fileID: 0}
+  m_IsTrigger: 0
+  m_Enabled: 1
+  serializedVersion: 2
+  m_Size: {x: 1, y: 1, z: 2}
+  m_Center: {x: 0, y: 0, z: 0.5}
 --- !u!1 &4531736933356359616
 GameObject:
   m_ObjectHideFlags: 0

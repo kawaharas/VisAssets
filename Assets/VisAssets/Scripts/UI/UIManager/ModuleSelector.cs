@@ -33,5 +33,15 @@ namespace VIS
 				}
 			}
 		}
+
+		public void OnCollisionEnter(Collision collision)
+		{
+			Debug.Log("Enter");
+		}
+
+		public void OnCollisionExit(Collision collision)
+		{
+			Debug.Log("Exit");
+		}
 	}
 }

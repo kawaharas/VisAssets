@@ -67,6 +67,7 @@ namespace VIS
 		public bool inputValue;
 		public ButtonState ButtonA = ButtonState.RELEASED;
 
+		Vector3 initialCameraPosition;
 		public GameObject moduleSelector;
 		public GameObject paramChanger;
 		public GameObject laserPointer;
@@ -90,6 +91,7 @@ namespace VIS
 		{
 			moduleNum = Enum.GetNames(typeof(ModuleName)).Length;
 			moduleCounter = new int[moduleNum];
+			initialCameraPosition = Camera.main.transform.position;
 		}
 
 		void Start()
@@ -259,10 +261,9 @@ namespace VIS
 				canvas.GetComponent<Canvas>().renderMode = RenderMode.WorldSpace;
 				var rectTransform = canvas.GetComponent<RectTransform>();
 				var camera = Camera.main;
-				var position = camera.transform.position;
 				var rotation = camera.transform.rotation.eulerAngles;
 				var direction = Quaternion.AngleAxis(rotation.y, Vector3.up);
-				rectTransform.localPosition = position + direction * new Vector3(0f, 0f, 10f);
+				rectTransform.localPosition = initialCameraPosition + direction * new Vector3(0f, 0f, 10f);
 				rectTransform.localRotation = direction;
 				rectTransform.sizeDelta = new Vector2(100, 100);
 				rectTransform.localScale = new Vector3(0.015f, 0.015f, 0.015f);
@@ -295,8 +296,7 @@ namespace VIS
 					Quaternion quaternion;
 					device.TryGetFeatureValue(CommonUsages.devicePosition, out origin);
 					device.TryGetFeatureValue(CommonUsages.deviceRotation, out quaternion);
-					var camera = Camera.main;
-					origin += camera.transform.position;
+					origin += initialCameraPosition;
 					Vector3 tip = origin + quaternion * new Vector3(0f, 0f, 10f);
 					var renderer = laserPointer.GetComponent<LineRenderer>();
 					renderer.useWorldSpace = true;
@@ -304,10 +304,11 @@ namespace VIS
 					renderer.SetPosition(1, tip);
 					renderer.startWidth = 0.01f;
 					renderer.endWidth = 0.01f;
-					RaycastHit hitInfo;
-					float distance = 10f;
-					Physics.Raycast(origin, quaternion.eulerAngles, out hitInfo, distance, 0);
-//					Debug.Log(hitInfo.collider.gameObject.name);
+//					RaycastHit hitInfo;
+//					float distance = 10f;
+//					Physics.Raycast(origin, quaternion.eulerAngles, out hitInfo);
+//					GameObject pointedObject = hitInfo.collider.gameObject;
+//					pointedObject.transform.SendMessage("OnPointerEnter");
 				}
 			}
 		}
