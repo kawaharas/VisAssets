@@ -70,6 +70,7 @@ crashlytics-build.properties
 # Ignore Samples
 /[Aa]ssets/[Ss]treaming[Aa]ssets/example*
 /[Aa]ssets/[Ss]treaming[Aa]ssets/sample_little*
+/[Aa]ssets/[Ss]treaming[Aa]ssets/sample_big2*
 /[Aa]ssets/[Ss]treaming[Aa]ssets/mm21*
 /[Aa]ssets/[Ss]treaming[Aa]ssets/deiki_park*
 /[Aa]ssets/[Ss]treaming[Aa]ssets/vdvge-sample*
