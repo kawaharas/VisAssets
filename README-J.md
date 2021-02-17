@@ -58,11 +58,11 @@
 
 - ReadField用データ: 本パッケージに同梱 (Assets/StreamingAssets/Sample3D3.txt)  
   
-- ReadVFIVE用データ: [https://www.jamstec.go.jp/ceist/aeird/avcrg/vfive.ja.html](https://www.jamstec.go.jp/ceist/aeird/avcrg/vfive.ja.html)から取得 (sample_little.tar.gz, sample_big2.tar.gz)  
+- ReadVFIVE用データ: [入手先](https://www.jamstec.go.jp/ceist/aeird/avcrg/vfive.ja.html) (sample_little.tar.gz, sample_big2.tar.gz)  
     sample_little.tar.gz用モジュール設定 (dynamo): Precesion: DOUBLE, Byteswap: off, Header: on  
     sample_big2.tar.gz用モジュール設定 (ABC flow): Precesion: DOUBLE, Byteswap: on, Header: on  
   
-- ReadGrADS用データ: [http://cola.gmu.edu/grads/](http://cola.gmu.edu/grads/)から取得 (example.tar.gz)
+- ReadGrADS用データ: [入手先](http://cola.gmu.edu/grads/) (example.tar.gz)
 
 
 ## サンプルアプリケーション
