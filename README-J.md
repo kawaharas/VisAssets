@@ -56,9 +56,13 @@
 
 ## サンプルモジュールのテストに用いたデータセット
 
-- テキストファイル: 本パッケージに同梱 (sample3D3.txt)
-- VFIVE用データ: [https://www.jamstec.go.jp/ceist/aeird/avcrg/vfive.ja.html](https://www.jamstec.go.jp/ceist/aeird/avcrg/vfive.ja.html)から取得 (sample_little.tar.gz)
-- GrADS用データ: [http://cola.gmu.edu/grads/](http://cola.gmu.edu/grads/)から取得 (example.tar.gz)
+- ReadField用データ: 本パッケージに同梱 (Assets/StreamingAssets/Sample3D3.txt)  
+  
+- ReadVFIVE用データ: [https://www.jamstec.go.jp/ceist/aeird/avcrg/vfive.ja.html](https://www.jamstec.go.jp/ceist/aeird/avcrg/vfive.ja.html)から取得 (sample_little.tar.gz, sample_big2.tar.gz)  
+    sample_little.tar.gz用モジュール設定 (dynamo): Precesion: DOUBLE, Byteswap: off, Header: on  
+    sample_big2.tar.gz用モジュール設定 (ABC flow): Precesion: DOUBLE, Byteswap: on, Header: on  
+  
+- ReadGrADS用データ: [http://cola.gmu.edu/grads/](http://cola.gmu.edu/grads/)から取得 (example.tar.gz)
 
 
 ## サンプルアプリケーション

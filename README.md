@@ -60,9 +60,13 @@
 
 ## Sample dataset for the sample modules
 
-- ASCII data: include in unitypackage (sample3D3.txt)
-- VFIVE data: from [here](https://www.jamstec.go.jp/ceist/aeird/avcrg/vfive.ja.html) (sample_little.tar.gz)
-- GrADS data: from [here](http://cola.gmu.edu/grads/) (example.tar.gz)
+- for ReadField: include in unitypackage (Assets/StreamingAssets/Sample3D3.txt)
+  
+- for ReadVFIVE: from [here](https://www.jamstec.go.jp/ceist/aeird/avcrg/vfive.ja.html) (sample_little.tar.gz, sample_big2.tar.gz)  
+    module settings for sample_little.tar.gz (dynamo): Precesion: DOUBLE, Byteswap: off, Header: on  
+    module settings for sample_big2.tar.gz (ABC flow): Precesion: DOUBLE, Byteswap: on, Header: on  
+  
+- for ReadGrADS: from [here](http://cola.gmu.edu/grads/) (example.tar.gz)
 
 
 ## Sample Scenes
