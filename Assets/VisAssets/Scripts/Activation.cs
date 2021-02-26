@@ -5,7 +5,7 @@ using UnityEngine;
 using UnityEditor;
 #endif
 
-namespace VIS
+namespace VisAssets
 {
 #if UNITY_EDITOR
 	[CustomEditor(typeof(Activation))]

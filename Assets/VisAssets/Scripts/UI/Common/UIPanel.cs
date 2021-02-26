@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace VIS
+namespace VisAssets
 {
 	public class UIPanel : MonoBehaviour
 	{

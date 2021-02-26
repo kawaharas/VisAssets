@@ -6,7 +6,7 @@ using UnityEngine.UI;
 using UnityEditor;
 #endif
 
-namespace VIS
+namespace VisAssets
 {
 #if UNITY_EDITOR
 	[CustomEditor(typeof(ExtractVector))]

@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace VIS
+namespace VisAssets
 {
 	public class CtrlOBJ : MonoBehaviour
 	{

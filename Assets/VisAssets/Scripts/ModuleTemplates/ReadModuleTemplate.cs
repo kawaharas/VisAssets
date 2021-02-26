@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace VIS
+namespace VisAssets
 {
 	[RequireComponent(typeof(Activation))]
 	[RequireComponent(typeof(DataField))]

@@ -4,9 +4,9 @@ using UnityEngine;
 using UnityEngine.UI;
 
 
-namespace VIS.UI.ExtractVector
+namespace VisAssets.UI.ExtractVector
 {
-	using VIS;
+	using VisAssets;
 
 	public class ChannelSelector : MonoBehaviour
 	{

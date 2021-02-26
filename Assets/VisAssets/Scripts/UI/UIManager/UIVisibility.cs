@@ -5,7 +5,7 @@ using UnityEngine.UI;
 using UnityEngine.XR;
 using UnityEngine.EventSystems;
 
-namespace VIS
+namespace VisAssets
 {
 	public class UIVisibility : MonoBehaviour
 	{

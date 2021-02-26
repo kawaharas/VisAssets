@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace VIS.UI.Animator
+namespace VisAssets.UI.Animator
 {
-	using VIS;
+	using VisAssets;
 
 	public class SetInterval : MonoBehaviour
 	{

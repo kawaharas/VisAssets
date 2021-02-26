@@ -3,9 +3,9 @@ using System.Linq;
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace VIS.UI.Arrows
+namespace VisAssets.UI.Arrows
 {
-	using VIS;
+	using VisAssets;
 
 	public class AxisSelector : MonoBehaviour
 	{

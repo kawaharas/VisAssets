@@ -3,9 +3,9 @@ using System.Linq;
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace VIS.UI.Slicer
+namespace VisAssets.UI.Slicer
 {
-	using VIS;
+	using VisAssets;
 
 	public class AxisSelector : MonoBehaviour
 	{

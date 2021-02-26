@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace VIS.UI.Downsize
+namespace VisAssets.UI.Downsize
 {
-	using VIS;
+	using VisAssets;
 
 	public class IPSlider : MonoBehaviour
 	{

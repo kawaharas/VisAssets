@@ -12,7 +12,7 @@ using UnityEditor.Compilation;
 #endif
 using UnityEngine.UI;
 
-namespace VIS
+namespace VisAssets
 {
 	using FieldType = DataElement.FieldType;
 

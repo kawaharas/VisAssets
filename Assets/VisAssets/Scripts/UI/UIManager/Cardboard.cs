@@ -4,7 +4,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.XR;
 
-namespace VIS
+namespace VisAssets
 {
 	public class Cardboard : MonoBehaviour
 	{

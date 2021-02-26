@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace VIS.UI.Arrows
+namespace VisAssets.UI.Arrows
 {
-	using VIS;
+	using VisAssets;
 
 	public class SliceSelector : MonoBehaviour
 	{

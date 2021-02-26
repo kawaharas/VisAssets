@@ -4,9 +4,9 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace VIS.UI.ReadV5
+namespace VisAssets.UI.ReadV5
 {
-	using VIS;
+	using VisAssets;
 
 	public class PrecisionSelector : MonoBehaviour
 	{

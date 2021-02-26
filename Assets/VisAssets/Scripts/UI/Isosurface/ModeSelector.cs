@@ -4,9 +4,9 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace VIS.UI.Isosurface
+namespace VisAssets.UI.Isosurface
 {
-	using VIS;
+	using VisAssets;
 
 	public class ModeSelector : MonoBehaviour
 	{

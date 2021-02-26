@@ -4,7 +4,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using SimpleFileBrowser;
 
-namespace VIS
+namespace VisAssets
 {
 	public class OpenFileBrowser : MonoBehaviour
 	{

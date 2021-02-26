@@ -8,7 +8,7 @@ using UnityEditor;
 using UnityEditor.Compilation;
 #endif
 
-namespace VIS
+namespace VisAssets
 {
 	using FieldType = DataElement.FieldType;
 

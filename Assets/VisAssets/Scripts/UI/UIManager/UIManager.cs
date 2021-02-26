@@ -9,7 +9,7 @@ using UnityEditor;
 using UnityEditor.Compilation;
 #endif
 
-namespace VIS
+namespace VisAssets
 {
 #if UNITY_EDITOR
 	[CustomEditor(typeof(UIManager))]

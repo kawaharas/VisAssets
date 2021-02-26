@@ -14,7 +14,7 @@ using UnityEditor.Compilation;
 #endif
 using UnityEngine.UI;
 
-namespace VIS
+namespace VisAssets
 {
 #if UNITY_EDITOR
 	[CustomEditor(typeof(ReadV5))]

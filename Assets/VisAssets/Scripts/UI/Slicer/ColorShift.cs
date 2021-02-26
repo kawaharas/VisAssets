@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace VIS.UI.Slicer
+namespace VisAssets.UI.Slicer
 {
-	using VIS;
+	using VisAssets;
 
 	public class ColorShift : MonoBehaviour
 	{
