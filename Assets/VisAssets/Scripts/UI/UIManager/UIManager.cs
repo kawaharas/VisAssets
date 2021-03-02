@@ -72,21 +72,6 @@ namespace VisAssets
 		public GameObject paramChanger;
 		public GameObject laserPointer;
 
-		enum ModuleName
-		{
-			Arrows = 0,
-			Animator,
-			ReadField,
-			ReadGrADS,
-			ReadV5,
-			ExtractScalar,
-			ExtractVector,
-			Interpolator,
-			Slicer,
-			Isosurface,
-			Bounds
-		}
-
 		void Awake()
 		{
 			moduleNum = Enum.GetNames(typeof(ModuleName)).Length;

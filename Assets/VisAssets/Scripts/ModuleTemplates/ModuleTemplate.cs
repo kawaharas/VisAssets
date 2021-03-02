@@ -23,21 +23,6 @@ namespace VisAssets
 			UNDEFINED
 		}
 
-		enum ModuleName
-		{
-			Arrows = 0,
-			Animator,
-			ReadField,
-			ReadGrADS,
-			ReadV5,
-			ExtractScalar,
-			ExtractVector,
-			Interpolator,
-			Slicer,
-			Isosurface,
-			Bounds
-		}
-
 		struct ModuleInfo
 		{
 			public string name;
