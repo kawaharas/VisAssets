@@ -147,5 +147,15 @@ namespace VisAssets
 		{
 			isActive = state;
 		}
+
+		public Vector3 GetCoord(int ix, int iy, int iz)
+		{
+			var idx = iz * dims[1] * dims[0] + iy * dims[0] + ix;
+			var ox = coords[3][idx * 3 + 0];
+			var oy = coords[3][idx * 3 + 1];
+			var oz = coords[3][idx * 3 + 2];
+
+			return new Vector3(ox, oy, oz);
+		}
 	}
 }
