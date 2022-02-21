@@ -3,10 +3,8 @@ using System.Linq;
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace VisAssets.UI.Slicer
+namespace VisAssets.SciVis.Structured.Slicer.UI
 {
-	using VisAssets;
-
 	public class AxisSelector : MonoBehaviour
 	{
 		private GameObject target = null;

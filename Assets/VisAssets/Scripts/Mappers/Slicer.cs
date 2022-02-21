@@ -8,12 +8,11 @@ using UnityEditor;
 using UnityEditor.Compilation;
 #endif
 
-namespace VisAssets
+namespace VisAssets.SciVis.Structured.Slicer
 {
 	using FieldType = DataElement.FieldType;
 
 #if UNITY_EDITOR
-	[CanEditMultipleObjects]
 	[CustomEditor(typeof(Slicer))]
 	public class SlicerEditor : Editor
 	{

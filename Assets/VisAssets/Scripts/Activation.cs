@@ -42,8 +42,6 @@ namespace VisAssets
 		[ReadOnly]
 		public ModuleTemplate.ModuleType moduleType = ModuleTemplate.ModuleType.UNDEFINED;
 
-//		public int parent_changed    = 0;
-//		public int parameter_changed = 0;
 		public int parent_changed    = (int)(ModuleState.UNCHANGED);
 		public int parameter_changed = (int)(ModuleState.UNCHANGED);
 

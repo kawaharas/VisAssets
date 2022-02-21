@@ -8,15 +8,20 @@ using UnityEditor;
 using UnityEditor.Compilation;
 #endif
 
-namespace VisAssets
+namespace VisAssets.SciVis.Structured.Bounds
 {
 	using FieldType = DataElement.FieldType;
 
 #if UNITY_EDITOR
-	[CanEditMultipleObjects]
 	[CustomEditor(typeof(Bounds))]
 	public class BoundsEditor : Editor
 	{
+		SerializedProperty color;
+		private void OnEnable()
+		{
+			color = serializedObject.FindProperty("color");
+		}
+
 		public override void OnInspectorGUI()
 		{
 			var bounds = target as Bounds;
@@ -25,13 +30,21 @@ namespace VisAssets
 			EditorGUI.BeginChangeCheck();
 
 			GUILayout.Space(10f);
-			var color = EditorGUILayout.ColorField("Color:", bounds.color);
-			GUILayout.Space(3f);
+			color.colorValue = EditorGUILayout.ColorField("Color:", color.colorValue);
+			GUILayout.Space(10f);
+			if (GUILayout.Button("Load Default Values"))
+			{
+				color.colorValue = new Color(1f, 1f, 1f, 1f);
+			}
+			GUILayout.Space(10f);
 
 			if (EditorGUI.EndChangeCheck())
 			{
 				Undo.RecordObject(target, "Bounds");
-				bounds.SetColor(color);
+				if (EditorApplication.isPlaying)
+				{
+					bounds.SetColor(color.colorValue);
+				}
 				EditorUtility.SetDirty(target);
 			}
 
@@ -42,14 +55,16 @@ namespace VisAssets
 
 	public class Bounds : MapperModuleTemplate
 	{
+		// accessor for input data loaded to the parent module
+		DataElement[] elements;
+
 		List<Vector3> vertices;
 		List<Color>   colors;
+		Mesh          mesh;
+		Material      material;
 
 		[SerializeField]
-		public Color color;
-		Material material;
-		Mesh mesh;
-		DataElement[] elements;
+		public Color  color = new Color(1f, 1f, 1f, 1f);
 
 		int[] indices = new int[24]
 		{
@@ -61,8 +76,7 @@ namespace VisAssets
 		public override void InitModule()
 		{
 			vertices = new List<Vector3>();
-			colors = new List<Color>();
-			color = new Color(1f, 1f, 1f);
+			colors   = new List<Color>();
 			material = new Material(Shader.Find("Sprites/Default"));
 
 			mesh = new Mesh();
@@ -87,10 +101,6 @@ namespace VisAssets
 			elements = pdf.elements;
 		}
 
-		public override void SetParameters()
-		{
-		}
-
 		public void Calc()
 		{
 			vertices.Clear();
@@ -112,21 +122,21 @@ namespace VisAssets
 					for (int i = 0; i < 3; i++)
 					{
 						min[i] = Math.Min(min[i], 0);
-						max[i] = Math.Max(max[i], (float)(pdf.elements[n].dims[i] - 1));
+						max[i] = Math.Max(max[i], (float)(elements[n].dims[i] - 1));
 					}
 				}
 				else if (fieldType == FieldType.RECTILINEAR)
 				{
 					for (int i = 0; i < 3; i++)
 					{
-						min[i] = Math.Min(min[i], pdf.elements[n].coords[i].Min());
-						max[i] = Math.Max(max[i], pdf.elements[n].coords[i].Max());
+						min[i] = Math.Min(min[i], elements[n].coords[i].Min());
+						max[i] = Math.Max(max[i], elements[n].coords[i].Max());
 					}
 				}
 				else if (fieldType == FieldType.IRREGULAR)
 				{
-					float[] coord3 = pdf.elements[n].coords[3];
-					for (int m = 0; m < pdf.elements[n].size; m++)
+					float[] coord3 = elements[n].coords[3];
+					for (int m = 0; m < elements[n].size; m++)
 					{
 						for (int i = 0; i < 3; i++)
 						{

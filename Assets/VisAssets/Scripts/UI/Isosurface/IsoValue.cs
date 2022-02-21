@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace VisAssets
+namespace VisAssets.SciVis.Structured.Isosurface.UI
 {
 	public class IsoValue : MonoBehaviour
 	{
@@ -30,7 +30,6 @@ namespace VisAssets
 					isosurface.SetValue(value);
 					GetComponent<InputField>().text = value.ToString();
 					placeholder.GetComponent<Text>().text = value.ToString();
-//					slider.GetComponent<Slider>().value = Convert.ToSingle(str) / 10.0f;
 				}
 			}
 		}

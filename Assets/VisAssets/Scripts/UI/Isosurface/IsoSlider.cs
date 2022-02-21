@@ -3,10 +3,8 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace VisAssets.UI.Isosurface
+namespace VisAssets.SciVis.Structured.Isosurface.UI
 {
-	using VisAssets;
-
 	public class IsoSlider : MonoBehaviour
 	{
 		private GameObject target = null;
@@ -27,8 +25,15 @@ namespace VisAssets.UI.Isosurface
 				var isosurface = target.GetComponent<Isosurface>();
 				if (isosurface != null)
 				{
-//					var value = (int)(value * 10.0f);
 					isosurface.SetValue(value);
+					inputField.GetComponent<InputField>().text = value.ToString();
+					placeholder.GetComponent<Text>().text = value.ToString();
+				}
+
+				var isosurfaceV5 = target.GetComponent<IsosurfaceV5>();
+				if (isosurfaceV5 != null)
+				{
+					isosurfaceV5.SetValue(value);
 					inputField.GetComponent<InputField>().text = value.ToString();
 					placeholder.GetComponent<Text>().text = value.ToString();
 				}

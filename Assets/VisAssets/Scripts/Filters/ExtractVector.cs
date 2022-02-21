@@ -6,7 +6,7 @@ using UnityEngine.UI;
 using UnityEditor;
 #endif
 
-namespace VisAssets
+namespace VisAssets.SciVis.Structured.ExtractVector
 {
 #if UNITY_EDITOR
 	[CustomEditor(typeof(ExtractVector))]

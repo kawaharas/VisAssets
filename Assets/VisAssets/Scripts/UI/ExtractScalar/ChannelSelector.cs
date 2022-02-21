@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace VisAssets
+namespace VisAssets.SciVis.Structured.ExtracterScalar.UI
 {
 	public class ChannelSelector : MonoBehaviour
 	{

@@ -16,6 +16,7 @@ namespace VisAssets
 		Interpolator,
 		Slicer,
 		Isosurface,
-		Bounds
+		Bounds,
+		Outline
 	}
 }

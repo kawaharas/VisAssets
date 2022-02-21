@@ -1,32 +1,32 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace VisAssets.UI.Downsize
+namespace VisAssets.SciVis.Structured.Downsize.UI
 {
-	using VisAssets;
-
-	public class IPSlider : MonoBehaviour
+	public class IPValue : MonoBehaviour
 	{
 		private GameObject target = null;
-		public  GameObject inputField;
+		public  GameObject slider;
 		public  GameObject placeholder;
 
 		void Start()
 		{
 			target = GetComponentInParent<UIPanel>().TargetModule;
-			var slider = GetComponent<Slider>();
-			slider.onValueChanged.AddListener(OnValueChanged);
+			var inputField = GetComponent<InputField>();
+			inputField.onEndEdit.AddListener(OnEndEdit);
 		}
 
-		public void OnValueChanged(float value)
+		public void OnEndEdit(string str)
 		{
 			if (target != null)
 			{
 				var downsize = target.GetComponent<Downsize>();
 				if (downsize != null)
 				{
+					var value = Convert.ToInt16(str);
 					int[] dims = new int[3];
 					dims[0] = downsize.idims[0];
 					dims[1] = downsize.idims[1];
@@ -35,20 +35,21 @@ namespace VisAssets.UI.Downsize
 					switch (axis)
 					{
 						case "X":
-							dims[0] = (int)value;
+							dims[0] = value;
 							break;
 						case "Y":
-							dims[1] = (int)value;
+							dims[1] = value;
 							break;
 						case "Z":
-							dims[2] = (int)value;
+							dims[2] = value;
 							break;
 						default:
 							break;
 					}
 					downsize.SetDims(dims);
-					inputField.GetComponent<InputField>().text = value.ToString();
+					GetComponent<InputField>().text = value.ToString();
 					placeholder.GetComponent<Text>().text = value.ToString();
+					slider.GetComponent<Slider>().value = value;
 				}
 			}
 		}

@@ -5,12 +5,12 @@ using System.IO;
 using System.Text;
 using UnityEngine;
 using UnityEngine.Networking;
+using UnityEngine.UI;
 using SimpleFileBrowser;
 #if UNITY_EDITOR
 using UnityEditor;
 using UnityEditor.Compilation;
 #endif
-using UnityEngine.UI;
 
 namespace VisAssets
 {
@@ -150,7 +150,19 @@ namespace VisAssets
 				}
 				debugString += url + '\n';
 
-				UIPanel.transform.Find("DebugText").GetComponent<Text>().text = debugString;
+				if (UIPanel != null)
+				{
+					var debugText = UIPanel.transform.Find("DebugText");
+					if (debugText != null)
+					{
+						var text = debugText.GetComponent<Text>();
+						if (text != null)
+						{
+							text.text = debugString;
+						}
+					}
+				}
+//				UIPanel.transform.Find("DebugText").GetComponent<Text>().text = debugString;
 			}
 			else
 			{
@@ -167,7 +179,12 @@ namespace VisAssets
 				var www = UnityWebRequest.Get(url);
 				yield return www.SendWebRequest();
 
+#if UNITY_2020_2_OR_NEWER
+				if (www.result == UnityWebRequest.Result.ProtocolError ||
+					www.result == UnityWebRequest.Result.ConnectionError)
+#else
 				if (www.isHttpError || www.isNetworkError)
+#endif
 				{
 					Debug.Log(www.error);
 				}

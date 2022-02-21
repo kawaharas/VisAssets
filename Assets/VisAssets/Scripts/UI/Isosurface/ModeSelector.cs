@@ -4,10 +4,8 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace VisAssets.UI.Isosurface
+namespace VisAssets.SciVis.Structured.Isosurface.UI
 {
-	using VisAssets;
-
 	public class ModeSelector : MonoBehaviour
 	{
 		private GameObject target = null;
@@ -28,7 +26,6 @@ namespace VisAssets.UI.Isosurface
 			dropdown.onValueChanged.AddListener(OnValueChanged);
 		}
 
-		// Update is called once per frame
 		public void OnValueChanged(int value)
 		{
 			var isosurface = target.GetComponent<Isosurface>();

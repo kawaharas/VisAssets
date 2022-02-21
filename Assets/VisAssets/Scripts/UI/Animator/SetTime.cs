@@ -3,10 +3,8 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace VisAssets.UI.Animator
+namespace VisAssets
 {
-	using VisAssets;
-
 	public class SetTime : MonoBehaviour
 	{
 		private GameObject target = null;

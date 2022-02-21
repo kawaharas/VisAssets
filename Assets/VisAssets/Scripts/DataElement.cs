@@ -54,6 +54,17 @@ namespace VisAssets
 			return (DataElement)MemberwiseClone();
 		}
 
+		public void SetDims(Vector3Int d)
+		{
+			ndim = 3;
+			size = 1;
+			for (int i = 0; i < ndim; i++)
+			{
+				dims[i] = d[i];
+				size *= dims[i];
+			}
+		}
+
 		public void SetDims(List<int> d)
 		{
 			dims = d.ToArray();
@@ -123,6 +134,8 @@ namespace VisAssets
 			}
 			values = v.ToArray();
 
+			if (min != float.MaxValue) return;
+
 			IEnumerable<float> valid_values = values;
 			if (useUndef)
 			{
@@ -135,6 +148,65 @@ namespace VisAssets
 			var sum2  = valid_values.Sum(a => (a - average) * (a - average));
 			var count = valid_values.Count();
 			variance  = sum2 / count - average * average;
+		}
+
+		public void SetValues(float[] v)
+		{
+			if (size == 0)
+			{
+				Debug.Log("Error in SetValues in DataElement. You must call SetDims in advance\n");
+				return;
+			}
+//			values = v.ToArray();
+			values = new float[v.Length];
+			System.Array.Copy(v, values, v.Length);
+
+			if (min != float.MaxValue) return;
+
+			IEnumerable<float> valid_values = values;
+			if (useUndef)
+			{
+				valid_values = values.Where(n => n != undef);
+			}
+
+			min = valid_values.Min();
+			max = valid_values.Max();
+			average = valid_values.Average();
+			var sum2 = valid_values.Sum(a => (a - average) * (a - average));
+			var count = valid_values.Count();
+			variance = sum2 / count - average * average;
+		}
+/*
+		public unsafe void SetValues(byte[] v)
+		{
+			if (size == 0)
+			{
+				Debug.Log("Error in SetValues in DataElement. You must call SetDims in advance\n");
+				return;
+			}
+			//			values = v.ToArray();
+			values = new float[size];
+			System.Buffer.BlockCopy(v, 0, values, 0, v.Length);
+
+			if (min != float.MaxValue) return;
+
+			IEnumerable<float> valid_values = values;
+			if (useUndef)
+			{
+				valid_values = values.Where(n => n != undef);
+			}
+
+			min = valid_values.Min();
+			max = valid_values.Max();
+			average = valid_values.Average();
+			var sum2 = valid_values.Sum(a => (a - average) * (a - average));
+			var count = valid_values.Count();
+			variance = sum2 / count - average * average;
+		}
+*/
+		public void SetVarName(string str)
+		{
+			varName = str.Replace("\\n", " ");
 		}
 
 		public void SetUndef(float v)

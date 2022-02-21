@@ -7,7 +7,7 @@ using UnityEditor;
 using UnityEditor.Compilation;
 #endif
 
-namespace VisAssets
+namespace VisAssets.SciVis.Structured.ExtracterScalar
 {
 #if UNITY_EDITOR
 	[CustomEditor(typeof(ExtractScalar))]

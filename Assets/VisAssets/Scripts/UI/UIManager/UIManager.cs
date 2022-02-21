@@ -3,7 +3,15 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.XR;
+//using UnityEngine.InputSystem;
+//using Unity.XR.CoreUtils;
+//using UnityEngine.XR.Interaction.Toolkit.UI;
+using UnityEngine.Experimental.XR.Interaction;
+using UnityEngine.SpatialTracking;
+using UnityEngine.XR.Interaction.Toolkit;
+
 #if UNITY_EDITOR
 using UnityEditor;
 using UnityEditor.Compilation;
@@ -44,6 +52,7 @@ namespace VisAssets
 #endif
 
 	public class UIManager : MonoBehaviour
+//	public class UIManager : XRBaseController
 	{
 		public enum ButtonState
 		{
@@ -66,17 +75,23 @@ namespace VisAssets
 		public bool XRState;
 		public bool inputValue;
 		public ButtonState ButtonA = ButtonState.RELEASED;
+		public ButtonState ButtonTrigger = ButtonState.RELEASED;
+		RaycastHit hitInfo;
 
 		Vector3 initialCameraPosition;
 		public GameObject moduleSelector;
 		public GameObject paramChanger;
 		public GameObject laserPointer;
+		public Vector3    tip;
+
+		public Vector3 origin;
+		public Vector3 originController;
 
 		void Awake()
 		{
 			moduleNum = Enum.GetNames(typeof(ModuleName)).Length;
 			moduleCounter = new int[moduleNum];
-			initialCameraPosition = Camera.main.transform.position;
+			hitInfo = new RaycastHit();
 		}
 
 		void Start()
@@ -89,7 +104,7 @@ namespace VisAssets
 				}
 			}
 //			XRSettings.enabled = false;
-			XRState = XRSettings.enabled;
+//			XRState = XRSettings.enabled;
 
 			if (XRSettings.enabled)
 			{
@@ -98,13 +113,14 @@ namespace VisAssets
 
 				SetupPointer();
 			}
-
+/*
 			supportedDevices = XRSettings.supportedDevices;
 			Debug.Log("XRSettings.supportedDevices = " + supportedDevices.Length);
 			for (int i = 0; i < supportedDevices.Length; i++)
 			{
 				Debug.Log("XRSettings.supportedDevices[" + i + "] = " + supportedDevices[i]);
 			}
+*/
 		}
 
 		void Update()
@@ -115,6 +131,7 @@ namespace VisAssets
 				InputDevices.GetDevicesAtXRNode(XRNode.RightHand, inputDevices);
 				foreach (var device in inputDevices)
 				{
+/*
 					// joystick
 					if (device.TryGetFeatureValue(CommonUsages.primary2DAxis, out Vector2 position))
 					{
@@ -141,7 +158,7 @@ namespace VisAssets
 							}
 						}
 					}
-
+*/
 					// button
 					if (device.TryGetFeatureValue(CommonUsages.primaryButton, out inputValue) && inputValue)
 					{
@@ -149,7 +166,6 @@ namespace VisAssets
 						{
 							ShowUIManager();
 							ButtonA = ButtonState.PRESSED;
-
 						}
 						else if (ButtonA == ButtonState.PRESSED)
 						{
@@ -161,6 +177,30 @@ namespace VisAssets
 						var canvas = this.transform.Find("Canvas");
 						canvas.gameObject.SetActive(false);
 						ButtonA = ButtonState.RELEASED;
+					}
+
+					// button
+					var _canvas = this.transform.Find("Canvas");
+					if (!_canvas.gameObject.activeSelf)
+					{
+						if (device.TryGetFeatureValue(CommonUsages.triggerButton, out inputValue) && inputValue)
+						{
+							if (ButtonTrigger == ButtonState.RELEASED)
+							{
+//								var position = tip;
+								laserPointer.SetActive(true);
+								ButtonTrigger = ButtonState.PRESSED;
+							}
+							else if (ButtonA == ButtonState.PRESSED)
+							{
+								ButtonTrigger = ButtonState.KEEP_PRESSING;
+							}
+						}
+						else
+						{
+							laserPointer.SetActive(false);
+							ButtonTrigger = ButtonState.RELEASED;
+						}
 					}
 				}
 
@@ -248,9 +288,12 @@ namespace VisAssets
 				var camera = Camera.main;
 				var rotation = camera.transform.rotation.eulerAngles;
 				var direction = Quaternion.AngleAxis(rotation.y, Vector3.up);
+
+				initialCameraPosition = Camera.main.transform.position;
+
 				rectTransform.localPosition = initialCameraPosition + direction * new Vector3(0f, 0f, 10f);
 				rectTransform.localRotation = direction;
-				rectTransform.sizeDelta = new Vector2(100, 100);
+				rectTransform.sizeDelta  = new Vector2(100, 100);
 				rectTransform.localScale = new Vector3(0.015f, 0.015f, 0.015f);
 			}
 		}
@@ -273,22 +316,58 @@ namespace VisAssets
 		{
 			if (laserPointer != null)
 			{
+				Vector3 centerEyePosition = new Vector3();
+				var centerEyeDevices = new List<InputDevice>();
+				InputDevices.GetDevicesAtXRNode(XRNode.CenterEye, centerEyeDevices);
+				foreach (var device in centerEyeDevices)
+				{
+					device.TryGetFeatureValue(CommonUsages.devicePosition, out centerEyePosition);
+				}
+
 				var inputDevices = new List<InputDevice>();
 				InputDevices.GetDevicesAtXRNode(XRNode.RightHand, inputDevices);
 				foreach (var device in inputDevices)
 				{
+/*
+//					Vector3 origin;
+					Quaternion quaternion;
+					device.TryGetFeatureValue(CommonUsages.devicePosition, out originController);
+					device.TryGetFeatureValue(CommonUsages.deviceRotation, out quaternion);
+
+					origin = originController - centerEyePosition + Camera.main.transform.position;
+*/
 					Vector3 origin;
 					Quaternion quaternion;
 					device.TryGetFeatureValue(CommonUsages.devicePosition, out origin);
 					device.TryGetFeatureValue(CommonUsages.deviceRotation, out quaternion);
-					origin += initialCameraPosition;
-					Vector3 tip = origin + quaternion * new Vector3(0f, 0f, 10f);
+
+					origin -= centerEyePosition - Camera.main.transform.position;
+
+					tip = origin + quaternion * new Vector3(0f, 0f, 10f);
 					var renderer = laserPointer.GetComponent<LineRenderer>();
 					renderer.useWorldSpace = true;
 					renderer.SetPosition(0, origin);
 					renderer.SetPosition(1, tip);
 					renderer.startWidth = 0.01f;
 					renderer.endWidth = 0.01f;
+
+					float maxRayDistance = 1000.0f;
+					var ray = new Ray(origin, (tip - origin).normalized);
+					if (Physics.Raycast(ray, out hitInfo, Mathf.Infinity))
+					{
+						renderer.SetPosition(0, origin);
+						renderer.SetPosition(1, hitInfo.point);
+
+//						laserPointer.GetComponent<Pointer>().ShowPointer(hitInfo.point);
+					}
+					else
+					{
+						renderer.SetPosition(0, origin);
+						renderer.SetPosition(1, origin + (tip - origin).normalized * maxRayDistance);
+
+//						laserPointer.GetComponent<Pointer>().HidePointer();
+					}
+
 //					RaycastHit hitInfo;
 //					float distance = 10f;
 //					Physics.Raycast(origin, quaternion.eulerAngles, out hitInfo);

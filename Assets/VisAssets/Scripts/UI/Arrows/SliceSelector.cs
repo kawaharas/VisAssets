@@ -3,10 +3,8 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace VisAssets.UI.Arrows
+namespace VisAssets.SciVis.Structured.Arrows.UI
 {
-	using VisAssets;
-
 	public class SliceSelector : MonoBehaviour
 	{
 		private GameObject target = null;

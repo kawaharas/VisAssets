@@ -4,10 +4,8 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace VisAssets.UI.ReadV5
+namespace VisAssets.SciVis.Structured.DataLoader.UI
 {
-	using VisAssets;
-
 	public class PrecisionSelector : MonoBehaviour
 	{
 		private GameObject target = null;

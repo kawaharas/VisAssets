@@ -7,12 +7,12 @@ using System.Text;
 using System.Text.RegularExpressions;
 using UnityEngine;
 using UnityEngine.Networking;
+using UnityEngine.UI;
 using SimpleFileBrowser;
 #if UNITY_EDITOR
 using UnityEditor;
 using UnityEditor.Compilation;
 #endif
-using UnityEngine.UI;
 
 namespace VisAssets
 {
@@ -96,6 +96,8 @@ namespace VisAssets
 		bool[] options;
 		int header_size;
 
+//		int m_CurrentStep = 0;
+
 		List<float>[] coords = new List<float>[4]; // 0:x, 1:y, 2:z, 3:(x, y, z)
 		public string debugString = string.Empty;
 
@@ -171,7 +173,7 @@ namespace VisAssets
 				}
 				debugString += url + '\n';
 
-				UIPanel.transform.Find("DebugText").GetComponent<Text>().text = debugString;
+//				UIPanel.transform.Find("DebugText").GetComponent<Text>().text = debugString;
 			}
 			else
 			{
@@ -186,7 +188,12 @@ namespace VisAssets
 				var www = UnityWebRequest.Get(url);
 				yield return www.SendWebRequest();
 
+#if UNITY_2020_2_OR_NEWER
+				if (www.result == UnityWebRequest.Result.ProtocolError ||
+					www.result == UnityWebRequest.Result.ConnectionError)
+#else
 				if (www.isHttpError || www.isNetworkError)
+#endif
 				{
 					Debug.Log(www.error);
 				}
@@ -229,7 +236,7 @@ namespace VisAssets
 				}
 				debugString += url + '\n';
 
-				UIPanel.transform.Find("DebugText").GetComponent<Text>().text = debugString;
+//				UIPanel.transform.Find("DebugText").GetComponent<Text>().text = debugString;
 			}
 			else
 			{
@@ -246,9 +253,14 @@ namespace VisAssets
 				yield return www.SendWebRequest();
 				debugString += url + '\n';
 
-				UIPanel.transform.Find("DebugText").GetComponent<Text>().text = debugString;
+//				UIPanel.transform.Find("DebugText").GetComponent<Text>().text = debugString;
 
+#if UNITY_2020_2_OR_NEWER
+				if (www.result == UnityWebRequest.Result.ProtocolError ||
+					www.result == UnityWebRequest.Result.ConnectionError)
+#else
 				if (www.isHttpError || www.isNetworkError)
+#endif
 				{
 					Debug.Log(www.error);
 				}
@@ -424,7 +436,7 @@ namespace VisAssets
 
 			yield return StartCoroutine(ReadBinary(datafile, ResponseCallbackBinary));
 
-			int step = 1;
+			int step = 0;
 			SetData(step);
 
 			CalcOffsets();
@@ -538,37 +550,40 @@ namespace VisAssets
 				using (MemoryStream memoryStream = new MemoryStream(bytedata))
 				using (BinaryReader reader = new BinaryReader(memoryStream))
 				{
-					int skipbytes = 0;
-					for (int i = 0; i < df.elements.Length; i++)
+					if (reader != null)
 					{
-						skipbytes += df.elements[i].size * sizeof(float);
-					}
-					if (reader.BaseStream.CanSeek)
-					{
-						reader.BaseStream.Position = header_size + (skipbytes * step);
-					}
+						int skipbytes = 0;
+						for (int i = 0; i < df.elements.Length; i++)
+						{
+							skipbytes += df.elements[i].size * sizeof(float);
+						}
+						if (reader.BaseStream.CanSeek)
+						{
+							reader.BaseStream.Position = header_size + (skipbytes * step);
+						}
 
-					for (int i = 0; i < varnum; i++)
-					{
-						var values = new List<float>();
-						var size = df.elements[i].size;
-						var datasize = size * sizeof(float);
-						var buffer = new byte[datasize];
-						var length = reader.Read(buffer, 0, datasize);
-						if (length != datasize)
+						for (int i = 0; i < varnum; i++)
 						{
-							Debug.Log("ERROR: Failed to load data.");
-						}
-						for (int n = 0; n < size; n++)
-						{
-							if (options[(int)Options.BIG_ENDIAN])
+							var values = new List<float>();
+							var size = df.elements[i].size;
+							var datasize = size * sizeof(float);
+							var buffer = new byte[datasize];
+							var length = reader.Read(buffer, 0, datasize);
+							if (length != datasize)
 							{
-								Array.Reverse(buffer, n * sizeof(float), sizeof(float));
+								Debug.Log("ERROR: Failed to load data.");
 							}
-							var value = BitConverter.ToSingle(buffer, n * sizeof(float));
-							values.Add(value);
+							for (int n = 0; n < size; n++)
+							{
+								if (options[(int)Options.BIG_ENDIAN])
+								{
+									Array.Reverse(buffer, n * sizeof(float), sizeof(float));
+								}
+								var value = BitConverter.ToSingle(buffer, n * sizeof(float));
+								values.Add(value);
+							}
+							df.elements[i].SetValues(values);
 						}
-						df.elements[i].SetValues(values);
 					}
 				}
 			}
@@ -632,5 +647,34 @@ namespace VisAssets
 				// return error_code
 			}
 		}
+/*
+		private unsafe void ByteSwap4(byte[] data, int datasize)
+		{
+			fixed (byte* bytePtr = data)
+			{
+				var number_of_data = datasize / sizeof(float);
+				var fdata = (float*)bytePtr;
+				for (int i = 0; i < number_of_data; i++)
+				{
+					byte bit0, bit1, bit2, bit3;
+					float* data_ptr = &fdata[i];
+					byte* bit0p = (byte*)data_ptr;
+					byte* bit1p = bit0p + 1;
+					byte* bit2p = bit0p + 2;
+					byte* bit3p = bit0p + 3;
+
+					bit0 = *bit0p;
+					bit1 = *bit1p;
+					bit2 = *bit2p;
+					bit3 = *bit3p;
+
+					*bit0p = bit3;
+					*bit1p = bit2;
+					*bit2p = bit1;
+					*bit3p = bit0;
+				}
+			}
+		}
+*/
 	}
 }

@@ -1,0 +1,429 @@
+#pragma kernel GenCoordPrep
+#pragma kernel Calc
+#pragma kernel ClearBuffers
+
+#define SIZEOF_UINT   4
+#define SIZEOF_FLOAT  4
+#define SIZEOF_FLOAT3 12
+#define SIZEOF_FLOAT4 16
+
+uint3 dims;
+float _min;
+float _max;
+float threshold;
+uint  maximumVertexNum;
+
+RWStructuredBuffer<int>   tables;       // buffer packed three tables
+RWStructuredBuffer<float> cvm;          // buffer packed coord, value and metrics
+RWByteAddressBuffer       vertices;     // buffer for vertices (position, normal and color)
+RWStructuredBuffer<uint>  counter;
+RWStructuredBuffer<uint>  counterCheck;
+
+int    GetTriangleNum(uint i);
+int    GetEdgeEndVert(int j, int i);
+int    GetTriangle(uint k, int j, uint i);
+uint   GetIndex(uint i, uint j, uint k);
+float  GetCoord(uint i, uint j, uint k, uint axis);
+float  GetValue(uint i, uint j, uint k);
+float  GetMetrics(uint i, uint j, uint k, uint n);
+float4 GetColor();
+
+void WriteVertex(uint offset, float3 p, float3 n, float4 c)
+{
+	float3 c0 = float3(c.x, 0.0, 0.0);
+	float3 c1 = float3(c.y, c.z, c.w);
+	uint addr_p  = offset * (SIZEOF_FLOAT3 * 2 + SIZEOF_FLOAT4);
+	uint addr_n  = addr_p  + SIZEOF_FLOAT3;
+	uint addr_c0 = addr_n  + SIZEOF_FLOAT3;
+	uint addr_c1 = addr_c0 + SIZEOF_FLOAT;  // shift 4byte from addr_c0 (red)
+	vertices.Store3(addr_p,  asuint(p));
+	vertices.Store3(addr_n,  asuint(n));
+	vertices.Store3(addr_c0, asuint(c0));
+	vertices.Store3(addr_c1, asuint(c1));
+}
+
+[numthreads(4,4,4)]
+void GenCoordPrep(uint3 id : SV_DispatchThreadID)
+{
+	if (any(id >= dims.xyz)) return;
+
+	float x1, x2, x3;   // dx/d(coord 1), etc.
+	float y1, y2, y3;   // dy/d(coord 1), etc.
+	float z1, z2, z3;   // dz/d(coord 1), etc.
+	float jac;          // jacobian
+
+	if (id.x == 0)
+	{
+		x1 =  GetCoord(id.x + 1, id.y, id.z, 0) - GetCoord(id.x,     id.y, id.z, 0);
+		y1 =  GetCoord(id.x + 1, id.y, id.z, 1) - GetCoord(id.x,     id.y, id.z, 1);
+		z1 =  GetCoord(id.x + 1, id.y, id.z, 2) - GetCoord(id.x,     id.y, id.z, 2);
+	}
+	else if (id.x == dims.x - 1)
+	{
+		x1 =  GetCoord(id.x,     id.y, id.z, 0) - GetCoord(id.x - 1, id.y, id.z, 0);
+		y1 =  GetCoord(id.x,     id.y, id.z, 1) - GetCoord(id.x - 1, id.y, id.z, 1);
+		z1 =  GetCoord(id.x,     id.y, id.z, 2) - GetCoord(id.x - 1, id.y, id.z, 2);
+	}
+	else
+	{
+		x1 = (GetCoord(id.x + 1, id.y, id.z, 0) - GetCoord(id.x - 1, id.y, id.z, 0)) / 2.0;
+		y1 = (GetCoord(id.x + 1, id.y, id.z, 1) - GetCoord(id.x - 1, id.y, id.z, 1)) / 2.0;
+		z1 = (GetCoord(id.x + 1, id.y, id.z, 2) - GetCoord(id.x - 1, id.y, id.z, 2)) / 2.0;
+	}
+
+	if (id.y == 0)
+	{
+		x2 =  GetCoord(id.x, id.y + 1, id.z, 0) - GetCoord(id.x, id.y,     id.z, 0);
+		y2 =  GetCoord(id.x, id.y + 1, id.z, 1) - GetCoord(id.x, id.y,     id.z, 1);
+		z2 =  GetCoord(id.x, id.y + 1, id.z, 2) - GetCoord(id.x, id.y,     id.z, 2);
+	}
+	else if (id.y == dims.y - 1)
+	{
+		x2 =  GetCoord(id.x, id.y,     id.z, 0) - GetCoord(id.x, id.y - 1, id.z, 0);
+		y2 =  GetCoord(id.x, id.y,     id.z, 1) - GetCoord(id.x, id.y - 1, id.z, 1);
+		z2 =  GetCoord(id.x, id.y,     id.z, 2) - GetCoord(id.x, id.y - 1, id.z, 2);
+	}
+	else
+	{
+		x2 = (GetCoord(id.x, id.y + 1, id.z, 0) - GetCoord(id.x, id.y - 1, id.z, 0)) / 2.0;
+		y2 = (GetCoord(id.x, id.y + 1, id.z, 1) - GetCoord(id.x, id.y - 1, id.z, 1)) / 2.0;
+		z2 = (GetCoord(id.x, id.y + 1, id.z, 2) - GetCoord(id.x, id.y - 1, id.z, 2)) / 2.0;
+	}
+
+	if (id.z == 0)
+	{
+		x3 =  GetCoord(id.x, id.y, id.z + 1, 0) - GetCoord(id.x, id.y, id.z,     0);
+		y3 =  GetCoord(id.x, id.y, id.z + 1, 1) - GetCoord(id.x, id.y, id.z,     1);
+		z3 =  GetCoord(id.x, id.y, id.z + 1, 2) - GetCoord(id.x, id.y, id.z,     2);
+	}
+	else if (id.z == dims.z - 1)
+	{
+		x3 =  GetCoord(id.x, id.y, id.z,     0) - GetCoord(id.x, id.y, id.z - 1, 0);
+		y3 =  GetCoord(id.x, id.y, id.z,     1) - GetCoord(id.x, id.y, id.z - 1, 1);
+		z3 =  GetCoord(id.x, id.y, id.z,     2) - GetCoord(id.x, id.y, id.z - 1, 2);
+	}
+	else
+	{
+		x3 = (GetCoord(id.x, id.y, id.z + 1, 0) - GetCoord(id.x, id.y, id.z - 1, 0)) / 2.0;
+		y3 = (GetCoord(id.x, id.y, id.z + 1, 1) - GetCoord(id.x, id.y, id.z - 1, 1)) / 2.0;
+		z3 = (GetCoord(id.x, id.y, id.z + 1, 2) - GetCoord(id.x, id.y, id.z - 1, 2)) / 2.0;
+	}
+
+	jac = x1 * (y2 * z3 - y3 * z2)
+		- x2 * (y1 * z3 - y3 * z1)
+		+ x3 * (y1 * z2 - y2 * z1);
+
+	uint idx = GetIndex(id.x, id.y, id.z) * 9;
+	uint offset = GetIndex(id.x, id.y, id.z) * 13 + 4;
+	if (jac == 0)
+	{
+		for (int n = 0; n < 9; n++)
+		{
+			cvm[offset + n] = 0;
+		}
+	}
+	else
+	{
+		cvm[offset + 0] = (y2 * z3 - y3 * z2) / jac;
+		cvm[offset + 1] = (y3 * z1 - y1 * z3) / jac;
+		cvm[offset + 2] = (y1 * z2 - y2 * z1) / jac;
+		cvm[offset + 3] = (x3 * z2 - x2 * z3) / jac;
+		cvm[offset + 4] = (x1 * z3 - x3 * z1) / jac;
+		cvm[offset + 5] = (x2 * z1 - x1 * z2) / jac;
+		cvm[offset + 6] = (x2 * y3 - x3 * y2) / jac;
+		cvm[offset + 7] = (x3 * y1 - x1 * y3) / jac;
+		cvm[offset + 8] = (x1 * y2 - x2 * y1) / jac;
+	}
+}
+
+void VertIntPosition(int vert, out uint i, out uint j, out uint k, uint3 id)
+{
+//	uint shift_i = vert % 2 == 0 ? 0 : 1;    // (0,2,4,6) --> 0, (1,3,5,7) --> 1
+//	uint shift_j = vert % 4 < 2 ? 0 : 1;     // (0,1,4,5) --> 0, (2,3,6,7) --> 1
+	uint shift_i = fmod((float)vert, 2.0) == 0 ? 0 : 1;    // (0,2,4,6) --> 0, (1,3,5,7) --> 1
+	uint shift_j = fmod((float)vert, 4.0) < 2.0 ? 0 : 1;     // (0,1,4,5) --> 0, (2,3,6,7) --> 1
+	uint shift_k = vert < 4 ? 0 : 1;         // (0,1,2,3) --> 0, (4,5,6,7) --> 1
+
+	i = id.x + shift_i;
+	j = id.y + shift_j;
+	k = id.z + shift_k;
+}
+
+void Grad(uint i, uint j, uint k, out float vx, out float vy, out float vz)
+{
+	float dfd1, dfd2, dfd3, gx, gy, gz, gg;
+
+	if (i == 0)
+	{
+		dfd1 =  GetValue(i + 1, j, k) - GetValue(i,     j ,k);
+	}
+	else if (i == dims.x - 1)
+	{
+		dfd1 =  GetValue(i,     j, k) - GetValue(i - 1, j, k);
+	}
+	else
+	{
+		dfd1 = (GetValue(i + 1, j, k) - GetValue(i - 1, j, k)) / 2.0;
+	}
+
+	if (j == 0)
+	{
+		dfd2 =  GetValue(i, j + 1, k) - GetValue(i, j,     k);
+	}
+	else if (j == dims.y - 1)
+	{
+		dfd2 =  GetValue(i, j,     k) - GetValue(i, j - 1, k);
+	}
+	else
+	{
+		dfd2 = (GetValue(i, j + 1, k) - GetValue(i, j - 1, k)) / 2.0;
+	}
+
+	if (k == 0)
+	{
+		dfd3 =  GetValue(i, j, k + 1) - GetValue(i, j, k);
+	}
+	else if (k == dims.z - 1)
+	{
+		dfd3 =  GetValue(i, j, k    ) - GetValue(i, j, k - 1);
+	}
+	else
+	{
+		dfd3 = (GetValue(i, j, k + 1) - GetValue(i, j, k - 1)) / 2.0;
+	}
+
+//	uint idx = GetIndex(i, j, k) * 9;
+	gx = GetMetrics(i, j, k, 0) * dfd1 + GetMetrics(i, j, k, 1) * dfd2 + GetMetrics(i, j, k, 2) * dfd3;
+	gy = GetMetrics(i, j, k, 3) * dfd1 + GetMetrics(i, j, k, 4) * dfd2 + GetMetrics(i, j, k, 5) * dfd3;
+	gz = GetMetrics(i, j, k, 6) * dfd1 + GetMetrics(i, j, k, 7) * dfd2 + GetMetrics(i, j, k, 8) * dfd3;
+	gg = sqrt(gx * gx + gy * gy + gz * gz); // gg cannot be 0 since
+
+	vx = -gx / gg; // 0-isosurface is near here
+	vy = -gy / gg;
+	vz = -gz / gg;
+}
+
+void CrossPoint(int edge, out float3 vert, out float3 norm, uint3 id)
+{
+	uint i0, j0, k0, i1, j1, k1;
+	float weight0, weight1;
+	float x0, y0, z0, x1, y1, z1;
+	float nx0, ny0, nz0, nx1, ny1, nz1;
+
+	i0 = j0 = k0 = i1 = j1 = k1 = 0;
+	nx0 = ny0 = nz0 = nx1 = ny1 = nz1 = 0;
+
+	VertIntPosition(GetEdgeEndVert(edge, 0), i0, j0, k0, id);
+	VertIntPosition(GetEdgeEndVert(edge, 1), i1, j1, k1, id);
+
+	if (GetValue(i1, j1, k1) != GetValue(i0, j0, k0))
+	{
+		weight0 = (GetValue(i1, j1, k1) - threshold)
+			/ (GetValue(i1, j1, k1) - GetValue(i0, j0, k0));
+	}
+	else
+	{
+		weight0 = 0;
+	}
+	weight1 = 1.0 - weight0;
+
+	x0 = GetCoord(i0, j0, k0, 0);
+	y0 = GetCoord(i0, j0, k0, 1);
+	z0 = GetCoord(i0, j0, k0, 2);
+	x1 = GetCoord(i1, j1, k1, 0);
+	y1 = GetCoord(i1, j1, k1, 1);
+	z1 = GetCoord(i1, j1, k1, 2);
+
+	Grad(i0, j0, k0, nx0, ny0, nz0); // you get negative gradient
+	Grad(i1, j1, k1, nx1, ny1, nz1); // vector of the fisos field
+
+	vert.x = weight0 *  x0 + weight1 *  x1;  // linear interpolation
+	vert.y = weight0 *  y0 + weight1 *  y1;
+	vert.z = weight0 *  z0 + weight1 *  z1;
+	norm.x = weight0 * nx0 + weight1 * nx1;
+	norm.y = weight0 * ny0 + weight1 * ny1;
+	norm.z = weight0 * nz0 + weight1 * nz1;
+}
+
+void AddTriangleGeom(
+	float3 vert0, float3 vert1, float3 vert2,
+	float3 norm0, float3 norm1, float3 norm2)
+{
+	uint count = counter.IncrementCounter();
+
+	if (count >= maximumVertexNum)
+	{
+		return;
+	}
+
+	float4 color = GetColor();
+	uint vidx = count * 3;
+	WriteVertex(vidx + 0, vert0, norm0, color);
+	WriteVertex(vidx + 1, vert1, norm1, color);
+	WriteVertex(vidx + 2, vert2, norm2, color);
+}
+
+int CellCode(int i0, int j0, int k0)
+{
+	int  sum  = 0;
+	uint code = 0;
+
+	for (int k = k0 + 1; k >= k0; k--)
+	{
+		for (int j = j0 + 1; j >= j0; j--)
+		{
+			for (int i = i0 + 1; i >= i0; i--)
+			{
+				uint bit = (GetValue(i, j, k) > threshold ? 1 : 0);
+				code |= bit;
+				if (i != i0 || j != j0 || k != k0)
+				{
+					code <<= 1;
+				}
+				sum += (int)bit;
+			}
+		}
+	}
+
+	if (sum > 4)
+	{
+		code = ~(code & 0xff) & 0xff; // modified for compute shader
+//		code = ~code; // original c++ code
+	}
+
+	return code;
+}
+
+void UnitCube(uint3 id)
+{
+	int    edge0, edge1, edge2;
+	float3 posit0, posit1, posit2;
+	float3 norml0, norml1, norml2;
+
+	uint code = CellCode((int)id.x, (int)id.y, (int)id.z);
+	int p = GetTriangleNum(code);
+
+	while (p-- > 0)
+	{
+		edge0 = GetTriangle(code, p, 0);
+		edge1 = GetTriangle(code, p, 1);
+		edge2 = GetTriangle(code, p, 2);
+		CrossPoint(edge0, posit0, norml0, id);
+		CrossPoint(edge1, posit1, norml1, id);
+		CrossPoint(edge2, posit2, norml2, id);
+		AddTriangleGeom(posit0, posit1, posit2, norml0, norml1, norml2);
+	}
+}
+
+[numthreads(8,8,1)]
+void Calc(uint3 id : SV_DispatchThreadID)
+{
+	if (any(id + 1 >= dims.xyz)) return;
+
+	UnitCube(id);
+}
+
+[numthreads(64, 1, 1)]
+void ClearBuffers(uint id : SV_DispatchThreadID)
+{
+	while (true)
+	{
+		uint count = counter.IncrementCounter();
+		if (count >= maximumVertexNum)
+		{
+			break;
+		}
+
+		uint vidx = count * 3;
+		float3 f3z = float3(0.0, 0.0, 0.0);
+		float4 f4z = float4(0.0, 0.0, 0.0, 0.0);
+		WriteVertex(vidx + 0, f3z, f3z, f4z);
+		WriteVertex(vidx + 1, f3z, f3z, f4z);
+		WriteVertex(vidx + 2, f3z, f3z, f4z);
+	}
+}
+
+int GetTriangleNum(uint i)
+{
+	return tables[i];
+}
+
+int GetEdgeEndVert(int j, int i)
+{
+	return tables[256 + j * 2 + i];
+}
+
+int GetTriangle(uint k, int j, uint i)
+{
+	return tables[256 + (12 * 2) + 3 * 4 * k + 3 * (uint)j + i];
+}
+
+uint GetIndex(uint i, uint j, uint k)
+{
+	return (dims.y * k + j) * dims.x + i;
+}
+
+float GetCoord(uint i, uint j, uint k, uint axis)
+{
+	// axis : X = 0, Y = 1, Z = 2
+	return cvm[GetIndex(i, j, k) * 13 + axis];
+}
+
+float GetValue(uint i, uint j, uint k)
+{
+	return cvm[GetIndex(i, j, k) * 13 + 3];
+}
+
+float GetMetrics(uint i, uint j, uint k, uint n)
+{
+	return cvm[GetIndex(i, j, k) * 13 + 4 + n];
+}
+
+float4 GetColor()
+{
+	float level = (_max - threshold) / (_max - _min);
+	float r, g, b, a;
+	r = g = b = 0;
+	a = 1.0;
+
+	if (level < 0.5)
+	{
+		r = 0.0;
+	}
+	else if (level >= 0.5 && level < 5.0 / 6.0)
+	{
+		r = 6.0 * (level - 0.5);
+	}
+	else if (level >= 5.0 / 6.0)
+	{
+		r = 1.0;
+	}
+
+	if (level < 1.0 / 3.0)
+	{
+		g = 3.0 * (level);
+	}
+	else if (level >= 1.0 / 3.0 && level < 2.0 / 3.0)
+	{
+		g = 1.0;
+	}
+	else if (level >= 2.0 / 3.0)
+	{
+		g = 1.0 - 3.0 * (level - 2.0 / 3.0);
+	}
+
+	if (level < 1.0 / 3.0)
+	{
+		b = 1.0;
+	}
+	else if (level >= 1.0 / 3.0 && level < 1.0 / 2.0)
+	{
+		b = 1.0 - 6.0 * (level - 1.0 / 3.0);
+	}
+	else if (level >= 1.0 / 2.0)
+	{
+		b = 0.0;
+	}
+
+	return float4(r, g, b, a);
+}

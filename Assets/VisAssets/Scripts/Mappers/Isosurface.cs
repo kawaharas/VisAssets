@@ -10,10 +10,9 @@ using UnityEditor;
 using UnityEditor.Compilation;
 #endif
 
-namespace VisAssets
+namespace VisAssets.SciVis.Structured.Isosurface
 {
 #if UNITY_EDITOR
-	[CanEditMultipleObjects]
 	[CustomEditor(typeof(Isosurface))]
 	public class IsosurfaceEditor : Editor
 	{
@@ -101,8 +100,7 @@ namespace VisAssets
 			colors    = new List<Color>();
 			triangles = new List<int>();
 			color     = new Color(0, 1f, 0, 1f);
-//			material  = new Material(Shader.Find("Custom/SurfaceShader"));
-			material = new Material(Shader.Find("Custom/SimplePhong"));
+			material  = new Material(Shader.Find("Custom/SimplePhong"));
 
 			shadingMode = SHADING_MODE.FLAT;
 			threshold = 0;
@@ -210,14 +208,14 @@ namespace VisAssets
 				{
 					for (int i = 0; i < mx - 1; i++)
 					{
-						coord_idx[0] = i + j * mx + k * mx * my;
-						coord_idx[1] = (i + 1) + j * mx + k * mx * my;
-						coord_idx[2] = (i + 1) + (j + 1) * mx + k * mx * my;
-						coord_idx[3] = i + (j + 1) * mx + k * mx * my;
-						coord_idx[4] = i + j * mx + (k + 1) * mx * my;
-						coord_idx[5] = (i + 1) + j * mx + (k + 1) * mx * my;
+						coord_idx[0] =  i      +  j      * mx +  k      * mx * my;
+						coord_idx[1] = (i + 1) +  j      * mx +  k      * mx * my;
+						coord_idx[2] = (i + 1) + (j + 1) * mx +  k      * mx * my;
+						coord_idx[3] =  i      + (j + 1) * mx +  k      * mx * my;
+						coord_idx[4] =  i      +  j      * mx + (k + 1) * mx * my;
+						coord_idx[5] = (i + 1) +  j      * mx + (k + 1) * mx * my;
 						coord_idx[6] = (i + 1) + (j + 1) * mx + (k + 1) * mx * my;
-						coord_idx[7] = i + (j + 1) * mx + (k + 1) * mx * my;
+						coord_idx[7] =  i      + (j + 1) * mx + (k + 1) * mx * my;
 
 						int vtype = 0;
 						for (int n = 0; n < 8; n++)

@@ -62,8 +62,11 @@ namespace VisAssets
 		void TogglePanelVisibility()
 		{
 			IsVisible = !IsVisible;
-			var target = transform.Find("Panels");
-			target.gameObject.SetActive(IsVisible);
+			var target = transform.Find("MainPanel");
+			if (target != null)
+			{
+				target.gameObject.SetActive(IsVisible);
+			}
 		}
 
 		IEnumerator LoadDevice(string device)

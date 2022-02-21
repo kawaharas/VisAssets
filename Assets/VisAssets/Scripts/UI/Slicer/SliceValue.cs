@@ -4,10 +4,8 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace VisAssets.UI.Slicer
+namespace VisAssets.SciVis.Structured.Slicer.UI
 {
-	using VisAssets;
-
 	public class SliceValue : MonoBehaviour
 	{
 		private GameObject target = null;

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace VisAssets
+namespace VisAssets.SciVis.Structured.DataLoader.UI
 {
 	public class SetDummyData : MonoBehaviour
 	{

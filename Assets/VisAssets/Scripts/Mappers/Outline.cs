@@ -8,15 +8,24 @@ using UnityEditor;
 using UnityEditor.Compilation;
 #endif
 
-namespace VisAssets
+namespace VisAssets.SciVis.Structured.Outline
 {
 	using FieldType = DataElement.FieldType;
 
 #if UNITY_EDITOR
-	[CanEditMultipleObjects]
 	[CustomEditor(typeof(Outline))]
 	public class OutlineEditor : Editor
 	{
+		SerializedProperty color;
+		SerializedProperty drawOuterMesh;
+		SerializedProperty drawInnerMesh;
+		private void OnEnable()
+		{
+			color         = serializedObject.FindProperty("color");
+			drawOuterMesh = serializedObject.FindProperty("drawOuterMesh");
+			drawInnerMesh = serializedObject.FindProperty("drawInnerMesh");
+		}
+
 		public override void OnInspectorGUI()
 		{
 			var outline = target as Outline;
@@ -25,13 +34,29 @@ namespace VisAssets
 			EditorGUI.BeginChangeCheck();
 
 			GUILayout.Space(10f);
-			var color = EditorGUILayout.ColorField("Color:", outline.color);
-			GUILayout.Space(3f);
+			color.colorValue = EditorGUILayout.ColorField("Color:", color.colorValue);
+			GUILayout.Space(10f);
+			drawOuterMesh.boolValue = EditorGUILayout.Toggle("Draw Outer Mesh", drawOuterMesh.boolValue);
+			GUILayout.Space(10f);
+			drawInnerMesh.boolValue = EditorGUILayout.Toggle("Draw Inner Mesh", drawInnerMesh.boolValue);
+			GUILayout.Space(10f);
+			if (GUILayout.Button("Load Default Values"))
+			{
+				color.colorValue = new Color(1f, 1f, 1f, 0.3f);
+				drawOuterMesh.boolValue = false;
+				drawInnerMesh.boolValue = false;
+			}
+			EditorGUILayout.Space();
 
 			if (EditorGUI.EndChangeCheck())
 			{
 				Undo.RecordObject(target, "Outline");
-				outline.SetColor(color);
+				if (EditorApplication.isPlaying)
+				{
+					outline.SetColor(color.colorValue);
+					outline.SetStateOuterMesh(drawOuterMesh.boolValue);
+					outline.SetStateInnerMesh(drawInnerMesh.boolValue);
+				}
 				EditorUtility.SetDirty(target);
 			}
 
@@ -42,27 +67,30 @@ namespace VisAssets
 
 	public class Outline : MapperModuleTemplate
 	{
+		// accessors for input data loaded to the parent module
+		DataElement   element;
+		int []        dims;
+		float [][]    coords;
+
 		List<Vector3> vertices;
 		List<Color>   colors;
+		List<int>     indices;
+		int           vertexCount;
+		Mesh          mesh;
+		Material      material;
 
 		[SerializeField]
-		public Color color;
-		Material material;
-		Mesh mesh;
-		DataElement element;
-
-		int[] indices = new int[24]
-		{
-			0, 1, 2, 3, 0, 2, 1, 3,
-			4, 5, 6, 7, 4, 6, 5, 7,
-			0, 4, 1, 5, 2, 6, 3, 7
-		};
+		public Color  color = new Color(1f, 1f, 1f, 0.3f);
+		[SerializeField]
+		public bool   drawOuterMesh;
+		[SerializeField]
+		public bool   drawInnerMesh;
 
 		public override void InitModule()
 		{
 			vertices = new List<Vector3>();
 			colors   = new List<Color>();
-			color    = new Color(1f, 1f, 1f);
+			indices  = new List<int>();
 			material = new Material(Shader.Find("Sprites/Default"));
 
 			mesh = new Mesh();
@@ -85,158 +113,248 @@ namespace VisAssets
 		public override void ReSetParameters()
 		{
 			element = pdf.elements[0];
-		}
-
-		public override void SetParameters()
-		{
+			dims    = element.dims;
+			coords  = element.coords;
 		}
 
 		public void Calc()
 		{
 			vertices.Clear();
 			colors.Clear();
+			indices.Clear();
+			vertexCount = 0;
 
 			FieldType fieldType = element.fieldType;
-			if (fieldType == FieldType.UNIFORM)
-			{
-				float[] min = new float[3];
-				float[] max = new float[3];
-				for (int i = 0; i < 3; i++)
-				{
-					min[i] = 0;
-					max[i] = (float)(element.dims[i] - 1);
-				}
 
-				vertices.Add(new Vector3(min[0], min[1], min[2]));
-				vertices.Add(new Vector3(max[0], min[1], min[2]));
-				vertices.Add(new Vector3(min[0], min[1], max[2]));
-				vertices.Add(new Vector3(max[0], min[1], max[2]));
-				vertices.Add(new Vector3(min[0], max[1], min[2]));
-				vertices.Add(new Vector3(max[0], max[1], min[2]));
-				vertices.Add(new Vector3(min[0], max[1], max[2]));
-				vertices.Add(new Vector3(max[0], max[1], max[2]));
-				for (int i = 0; i < 8; i++)
-				{
-					colors.Add(color);
-				}
-			}
-			else if (fieldType == FieldType.RECTILINEAR)
+			if ((fieldType == FieldType.UNIFORM) ||
+				(fieldType == FieldType.RECTILINEAR))
 			{
-				float[] min = new float[3];
-				float[] max = new float[3];
-				for (int i = 0; i < 3; i++)
-				{
-					min[i] = Math.Min(float.MaxValue, element.coords[i].Min());
-					max[i] = Math.Max(float.MinValue, element.coords[i].Max());
-				}
-
-				vertices.Add(new Vector3(min[0], min[1], min[2]));
-				vertices.Add(new Vector3(max[0], min[1], min[2]));
-				vertices.Add(new Vector3(min[0], min[1], max[2]));
-				vertices.Add(new Vector3(max[0], min[1], max[2]));
-				vertices.Add(new Vector3(min[0], max[1], min[2]));
-				vertices.Add(new Vector3(max[0], max[1], min[2]));
-				vertices.Add(new Vector3(min[0], max[1], max[2]));
-				vertices.Add(new Vector3(max[0], max[1], max[2]));
-				for (int i = 0; i < 8; i++)
-				{
-					colors.Add(color);
-				}
-			}
-			else if (fieldType == FieldType.IRREGULAR)
-			{
-				float[] coord3 = element.coords[3];
-				int[] dims = element.dims;
-				List<int> lines = new List<int>();
-				int line_id = 0;
-				int idx = 0;
-
 				for (int axis = 0; axis < 3; axis++)
 				{
-					for (int n = 0; n < 4; n++)
+					int NI, NJ;
+
+					if (axis == 0)
 					{
-						for (int i = 0; i < dims[axis]; i++)
+						NI = dims[1];
+						NJ = dims[2];
+					}
+					else if (axis == 1)
+					{
+						NI = dims[0];
+						NJ = dims[2];
+					}
+					else
+					{
+						NI = dims[1];
+						NJ = dims[0];
+					}
+
+					for (int j = 0; j < NJ; j++)
+					{
+						for (int i = 0; i < NI; i++)
 						{
-							if (axis == 0)
+							if ((j == 0) || (j == NJ - 1))
 							{
-								if (n == 0)
+								if ((i != 0) && (i != NI - 1))
 								{
-									idx = GetIndex(i, 0, 0);
+									if (drawOuterMesh)
+									{
+										if (axis == 0)
+										{
+											AddLine(0, i, j, dims[axis] - 1, i, j);
+										}
+										else if (axis == 1)
+										{
+											AddLine(i, 0, j, i, dims[axis] - 1, j);
+										}
+										else
+										{
+											AddLine(i, j, 0, i, j, dims[axis] - 1);
+										}
+									}
 								}
-								if (n == 1)
+								else
 								{
-									idx = GetIndex(i, 0, dims[2] - 1);
-								}
-								if (n == 2)
-								{
-									idx = GetIndex(i, dims[1] - 1, 0);
-								}
-								if (n == 3)
-								{
-									idx = GetIndex(i, dims[1] - 1, dims[2] - 1);
-								}
-							}
-							else if (axis == 1)
-							{
-								if (n == 0)
-								{
-									idx = GetIndex(0, i, 0);
-								}
-								if (n == 1)
-								{
-									idx = GetIndex(0, i, dims[2] - 1);
-								}
-								if (n == 2)
-								{
-									idx = GetIndex(dims[0] - 1, i, 0);
-								}
-								if (n == 3)
-								{
-									idx = GetIndex(dims[0] - 1, i, dims[2] - 1);
+									if (axis == 0)
+									{
+										AddLine(0, i, j, dims[axis] - 1, i, j);
+									}
+									else if (axis == 1)
+									{
+										AddLine(i, 0, j, i, dims[axis] - 1, j);
+									}
+									else
+									{
+										AddLine(i, j, 0, i, j, dims[axis] - 1);
+									}
 								}
 							}
 							else
 							{
-								if (n == 0)
+								if ((i == 0) || (i == NI - 1))
 								{
-									idx = GetIndex(0, 0, i);
+									if (drawOuterMesh)
+									{
+										if (axis == 0)
+										{
+											AddLine(0, i, j, dims[axis] - 1, i, j);
+										}
+										else if (axis == 1)
+										{
+											AddLine(i, 0, j, i, dims[axis] - 1, j);
+										}
+										else
+										{
+											AddLine(i, j, 0, i, j, dims[axis] - 1);
+										}
+									}
 								}
-								if (n == 1)
+								else
 								{
-									idx = GetIndex(0, dims[1] - 1, i);
+									if (drawInnerMesh)
+									{
+										if (axis == 0)
+										{
+											AddLine(0, i, j, dims[axis] - 1, i, j);
+										}
+										else if (axis == 1)
+										{
+											AddLine(i, 0, j, i, dims[axis] - 1, j);
+										}
+										else
+										{
+											AddLine(i, j, 0, i, j, dims[axis] - 1);
+										}
+									}
 								}
-								if (n == 2)
-								{
-									idx = GetIndex(dims[0] - 1, 0, i);
-								}
-								if (n == 3)
-								{
-									idx = GetIndex(dims[0] - 1, dims[1] - 1, i);
-								}
-							}
-							float v0 = coord3[idx * 3 + 0];
-							float v1 = coord3[idx * 3 + 1];
-							float v2 = coord3[idx * 3 + 2];
-							vertices.Add(new Vector3(v0, v1, v2));
-							colors.Add(color);
-							if (i != dims[axis] - 1)
-							{
-								lines.Add(line_id);
-								lines.Add(line_id + 1);
-								line_id++;
 							}
 						}
-						line_id++;
 					}
 				}
+			}
+			else if (fieldType == FieldType.IRREGULAR)
+			{
+				for (int axis = 0; axis < 3; axis++)
+				{
+					int NI, NJ;
 
-				indices = lines.ToArray();
+					if (axis == 0)
+					{
+						NI = dims[1];
+						NJ = dims[2];
+					}
+					else if (axis == 1)
+					{
+						NI = dims[0];
+						NJ = dims[2];
+					}
+					else
+					{
+						NI = dims[1];
+						NJ = dims[0];
+					}
+
+					for (int j = 0; j < NJ; j++)
+					{
+						for (int i = 0; i < NI; i++)
+						{
+							if ((j == 0) || (j == NJ - 1))
+							{
+								if ((i != 0) && (i != NI - 1))
+								{
+									if (drawOuterMesh)
+									{
+										for (int n = 0; n < dims[axis] - 2; n++)
+										{
+											if (axis == 0)
+											{
+												AddLine2(n, i, j, n + 1, i, j);
+											}
+											else if (axis == 1)
+											{
+												AddLine2(i, n, j, i, n + 1, j);
+											}
+											else
+											{
+												AddLine2(i, j, n, i, j, n + 1);
+											}
+										}
+									}
+								}
+								else
+								{
+									for (int n = 0; n < dims[axis] - 2; n++)
+									{
+										if (axis == 0)
+										{
+											AddLine2(n, i, j, n + 1, i, j);
+										}
+										else if (axis == 1)
+										{
+											AddLine2(i, n, j, i, n + 1, j);
+										}
+										else
+										{
+											AddLine2(i, j, n, i, j, n + 1);
+										}
+									}
+								}
+							}
+							else
+							{
+								if ((i == 0) || (i == NI - 1))
+								{
+									if (drawOuterMesh)
+									{
+										for (int n = 0; n < dims[axis] - 2; n++)
+										{
+											if (axis == 0)
+											{
+												AddLine2(n, i, j, n + 1, i, j);
+											}
+											else if (axis == 1)
+											{
+												AddLine2(i, n, j, i, n + 1, j);
+											}
+											else
+											{
+												AddLine2(i, j, n, i, j, n + 1);
+											}
+										}
+									}
+								}
+								else
+								{
+									if (drawInnerMesh)
+									{
+										for (int n = 0; n < dims[axis] - 2; n++)
+										{
+											if (axis == 0)
+											{
+												AddLine2(n, i, j, n + 1, i, j);
+											}
+											else if (axis == 1)
+											{
+												AddLine2(i, n, j, i, n + 1, j);
+											}
+											else
+											{
+												AddLine2(i, j, n, i, j, n + 1);
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
 			}
 			else
 			{
 				// not implemented yet
 			}
 
+			mesh.Clear(); // for safety : mesh must be clear every time it is recalculated.
 			mesh.SetVertices(vertices);
 			mesh.SetColors(colors);
 			mesh.SetIndices(indices, MeshTopology.Lines, 0);
@@ -256,6 +374,46 @@ namespace VisAssets
 			int index = dims[1] * dims[0] * k + dims[0] * j + i;
 
 			return index;
+		}
+
+		public void SetStateOuterMesh(bool state)
+		{
+			drawOuterMesh = state;
+			
+			ParameterChanged();
+		}
+
+		public void SetStateInnerMesh(bool state)
+		{
+			drawInnerMesh = state;
+			
+			ParameterChanged();
+		}
+
+		void AddLine(int i0, int j0, int k0, int i1, int j1, int k1)
+		{
+			// for uniform and rectilinear
+			vertices.Add(new Vector3(coords[0][i0], coords[1][j0], coords[2][k0]));
+			vertices.Add(new Vector3(coords[0][i1], coords[1][j1], coords[2][k1]));
+			colors.Add(color);
+			colors.Add(color);
+			indices.Add(vertexCount);
+			indices.Add(vertexCount + 1);
+			vertexCount += 2;
+		}
+
+		void AddLine2(int i0, int j0, int k0, int i1, int j1, int k1)
+		{
+			// for irregular
+			int idx0 = GetIndex(i0, j0, k0) * 3;
+			int idx1 = GetIndex(i1, j1, k1) * 3;
+			vertices.Add(new Vector3(coords[3][idx0], coords[3][idx0 + 1], coords[3][idx0 + 2]));
+			vertices.Add(new Vector3(coords[3][idx1], coords[3][idx1 + 1], coords[3][idx1 + 2]));
+			colors.Add(color);
+			colors.Add(color);
+			indices.Add(vertexCount);
+			indices.Add(vertexCount + 1);
+			vertexCount += 2;
 		}
 	}
 }

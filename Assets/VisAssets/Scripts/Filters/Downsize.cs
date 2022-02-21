@@ -9,12 +9,11 @@ using UnityEditor;
 using UnityEditor.Compilation;
 #endif
 
-namespace VisAssets
+namespace VisAssets.SciVis.Structured.Downsize
 {
 	using FieldType = DataElement.FieldType;
 
 #if UNITY_EDITOR
-	[CanEditMultipleObjects]
 	[CustomEditor(typeof(Downsize))]
 	public class DownsizeEditor : Editor
 	{
@@ -81,7 +80,7 @@ namespace VisAssets
 
 	public class Downsize : FilterModuleTemplate
 	{
-		public int safetyValue = 50;
+		public int safetyValue;
 
 		DataElement[] elements; // data elements of parent gameobject
 		int elements_num;
@@ -101,6 +100,7 @@ namespace VisAssets
 			idims_max = new int[3] { -1, -1, -1 };
 			idims     = new int[3] { -1, -1, -1 };
 			useUndef  = false;
+			safetyValue = 50;
 			activeElements = new List<int>();
 		}
 
