@@ -7,6 +7,9 @@ using UnityEditor;
 
 namespace VisAssets
 {
+	using ModuleState = Activation.ModuleState;
+	using ModuleType  = ModuleTemplate.ModuleType;
+
 #if UNITY_EDITOR
 	[CustomEditor(typeof(Activation))]
 	public class ActivationEditor : Editor
@@ -36,16 +39,17 @@ namespace VisAssets
 			UNCHANGED = 0,
 			PARAMETER_CHANGED,
 			DATAFIELD_CHANGED,
+			TIMESTEP_CHANGED,
 			UNDEFINED
 		}
 
 		[ReadOnly]
-		public ModuleTemplate.ModuleType moduleType = ModuleTemplate.ModuleType.UNDEFINED;
+		public ModuleType moduleType = ModuleType.UNDEFINED;
 
 		public int parent_changed    = (int)(ModuleState.UNCHANGED);
 		public int parameter_changed = (int)(ModuleState.UNCHANGED);
 
-		public void SetModuleType(ModuleTemplate.ModuleType type)
+		public void SetModuleType(ModuleType type)
 		{
 			moduleType = type;
 		}

@@ -142,7 +142,7 @@ namespace VisAssets
 						}
 					}
 				}
-				else if (fieldType == FieldType.UNSTRUCTURE)
+				else if (fieldType == FieldType.UNSTRUCTURED)
 				{
 					// not implemented yet
 				}

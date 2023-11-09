@@ -31,6 +31,8 @@ namespace VisAssets.SciVis.Structured.DataLoader
 		SerializedProperty useEmbeddedData;
 		SerializedProperty centering;
 		SerializedProperty autoResize;
+		SerializedProperty useUndef;
+		SerializedProperty undef;
 
 		public void OnEnable()
 		{
@@ -44,6 +46,8 @@ namespace VisAssets.SciVis.Structured.DataLoader
 			useEmbeddedData = serializedObject.FindProperty("useEmbeddedData");
 			centering       = serializedObject.FindProperty("centering");
 			autoResize      = serializedObject.FindProperty("autoResize");
+			useUndef        = serializedObject.FindProperty("useUndef");
+			undef           = serializedObject.FindProperty("undef");
 		}
 
 		public override void OnInspectorGUI()
@@ -89,6 +93,14 @@ namespace VisAssets.SciVis.Structured.DataLoader
 			EditorGUILayout.LabelField(message, style);
 			GUILayout.Space(5f);
 			EditorGUILayout.EndHorizontal();
+
+			GUILayout.Space(10f);
+			useUndef.boolValue = EditorGUILayout.ToggleLeft("Use Undef", useUndef.boolValue);
+			GUILayout.Space(5f);
+			EditorGUI.BeginDisabledGroup(!useUndef.boolValue);
+			undef.floatValue = EditorGUILayout.FloatField("Undef Value", undef.floatValue);
+			EditorGUI.EndDisabledGroup();
+			GUILayout.Space(10f);
 
 			GUILayout.Space(5f);
 			centering.boolValue = EditorGUILayout.ToggleLeft("Centering", centering.boolValue);
@@ -141,6 +153,8 @@ namespace VisAssets.SciVis.Structured.DataLoader
 		public bool byteswap = false;
 		public bool header = true; // true: with header, false: without header
 		public bool useEmbeddedData;
+		public bool useUndef;
+		public float undef;
 
 		byte[] bytedata;
 
@@ -215,6 +229,10 @@ namespace VisAssets.SciVis.Structured.DataLoader
 			df.elements[0].SetDims(dims);
 //			df.elements[0].SetDims(dims[0], dims[1], dims[2]);
 			df.elements[0].SetCoords(coords);
+			if (useUndef)
+			{
+				df.elements[0].SetUndef(undef);
+			}
 			df.elements[0].SetValues(values);
 //			df.elements[0].varName = varname.Replace("\\n", " ");
 			df.elements[0].SetVarName(varname);
@@ -356,6 +374,8 @@ namespace VisAssets.SciVis.Structured.DataLoader
 								tmp[1] = buffer[n * dataLength + 2];
 								tmp[0] = buffer[n * dataLength + 3];
 								value = BitConverter.ToSingle(tmp, 0);
+//								Array.Reverse(buffer[n * dataLength], 0, 4)
+//								value = BitConverter.ToSingle(buffer[n * dataLength], 0);
 							}
 							else
 							{
@@ -376,6 +396,8 @@ namespace VisAssets.SciVis.Structured.DataLoader
 								tmp[1] = buffer[n * dataLength + 6];
 								tmp[0] = buffer[n * dataLength + 7];
 								value = (float)BitConverter.ToDouble(tmp, 0);
+//								Array.Reverse(buffer[n * dataLength], 0, 8)
+//								value = BitConverter.ToDouble(buffer[n * dataLength], 0);
 							}
 							else
 							{

@@ -27,12 +27,15 @@ namespace VisAssets
 		public FieldType fieldType;
 		public bool      isActive;
 
+		public Vector3   boundMin;
+		public Vector3   boundMax;
+
 		public enum FieldType
 		{
 			UNIFORM,
 			RECTILINEAR,
 			IRREGULAR,
-			UNSTRUCTURE,
+			UNSTRUCTURED,
 			UNDEFINED
 		}
 
@@ -117,6 +120,20 @@ namespace VisAssets
 					}
 				}
 				coords[3] = c[3].ToArray();
+			}
+
+			boundMin = GetCoord(0, 0, 0);
+			boundMax = GetCoord(0, 0, 0);
+			for (int k = 0; k < dims[2]; k++)
+			{
+				for (int j = 0; j < dims[1]; j++)
+				{
+					for (int i = 0; i < dims[0]; i++)
+					{
+						boundMin = Vector3.Min(boundMin, GetCoord(i, j, k));
+						boundMax = Vector3.Max(boundMax, GetCoord(i, j, k));
+					}
+				}
 			}
 		}
 

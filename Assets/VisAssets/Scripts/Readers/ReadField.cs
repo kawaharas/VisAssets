@@ -24,6 +24,8 @@ namespace VisAssets
 		SerializedProperty loadAtStartup;
 		SerializedProperty useEmbeddedData;
 		SerializedProperty useDummyData;
+		SerializedProperty useUndef;
+		SerializedProperty undef;
 
 		public void OnEnable()
 		{
@@ -31,6 +33,8 @@ namespace VisAssets
 			loadAtStartup   = serializedObject.FindProperty("loadAtStartup");
 			useEmbeddedData = serializedObject.FindProperty("useEmbeddedData");
 			useDummyData    = serializedObject.FindProperty("useDummyData");
+			useUndef        = serializedObject.FindProperty("useUndef");
+			undef           = serializedObject.FindProperty("undef");
 		}
 
 		public override void OnInspectorGUI()
@@ -60,6 +64,14 @@ namespace VisAssets
 			GUILayout.Space(5f);
 			EditorGUILayout.EndHorizontal();
 
+			GUILayout.Space(10f);
+			useUndef.boolValue = EditorGUILayout.ToggleLeft("Use Undef", useUndef.boolValue);
+			GUILayout.Space(5f);
+			EditorGUI.BeginDisabledGroup(!useUndef.boolValue);
+			undef.floatValue = EditorGUILayout.FloatField("Undef Value", undef.floatValue);
+			EditorGUI.EndDisabledGroup();
+			GUILayout.Space(10f);
+
 			EditorGUI.BeginDisabledGroup(useEmbeddedData.boolValue);
 			useDummyData.boolValue = EditorGUILayout.ToggleLeft("Use Dummy Data", useDummyData.boolValue);
 			EditorGUI.EndDisabledGroup();
@@ -82,6 +94,9 @@ namespace VisAssets
 		public bool useEmbeddedData;
 		string textString = string.Empty;
 		public string debugString = string.Empty;
+
+		public bool useUndef;
+		public float undef;
 
 		public override void InitModule()
 		{
@@ -321,6 +336,10 @@ namespace VisAssets
 			{
 				df.elements[i].SetDims(dims);
 				df.elements[i].SetCoords(coords);
+				if (useUndef)
+				{
+					df.elements[i].SetUndef(undef);
+				}
 				df.elements[i].SetValues(values[i]);
 				df.elements[i].SetFieldType(fieldType);
 				df.elements[i].SetActive(true);

@@ -202,7 +202,7 @@ namespace VisAssets.SciVis.Structured.Isosurface
 
 		public override int BodyFunc()
 		{
-			Debug.Log(" Exec : Isosurface module");
+//			Debug.Log(" Exec : Isosurface module");
 			if (pdf.dataLoaded)
 			{
 				Draw();
@@ -815,6 +815,18 @@ namespace VisAssets.SciVis.Structured.Isosurface
 			}
 			else
 			{
+				// Set Bounding Box for Rendering
+				var scale = transform.localScale;
+				var v0 = new Vector3(
+					element.boundMin[0] * scale.x,
+					element.boundMin[1] * scale.y,
+					element.boundMin[2] * scale.z);
+				var v1 = new Vector3(
+					element.boundMax[0] * scale.x,
+					element.boundMax[1] * scale.y,
+					element.boundMax[2] * scale.z);
+				mesh.bounds = new UnityEngine.Bounds(v0, v1);
+
 				meshFilter.sharedMesh = mesh;
 			}
 		}

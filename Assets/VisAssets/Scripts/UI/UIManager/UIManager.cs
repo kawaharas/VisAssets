@@ -87,6 +87,8 @@ namespace VisAssets
 		public Vector3 origin;
 		public Vector3 originController;
 
+		public string currentModule;
+
 		void Awake()
 		{
 			moduleNum = Enum.GetNames(typeof(ModuleName)).Length;
@@ -110,6 +112,20 @@ namespace VisAssets
 			{
 				var canvas = this.transform.Find("Canvas");
 				canvas.gameObject.SetActive(false);
+
+				var mainCamera = Camera.main;
+				var obj = new GameObject("UI Camera");
+				obj.AddComponent<Camera>();
+				obj.transform.parent = mainCamera.transform;
+				var uiCamera = obj.GetComponent<Camera>();
+				uiCamera.clearFlags = CameraClearFlags.Depth;
+				uiCamera.cullingMask = 1 << LayerMask.NameToLayer("UI");
+				uiCamera.transform.localPosition = Vector3.zero;
+				uiCamera.depth = mainCamera.GetComponent<Camera>().depth + 1;
+				mainCamera.cullingMask = ~(1 << LayerMask.NameToLayer("UI"));
+
+				canvas.GetComponent<Canvas>().renderMode = RenderMode.WorldSpace;
+				canvas.GetComponent<Canvas>().worldCamera = uiCamera;
 
 				SetupPointer();
 			}
@@ -283,7 +299,7 @@ namespace VisAssets
 			{
 				var canvas = this.transform.Find("Canvas");
 				canvas.gameObject.SetActive(true);
-				canvas.GetComponent<Canvas>().renderMode = RenderMode.WorldSpace;
+//				canvas.GetComponent<Canvas>().renderMode = RenderMode.WorldSpace;
 				var rectTransform = canvas.GetComponent<RectTransform>();
 				var camera = Camera.main;
 				var rotation = camera.transform.rotation.eulerAngles;
@@ -291,7 +307,8 @@ namespace VisAssets
 
 				initialCameraPosition = Camera.main.transform.position;
 
-				rectTransform.localPosition = initialCameraPosition + direction * new Vector3(0f, 0f, 10f);
+//				rectTransform.localPosition = initialCameraPosition + direction * new Vector3(0f, 0f, 10f);
+				rectTransform.localPosition = initialCameraPosition + direction * new Vector3(0f, 0f, 20f);
 				rectTransform.localRotation = direction;
 				rectTransform.sizeDelta  = new Vector2(100, 100);
 				rectTransform.localScale = new Vector3(0.015f, 0.015f, 0.015f);

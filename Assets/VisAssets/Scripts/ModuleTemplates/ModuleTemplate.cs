@@ -76,6 +76,7 @@ namespace VisAssets
 			}
 			dropdown.options.Add(new Dropdown.OptionData { text = FixedModuleName });
 			dropdown.RefreshShownValue();
+			UIManager.GetComponent<UIManager>().currentModule = dropdown.options[0].text;
 		}
 
 		ModuleInfo GetModuleInfo()
