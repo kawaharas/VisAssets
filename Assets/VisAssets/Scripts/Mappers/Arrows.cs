@@ -27,7 +27,8 @@ namespace VisAssets.SciVis.Structured.Arrows
 		{
 			axis  = serializedObject.FindProperty("axis");
 			slice = serializedObject.FindProperty("slice");
-			scale_weight = serializedObject.FindProperty("scale_weight");
+//			scale_weight = serializedObject.FindProperty("scale_weight");
+			scale_weight = serializedObject.FindProperty("arrowscale");
 			normalize = serializedObject.FindProperty("normalize");
 		}
 
@@ -43,7 +44,7 @@ namespace VisAssets.SciVis.Structured.Arrows
 			GUILayout.Space(3f);
 			var currentSlice = EditorGUILayout.Slider("Slice: ", slice.floatValue, 0, 1f);
 			GUILayout.Space(3f);
-			scale_weight.floatValue = EditorGUILayout.Slider("Scale: ", scale_weight.floatValue, 0, 1f);
+			scale_weight.floatValue = EditorGUILayout.Slider("Scale: ", scale_weight.floatValue, 0, 10f);
 			GUILayout.Space(3f);
 			normalize.boolValue = EditorGUILayout.ToggleLeft("Normalize", normalize.boolValue, GUILayout.MaxWidth(100.0f));
 
@@ -84,17 +85,17 @@ namespace VisAssets.SciVis.Structured.Arrows
 			public float max = 1f;
 		};
 
-		[SerializeField, Range(0, 1f)]
+		[SerializeField, Range(0, 10f)]
 		public float scale;
 		public float maxScale;
 		public bool  normalize;
 
 		[SerializeField, ReadOnly]
 		public DataElement[] elements;
-		[SerializeField, ReadOnly]
-		public float min;
-		[SerializeField, ReadOnly]
-		public float max;
+//		[SerializeField, ReadOnly]
+//		public float min;
+//		[SerializeField, ReadOnly]
+//		public float max;
 		[SerializeField, ReadOnly]
 		public float average;
 		[SerializeField, ReadOnly]
@@ -102,6 +103,7 @@ namespace VisAssets.SciVis.Structured.Arrows
 
 		public GameObject arrowPrefab;
 		GameObject[] arrows;
+		[SerializeField]
 		public float arrowscale;
 		public float scale_weight = 0.9f;
 
@@ -122,6 +124,7 @@ namespace VisAssets.SciVis.Structured.Arrows
 //		int   idx;
 		float ratio;
 		List<Vector3> vertices;
+		List<Vector3> scales;
 
 		public override void InitModule()
 		{
@@ -279,6 +282,8 @@ namespace VisAssets.SciVis.Structured.Arrows
 				}
 				useUndef = elements[index].useUndef;
 				undef    = elements[index].undef;
+
+				Debug.Log("Dims = (" + dims[0] + "," + dims[1] + "," + dims[2] + ")");
 			}
 		}
 
@@ -329,13 +334,81 @@ namespace VisAssets.SciVis.Structured.Arrows
 				valid_values = values.Where(n => n != undef);
 			}
 
-			min = valid_values.Min();
-			max = valid_values.Max();
+//			min = valid_values.Min();
+//			max = valid_values.Max();
 			average   = valid_values.Average();
 			var sum2  = valid_values.Sum(a => (a - average) * (a - average));
 			var count = valid_values.Count();
 			variance  = sum2 / count - average * average;
 
+			if ((elements[activeElements[0]].fieldType == FieldType.UNIFORM) ||
+				(elements[activeElements[0]].fieldType == FieldType.RECTILINEAR))
+			{
+				// for rectilinear coordinate
+				float dmin = float.MaxValue;
+				for (int n = 0; n < 3; n++)
+				{
+					float[] coord = elements[activeElements[0]].coords[n];
+					for (int i = 0; i < dims[n] - 1; i++)
+					{
+						float d = Math.Abs(coord[i + 1] - coord[i]);
+						if (d < dmin) dmin = d;
+					}
+				}
+//				arrowscale = dmin / max * scale_weight;
+				arrowscale = dmin / valid_values.Max() * scale_weight;
+			}
+			else if (elements[activeElements[0]].fieldType == FieldType.IRREGULAR)
+			{
+				float[] coord = elements[activeElements[0]].coords[3];
+				float dmin = float.MaxValue;
+
+				for (int k = 0; k < dims[2] - 1; k++)
+				{
+				for (int j = 0; j < dims[1] - 1; j++)
+				{
+				for (int i = 0; i < dims[0] - 1; i++)
+				{
+					int i0 = i;
+					int i1 = i + 1;
+					int j0 = j;
+					int j1 = j + 1;
+					int k0 = k;
+					int k1 = k + 1;
+
+					int idx000 = dims[1] * dims[0] * k0 + dims[0] * j0 + i0;
+					int idx100 = dims[1] * dims[0] * k0 + dims[0] * j0 + i1;
+					int idx010 = dims[1] * dims[0] * k0 + dims[0] * j1 + i0;
+					int idx001 = dims[1] * dims[0] * k1 + dims[0] * j0 + i0;
+					float x000 = coord[idx000 * 3 + 0];
+					float y000 = coord[idx000 * 3 + 1];
+					float z000 = coord[idx000 * 3 + 2];
+					float x100 = coord[idx100 * 3 + 0];
+					float y100 = coord[idx100 * 3 + 1];
+					float z100 = coord[idx100 * 3 + 2];
+					float x010 = coord[idx010 * 3 + 0];
+					float y010 = coord[idx010 * 3 + 1];
+					float z010 = coord[idx010 * 3 + 2];
+					float x001 = coord[idx001 * 3 + 0];
+					float y001 = coord[idx001 * 3 + 1];
+					float z001 = coord[idx001 * 3 + 2];
+					var v000 = new Vector3(x000, y000, z000);
+					var v100 = new Vector3(x100, y100, z100);
+					var v010 = new Vector3(x010, y010, z010);
+					var v001 = new Vector3(x001, y001, z001);
+					float d = Vector3.Distance(v000, v100);
+					if (d < dmin) dmin = d;
+					d = Vector3.Distance(v000, v010);
+					if (d < dmin) dmin = d;
+					d = Vector3.Distance(v000, v001);
+					if (d < dmin) dmin = d;
+				}
+				}
+				}
+				arrowscale = dmin / valid_values.Max() * scale_weight;
+//				arrowscale = 2f;
+			}
+/*
 			// for rectilinear coordinate
 			float dmin = float.MaxValue;
 			for (int n = 0; n < 3; n++)
@@ -347,12 +420,15 @@ namespace VisAssets.SciVis.Structured.Arrows
 					if (d < dmin) dmin = d;
 				}
 			}
-			arrowscale = dmin / max * scale_weight;
+//			arrowscale = dmin / max * scale_weight;
+			arrowscale = dmin / valid_values.Max() * scale_weight;
+*/
 		}
 
 		void InitSliceParams()
 		{
 			vertices = new List<Vector3>();
+			scales   = new List<Vector3>();
 
 			axis = prev_axis  = 0;
 			slice = prev_slice = 0;
@@ -508,6 +584,24 @@ namespace VisAssets.SciVis.Structured.Arrows
 
 		public void SetScale()
 		{
+			for (int i = 0; i < vertices.Count; i++)
+			{
+				if (normalize)
+				{
+					arrows[i].transform.localScale = scales[i] * scale_weight;
+				}
+				else
+				{
+					var _scale = arrows[i].transform.localScale;
+					_scale.x *= scale_weight;
+					_scale.y *= scale_weight;
+					_scale.z *= scale_weight;
+					arrows[i].transform.localScale = _scale;
+				}
+//				arrows[i].transform.localEulerAngles = eularAngle[i];
+//				arrows[i].transform.localPosition = vertices[i];
+			}
+
 			ParameterChanged();
 		}
 
@@ -592,6 +686,7 @@ namespace VisAssets.SciVis.Structured.Arrows
 			int idx = GetIndexOfCuttingEdge();
 
 			vertices.Clear();
+			scales.Clear();
 
 			int slice_w = 0; // width
 			int slice_h = 0; // height
@@ -739,22 +834,22 @@ namespace VisAssets.SciVis.Structured.Arrows
 
 			DeleteArrows();
 			CreateArrows(vertices.Count);
-			List<Vector3> scale = new List<Vector3>();
+
+//			List<Vector3> scale = new List<Vector3>();
 			for (int i = 0; i < sum_of_squares.Length; i++)
 			{
-//				float s = (float)Math.Sqrt((double)sum_of_squares[i]) * arrowscale * 10f;
 				float s = (float)Math.Sqrt((double)sum_of_squares[i]) * arrowscale;
-				scale.Add(new Vector3(s, s, s));
+				scales.Add(new Vector3(s, s, s));
 			}
 			for (int i = 0; i < vertices.Count; i++)
 			{
 				if (normalize)
 				{
-					arrows[i].transform.localScale = scale[i].normalized;
+					arrows[i].transform.localScale = scales[i].normalized;
 				}
 				else
 				{
-					arrows[i].transform.localScale = scale[i];
+					arrows[i].transform.localScale = scales[i];
 				}
 				arrows[i].transform.localEulerAngles = eularAngle[i];
 				arrows[i].transform.localPosition = vertices[i];

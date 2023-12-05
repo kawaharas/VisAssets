@@ -17,6 +17,15 @@ namespace VisAssets.SciVis.Structured.Downsize
 	[CustomEditor(typeof(Downsize))]
 	public class DownsizeEditor : Editor
 	{
+		SerializedProperty dims;
+		SerializedProperty idims;
+
+		private void OnEnable()
+		{
+			dims  = serializedObject.FindProperty("dims");
+			idims = serializedObject.FindProperty("idims");
+		}
+
 		public override void OnInspectorGUI()
 		{
 			var downsize = target as Downsize;
@@ -29,23 +38,13 @@ namespace VisAssets.SciVis.Structured.Downsize
 			{
 				IsVisible = true;
 			}
-			int[] idims = new int[3] { -1, -1, -1 };
-			EditorGUI.BeginDisabledGroup(!IsVisible);
+
 			GUILayout.Space(10f);
-			for (int i = 0; i < downsize.idims_max.Length; i++)
-			{
-				string str = "I" + (char)('X' + i) + ": ";
-				if (downsize.idims[i] > 1)
-				{
-					idims[i] = EditorGUILayout.IntSlider(str, downsize.idims[i], 2, downsize.idims_max[i]);
-				}
-				else
-				{
-					idims[i] = EditorGUILayout.IntSlider(str, downsize.idims[i], 1, downsize.idims_max[i]);
-				}
-				GUILayout.Space(3f);
-			}
+			EditorGUI.BeginDisabledGroup(true);
+			dims.vector3IntValue = EditorGUILayout.Vector3IntField("Input Size (Maximum Size)", dims.vector3IntValue);
 			EditorGUI.EndDisabledGroup();
+			GUILayout.Space(6f);
+			idims.vector3IntValue = EditorGUILayout.Vector3IntField("New Size", idims.vector3IntValue);
 
 			GUIContent label = new GUIContent("All input elements must have the same number of grids.");
 			EditorGUILayout.BeginHorizontal(GUI.skin.box);
@@ -69,39 +68,43 @@ namespace VisAssets.SciVis.Structured.Downsize
 			if (EditorGUI.EndChangeCheck())
 			{
 				Undo.RecordObject(target, "Downsize");
-				downsize.SetDims(idims);
+				if (EditorApplication.isPlaying)
+				{
+//					downsize.SetDims(idims);
+				}
 				EditorUtility.SetDirty(target);
 			}
 
 			serializedObject.ApplyModifiedProperties();
+
+//			base.DrawDefaultInspector();
 		}
 	}
 #endif
 
+	[System.Serializable]
 	public class Downsize : FilterModuleTemplate
 	{
-		public int safetyValue;
-
 		DataElement[] elements; // data elements of parent gameobject
-		int elements_num;
-		List<float>[] icoords; // 0:x, 1:y, 2:z, 3:(x, y, z)
-		public int[] idims; // dims of interpolated data
 
+		[SerializeField]
+		public Vector3Int dims;
+		[SerializeField]
+		public Vector3Int idims;
+
+		List<float>[] icoords; // 0:x, 1:y, 2:z, 3:(x, y, z)
+
+		[HideInInspector]
 		public List<int> activeElements;
-		public List<int> parentActiveElements;
-		public int[] dims;
-		public int[] idims_max; // maximum dims of interpolated data
-		public bool  useUndef;
-		public float undef;
+		List<int> parentActiveElements;
 
 		public override void InitModule()
 		{
-			dims      = new int[3] { -1, -1, -1 };
-			idims_max = new int[3] { -1, -1, -1 };
-			idims     = new int[3] { -1, -1, -1 };
-			useUndef  = false;
-			safetyValue = 50;
 			activeElements = new List<int>();
+			for (int i = 0; i < 3; i++)
+			{
+				dims[i] = -1;
+			}
 		}
 
 		public override int BodyFunc()
@@ -119,9 +122,9 @@ namespace VisAssets.SciVis.Structured.Downsize
 		{
 			df.DisposeElements();
 			elements = pdf.elements;
-			elements_num = elements.Length;
-			df.CreateElements(elements_num);
-			for (int i = 0; i < elements_num; i++)
+
+			df.CreateElements(elements.Length);
+			for (int i = 0; i < elements.Length; i++)
 			{
 				df.elements[i] = elements[i].Clone();
 			}
@@ -137,7 +140,7 @@ namespace VisAssets.SciVis.Structured.Downsize
 		{
 			for (int i = 0; i < 3; i++)
 			{
-				idims[i] = Mathf.Clamp(ndims[i], 1, idims_max[i]);
+				idims[i] = Mathf.Clamp(ndims[i], 1, dims[i]);
 			}
 
 			ParameterChanged();
@@ -145,12 +148,6 @@ namespace VisAssets.SciVis.Structured.Downsize
 
 		public override void ResetUI()
 		{
-			int[] dims = new int[3]; // for safety
-			for (int i = 0; i < dims.Length; i++)
-			{
-				dims[i] = safetyValue;
-			}
-
 			Slider slider;
 			slider = UIPanel.transform.Find("X/Slider").GetComponent<Slider>();
 			slider.minValue = 1;
@@ -179,20 +176,19 @@ namespace VisAssets.SciVis.Structured.Downsize
 			}
 
 			// check if all active elements have the same dimension
-			dims = new int[3] { -1, -1, -1 };
 			bool check_result = true;
 			if (parentActiveElements.Count > 0)
 			{
-				// get variables in the first active element
-				int index = parentActiveElements[0];
+				// get variables in the 1st active element
+				var index = parentActiveElements[0];
 				for (int i = 0; i < 3; i++)
 				{
 					dims[i] = df.elements[index].dims[i];
 				}
-				bool useUndef = df.elements[index].useUndef;
-				float undef = df.elements[index].undef;
+				var useUndef = df.elements[index].useUndef;
+				var undef    = df.elements[index].undef;
 
-				// compare variables in the first active element 
+				// compare variables in the 1st active element 
 				// with variables in other active elements
 				for (int i = 1; i < parentActiveElements.Count; i++)
 				{
@@ -215,6 +211,7 @@ namespace VisAssets.SciVis.Structured.Downsize
 						check_result = false;
 					}
 				}
+
 				if (check_result)
 				{
 					for (int i = 0; i < parentActiveElements.Count; i++)
@@ -223,14 +220,15 @@ namespace VisAssets.SciVis.Structured.Downsize
 					}
 					for (int i = 0; i < 3; i++)
 					{
-						idims[i] = Math.Min(dims[i], safetyValue);
-						idims_max[i] = idims[i];
+						idims[i] = Math.Clamp(idims[i], 1, dims[i]);
 					}
 				}
 				else
 				{
-					dims = new int[3] { -1, -1, -1 };
-					idims_max = new int[3] { -1, -1, -1 };
+					for (int i = 0; i < 3; i++)
+					{
+						dims[i] = -1;
+					}
 				}
 			}
 
@@ -243,23 +241,6 @@ namespace VisAssets.SciVis.Structured.Downsize
 					activeElements.Add(i);
 				}
 			}
-		}
-
-		private int GetIndex(int i, int j, int k, int element_id)
-		{
-			int mx = elements[element_id].dims[0];
-			int my = elements[element_id].dims[1];
-			int mz = elements[element_id].dims[2];
-			int index = k * my * mx + j * mx + i;
-
-			return index;
-		}
-
-		int GetIndex(int i, int j, int k)
-		{
-			int index = dims[1] * dims[0] * k + dims[0] * j + i;
-
-			return index;
 		}
 
 		private void InitCoords()
@@ -302,6 +283,7 @@ namespace VisAssets.SciVis.Structured.Downsize
 			}
 			else
 			{
+				// ERROR: FieldType.UNDEFINED
 			}
 
 			if ((fieldType == FieldType.UNIFORM) || (fieldType == FieldType.RECTILINEAR))
@@ -311,6 +293,7 @@ namespace VisAssets.SciVis.Structured.Downsize
 				{
 					icoords[i] = new List<float>();
 				}
+
 				// set new coords in the 1st to 3rd lists
 				for (int j = 0; j < 3; j++)
 				{
@@ -319,6 +302,7 @@ namespace VisAssets.SciVis.Structured.Downsize
 						icoords[j].Add(imin[j] + delta[j] * i);
 					}
 				}
+
 				// merge coords to 4th list
 				for (int k = 0; k < idims[2]; k++)
 				{
@@ -339,6 +323,7 @@ namespace VisAssets.SciVis.Structured.Downsize
 			}
 			else
 			{
+				// ERROR: FieldType.UNDEFINED
 			}
 
 			// set dims and coords to all active elements
@@ -537,6 +522,23 @@ namespace VisAssets.SciVis.Structured.Downsize
 
 				df.elements[elements_id].SetValues(ivalues);
 			}
+		}
+
+		int GetIndex(int i, int j, int k)
+		{
+			int index = dims[1] * dims[0] * k + dims[0] * j + i;
+
+			return index;
+		}
+
+		private int GetIndex(int i, int j, int k, int element_id)
+		{
+			int mx = elements[element_id].dims[0];
+			int my = elements[element_id].dims[1];
+			int mz = elements[element_id].dims[2];
+			int index = k * my * mx + j * mx + i;
+
+			return index;
 		}
 	}
 }

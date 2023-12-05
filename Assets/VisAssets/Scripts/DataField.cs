@@ -42,7 +42,7 @@ namespace VisAssets
 				EditorGUILayout.PropertyField(dataType, true);
 				GUILayout.Space(3f);
 				EditorGUILayout.PropertyField(dataLoaded, true);
-				//				GUILayout.Box("", GUILayout.ExpandWidth(true), GUILayout.Height(1));
+//				GUILayout.Box("", GUILayout.ExpandWidth(true), GUILayout.Height(1));
 				GUILayout.Space(5f);
 
 				currentIndex = EditorGUILayout.IntSlider("Element ID: ", currentIndex, 0, elementsInfo.arraySize - 1);

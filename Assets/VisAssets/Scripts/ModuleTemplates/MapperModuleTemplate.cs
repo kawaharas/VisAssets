@@ -37,7 +37,7 @@ namespace VisAssets
 			}
 
 			var transform = GetComponent<Transform>();
-			transform.hideFlags = HideFlags.HideInInspector;
+//			transform.hideFlags = HideFlags.HideInInspector;
 		}
 
 		void Start()

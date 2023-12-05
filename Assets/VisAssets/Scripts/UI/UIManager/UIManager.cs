@@ -360,7 +360,7 @@ namespace VisAssets
 
 					origin -= centerEyePosition - Camera.main.transform.position;
 
-					tip = origin + quaternion * new Vector3(0f, 0f, 10f);
+					tip = origin + quaternion * new Vector3(0f, 0f, 20f);
 					var renderer = laserPointer.GetComponent<LineRenderer>();
 					renderer.useWorldSpace = true;
 					renderer.SetPosition(0, origin);

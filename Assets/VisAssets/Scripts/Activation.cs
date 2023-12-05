@@ -58,6 +58,11 @@ namespace VisAssets
 		{
 			parent_changed = i;
 		}
+		public void SetParentChanged(ModuleState moduleState)
+		{
+			parent_changed = (int)moduleState;
+		}
+
 		public int  GetParentChanged()
 		{
 			return parent_changed;

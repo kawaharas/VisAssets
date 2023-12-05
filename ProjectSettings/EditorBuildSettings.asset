@@ -9,6 +9,6 @@ EditorBuildSettings:
     path: Assets/ReadVLHD.unity
     guid: 7d033da873aefcf419c23b35a1a806f2
   m_configObjects:
-    Unity.XR.Oculus.Settings: {fileID: 11400000, guid: cbaf25e1014e40f4398c948f795d270a, type: 2}
-    com.unity.xr.management.loader_settings: {fileID: 11400000, guid: ee11ef593d2461341ac2441dd12876f5, type: 2}
-    com.unity.xr.openxr.settings4: {fileID: 11400000, guid: 718d77347f117654eb8f2e57e349c140, type: 2}
+    Unity.XR.Oculus.Settings: {fileID: 11400000, guid: a772c4e68f8d82b448d3901a6a5205d7, type: 2}
+    com.unity.xr.management.loader_settings: {fileID: 11400000, guid: fb10489470a5e554abc21e442de7704f, type: 2}
+    com.unity.xr.openxr.settings4: {fileID: 11400000, guid: 93e221a6262ba91418019da36a01aeb2, type: 2}
