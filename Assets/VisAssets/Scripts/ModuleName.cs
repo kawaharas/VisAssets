@@ -15,6 +15,7 @@ namespace VisAssets
 		ExtractVector,
 		Interpolator,
 		Slicer,
+		StreamLines,
 		Isosurface,
 		Bounds,
 		Outline

@@ -53,6 +53,9 @@ namespace VisAssets.SciVis.Structured.ExtracterScalar
 		public override int BodyFunc()
 		{
 			df.elements[0] = pdf.elements[channel].Clone();
+			df.coordinateSystem = pdf.coordinateSystem;
+			df.upAxis = pdf.upAxis;
+			df.scale  = pdf.scale;
 
 			return 1;
 		}

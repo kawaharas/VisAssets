@@ -87,6 +87,11 @@ namespace VisAssets
 				if (module != null)
 				{
 					module.gameObject.SetActive(true);
+					var _UIManager = GameObject.Find("UIManager");
+					if (_UIManager != null)
+					{
+						_UIManager.GetComponent<UIManager>().currentModule = module.GetComponent<UIPanel>().TargetModule;
+					}
 				}
 			}
 		}

@@ -817,15 +817,10 @@ namespace VisAssets.SciVis.Structured.Isosurface
 			{
 				// Set Bounding Box for Rendering
 				var scale = transform.localScale;
-				var v0 = new Vector3(
-					element.boundMin[0] * scale.x,
-					element.boundMin[1] * scale.y,
-					element.boundMin[2] * scale.z);
-				var v1 = new Vector3(
-					element.boundMax[0] * scale.x,
-					element.boundMax[1] * scale.y,
-					element.boundMax[2] * scale.z);
-				mesh.bounds = new UnityEngine.Bounds(v0, v1);
+				var v0 = Vector3.Scale(element.boundMin, scale);
+				var v1 = Vector3.Scale(element.boundMax, scale);
+				var center = v0 + (v1 - v0) / 2;
+				mesh.bounds = new UnityEngine.Bounds(center, (v1 - v0) * 2); // size * 2
 
 				meshFilter.sharedMesh = mesh;
 			}

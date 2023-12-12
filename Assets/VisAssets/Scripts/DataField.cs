@@ -16,6 +16,8 @@ namespace VisAssets
 	public class DataFieldEditor : Editor
 	{
 		SerializedProperty dataType;
+		SerializedProperty coordinateSystem;
+		SerializedProperty upAxis;
 		SerializedProperty dataLoaded;
 		SerializedProperty elementsInfo;
 		SerializedProperty selectedElementInfo;
@@ -24,6 +26,8 @@ namespace VisAssets
 		private void OnEnable()
 		{
 			dataType = serializedObject.FindProperty("dataType");
+			coordinateSystem = serializedObject.FindProperty("coordinateSystem");
+			upAxis = serializedObject.FindProperty("upAxis");
 			dataLoaded = serializedObject.FindProperty("dataLoaded");
 			elementsInfo = serializedObject.FindProperty("elements");
 		}
@@ -40,6 +44,10 @@ namespace VisAssets
 
 				GUILayout.Space(3f);
 				EditorGUILayout.PropertyField(dataType, true);
+				GUILayout.Space(3f);
+				EditorGUILayout.PropertyField(coordinateSystem, true);
+				GUILayout.Space(3f);
+				EditorGUILayout.PropertyField(upAxis, true);
 				GUILayout.Space(3f);
 				EditorGUILayout.PropertyField(dataLoaded, true);
 //				GUILayout.Box("", GUILayout.ExpandWidth(true), GUILayout.Height(1));
@@ -70,8 +78,26 @@ namespace VisAssets
 			FILTERED
 		}
 
+		public enum CoordinateSystem
+		{
+			RIGHT_HANDED,
+			LEFT_HANDED
+		}
+
+		public enum UpAxis
+		{
+			Y,
+			Z
+		}
+
 		[SerializeField, ReadOnly]
 		public DataType dataType = DataType.UNDEFINED;
+		[SerializeField, ReadOnly]
+		public CoordinateSystem coordinateSystem = CoordinateSystem.RIGHT_HANDED;
+		[SerializeField, ReadOnly]
+		public UpAxis upAxis = UpAxis.Y;
+		public Vector3 scale = new Vector3(1f, 1f, 1f);
+
 		[SerializeField, ReadOnly]
 		public bool dataLoaded = false;
 		[SerializeField, ReadOnly]

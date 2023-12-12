@@ -88,9 +88,9 @@ namespace VisAssets.SciVis.Structured.Downsize
 		DataElement[] elements; // data elements of parent gameobject
 
 		[SerializeField]
-		public Vector3Int dims;
+		public Vector3Int dims;  // dims of input data
 		[SerializeField]
-		public Vector3Int idims;
+		public Vector3Int idims; // dims of interpolated data
 
 		List<float>[] icoords; // 0:x, 1:y, 2:z, 3:(x, y, z)
 
@@ -103,7 +103,7 @@ namespace VisAssets.SciVis.Structured.Downsize
 			activeElements = new List<int>();
 			for (int i = 0; i < 3; i++)
 			{
-				dims[i] = -1;
+				idims[i] = 50; // initial value
 			}
 		}
 
@@ -128,6 +128,16 @@ namespace VisAssets.SciVis.Structured.Downsize
 			{
 				df.elements[i] = elements[i].Clone();
 			}
+			df.coordinateSystem = pdf.coordinateSystem;
+			df.upAxis = pdf.upAxis;
+			df.scale  = pdf.scale;
+
+/*
+			for (int i = 0; i < 3; i++)
+			{
+				idims[i] = 50;
+			}
+*/
 
 			CheckActiveElements();
 		}
@@ -223,13 +233,16 @@ namespace VisAssets.SciVis.Structured.Downsize
 						idims[i] = Math.Clamp(idims[i], 1, dims[i]);
 					}
 				}
+/*
 				else
 				{
 					for (int i = 0; i < 3; i++)
 					{
-						dims[i] = -1;
+//						dims[i] = -1;
+						dims[i] = 50;
 					}
 				}
+*/
 			}
 
 			// create a list of "current" active elements

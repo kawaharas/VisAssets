@@ -11,6 +11,7 @@ using UnityEngine.XR;
 using UnityEngine.Experimental.XR.Interaction;
 using UnityEngine.SpatialTracking;
 using UnityEngine.XR.Interaction.Toolkit;
+using VisAssets.SciVis.Structured.StreamLines;
 
 #if UNITY_EDITOR
 using UnityEditor;
@@ -87,10 +88,11 @@ namespace VisAssets
 		public Vector3 origin;
 		public Vector3 originController;
 
-		public string currentModule;
+		public GameObject currentModule;
 
 		void Awake()
 		{
+			currentModule = null;
 			moduleNum = Enum.GetNames(typeof(ModuleName)).Length;
 			moduleCounter = new int[moduleNum];
 			hitInfo = new RaycastHit();
@@ -175,7 +177,7 @@ namespace VisAssets
 						}
 					}
 */
-					// button
+					// primary button (show VRUI)
 					if (device.TryGetFeatureValue(CommonUsages.primaryButton, out inputValue) && inputValue)
 					{
 						if (ButtonA == ButtonState.RELEASED)
@@ -195,7 +197,7 @@ namespace VisAssets
 						ButtonA = ButtonState.RELEASED;
 					}
 
-					// button
+					// trigger button (operate VRUI)
 					var _canvas = this.transform.Find("Canvas");
 					if (!_canvas.gameObject.activeSelf)
 					{
@@ -203,6 +205,41 @@ namespace VisAssets
 						{
 							if (ButtonTrigger == ButtonState.RELEASED)
 							{
+/*
+//								Debug.Log("AddSeed");
+								var gos = GameObject.FindGameObjectsWithTag("VisModule");
+								foreach (var go in gos)
+								{
+									if (go.name.StartsWith("StreamLines"))
+									{
+										var streamLines = go.GetComponent<StreamLines>();
+										if (streamLines != null)
+										{
+											if (tip != null)
+											{
+//												var _tip = Vector3(4.95049524,4.95049524,-4.95049524)
+												var _tip = new Vector3(tip[0] / 4.95049524f, tip[2] / -4.95049524f, tip[1] / -4.95049524f);
+												streamLines.AddSeed(_tip);
+											}
+										}
+									}
+								}
+*/
+								if (currentModule.name.StartsWith("StreamLines"))
+								{
+									var streamLines = currentModule.GetComponent<StreamLines>();
+									if (streamLines != null)
+									{
+										if (tip != null)
+										{
+//											var _tip = Vector3(4.95049524,4.95049524,-4.95049524)
+//											var _tip = new Vector3(tip[0] / 4.95049524f, tip[2] / -4.95049524f, tip[1] / 4.95049524f);
+//											streamLines.AddSeed(_tip);
+											streamLines.AddSeed2(tip);
+										}
+									}
+								}
+
 //								var position = tip;
 								laserPointer.SetActive(true);
 								ButtonTrigger = ButtonState.PRESSED;
@@ -228,6 +265,27 @@ namespace VisAssets
 				{
 					laserPointer.SetActive(false);
 				}
+
+				// for streamline module
+				var __canvas = transform.Find("Canvas");
+				if (!__canvas.gameObject.activeSelf)
+				{
+					if (currentModule != null)
+					{
+						if (currentModule.name.StartsWith("StreamLines"))
+						{
+							if (ButtonTrigger == ButtonState.PRESSED)
+							{
+								laserPointer.SetActive(true);
+							}
+							else if (ButtonTrigger == ButtonState.RELEASED)
+							{
+								laserPointer.SetActive(false);
+							}
+						}
+					}
+				}
+
 				DrawPointer();
 			}
 
@@ -307,11 +365,12 @@ namespace VisAssets
 
 				initialCameraPosition = Camera.main.transform.position;
 
-//				rectTransform.localPosition = initialCameraPosition + direction * new Vector3(0f, 0f, 10f);
-				rectTransform.localPosition = initialCameraPosition + direction * new Vector3(0f, 0f, 20f);
+				rectTransform.localPosition = initialCameraPosition + direction * new Vector3(0f, 0f, 1f);
+//				rectTransform.localPosition = initialCameraPosition + direction * new Vector3(0f, 0f, 20f);
 				rectTransform.localRotation = direction;
 				rectTransform.sizeDelta  = new Vector2(100, 100);
-				rectTransform.localScale = new Vector3(0.015f, 0.015f, 0.015f);
+//				rectTransform.localScale = new Vector3(0.015f, 0.015f, 0.015f);
+				rectTransform.localScale = new Vector3(0.0015f, 0.0015f, 0.0015f);
 			}
 		}
 
@@ -360,15 +419,19 @@ namespace VisAssets
 
 					origin -= centerEyePosition - Camera.main.transform.position;
 
-					tip = origin + quaternion * new Vector3(0f, 0f, 20f);
+//					tip = origin + quaternion * new Vector3(0f, 0f, 10f);
+					tip = origin + quaternion * new Vector3(0f, 0f, 1.2f);
 					var renderer = laserPointer.GetComponent<LineRenderer>();
 					renderer.useWorldSpace = true;
 					renderer.SetPosition(0, origin);
 					renderer.SetPosition(1, tip);
-					renderer.startWidth = 0.01f;
-					renderer.endWidth = 0.01f;
+//					renderer.startWidth = 0.01f;
+//					renderer.endWidth = 0.01f;
+					renderer.startWidth = 0.002f;
+					renderer.endWidth = 0.002f;
 
-					float maxRayDistance = 1000.0f;
+//					float maxRayDistance = 1000.0f;
+					float maxRayDistance = 1.2f;
 					var ray = new Ray(origin, (tip - origin).normalized);
 					if (Physics.Raycast(ray, out hitInfo, Mathf.Infinity))
 					{

@@ -119,8 +119,6 @@ namespace VisAssets.SciVis.Structured.DataLoader
 
 		public override void InitModule()
 		{
-			// upper direction is defined as z-axis in VFIVE.
-			transform.rotation = Quaternion.AngleAxis(90, new Vector3(1, 0, 0));
 		}
 
 		public override int BodyFunc()
@@ -335,6 +333,10 @@ namespace VisAssets.SciVis.Structured.DataLoader
 
 			// set data to datafield
 			df.CreateElements(datafile.Count);
+
+			// upper direction is defined as z-axis in VFIVE
+			df.upAxis = DataField.UpAxis.Z;
+
 			for (int i = 0; i < datafile.Count; i++)
 			{
 				df.elements[i].SetDims(dims[0], dims[1], dims[2]);
@@ -357,6 +359,9 @@ namespace VisAssets.SciVis.Structured.DataLoader
 			{
 				Centering(autoResize);
 			}
+
+			// this function must be called at this location
+			SetCoordinateSystem();
 		}
 
 		private IEnumerator ReadV5File(string filename, Action<string> callback = null)

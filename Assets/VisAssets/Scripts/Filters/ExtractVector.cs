@@ -132,6 +132,9 @@ namespace VisAssets.SciVis.Structured.ExtractVector
 			{
 				df.elements[i] = pdf.elements[channels[i]].Clone();
 			}
+			df.coordinateSystem = pdf.coordinateSystem;
+			df.upAxis = pdf.upAxis;
+			df.scale  = pdf.scale;
 
 			CheckActiveElements();
 
