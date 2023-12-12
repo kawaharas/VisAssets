@@ -115,8 +115,6 @@ crashlytics-build.properties
 # working files
 /[Aa]ssets/VisAssets/Scripts/Readers/ReadAVS*
 /[Aa]ssets/VisAssets/Scripts/Mappers/StreamLines*
-/[Aa]ssets/VisAssets/Prefabs/StreamLines*
-/[Aa]ssets/VisAssets/Resources/Prefabs/UIPanels/StreamLines*
 
 # 3-D models for test
 /[Aa]ssets/[Mm]odels*
