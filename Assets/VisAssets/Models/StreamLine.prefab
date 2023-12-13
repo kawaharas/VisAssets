@@ -48,6 +48,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   dataType: 0
+  coordinateSystem: 0
+  upAxis: 0
+  scale: {x: 1, y: 1, z: 1}
   dataLoaded: 0
   elements: []
 --- !u!114 &5611302452339677413
@@ -64,11 +67,17 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   pdf: {fileID: 0}
   df: {fileID: 0}
+  shader: {fileID: 7200000, guid: 24b7ccb9cc1d40c479875b8d52d690c9, type: 3}
   color: {r: 0, g: 0, b: 0, a: 0}
   seed: {x: 0, y: 0, z: 0}
+  vertCount: 0
+  colCount: 0
+  idxCount: 0
   IsAnimation: 0
   IsRepeat: 0
   UseMagnitude: 0
+  IsCalc: 0
+  calculatedStep: 0
   step: 0
   maxStep: 0
   elements: []
