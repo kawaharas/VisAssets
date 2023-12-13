@@ -345,6 +345,9 @@ namespace VisAssets
 				df.elements[i].SetActive(true);
 			}
 			df.dataLoaded = true;
+
+			// this function must be called at this location
+			SetCoordinateSystem();
 		}
 
 		private int ReadDataFile()

@@ -216,7 +216,15 @@ namespace VisAssets.SciVis.Structured.Arrows
 			for (int i = 0; i < arrowNum; i++)
 			{
 				arrows[i] = Instantiate(arrowPrefab, Vector3.zero, Quaternion.identity);
-				arrows[i].transform.parent = this.gameObject.transform;
+//				arrows[i].transform.parent = this.gameObject.transform;
+//				arrows[i].transform.localScale = new Vector3(1f, 1f, 1f);
+				var _scale = new Vector3(1f / pdf.scale.x, 1f / pdf.scale.y, 1f / pdf.scale.z);
+				if (pdf.coordinateSystem == DataField.CoordinateSystem.RIGHT_HANDED)
+				{
+					_scale = new Vector3(1f / pdf.scale.x, 1f / pdf.scale.y, 1f / -pdf.scale.z);
+				}
+				arrows[i].transform.localScale = _scale;
+				arrows[i].transform.SetParent(transform, false);
 			}
 		}
 
@@ -244,7 +252,17 @@ namespace VisAssets.SciVis.Structured.Arrows
 				for (int i = current_size; i < size; i++)
 				{
 					arrows[i] = Instantiate(arrowPrefab, Vector3.zero, Quaternion.identity);
-					arrows[i].transform.parent = this.gameObject.transform;
+//					arrows[i].transform.parent = this.gameObject.transform;
+//					arrows[i].transform.localScale = new Vector3(1f, 1f, 1f);
+//					arrows[i].transform.localScale = new Vector3(1f, 1f, 1f);
+					var _scale = new Vector3(1f / pdf.scale.x, 1f / pdf.scale.y, 1f / pdf.scale.z);
+					if (pdf.coordinateSystem == DataField.CoordinateSystem.RIGHT_HANDED)
+					{
+						_scale = new Vector3(1f / pdf.scale.x, 1f / pdf.scale.y, 1f / -pdf.scale.z);
+					}
+					arrows[i].transform.localScale = _scale;
+					
+					arrows[i].transform.SetParent(transform, false);
 				}
 			}
 			else if (current_size > size)

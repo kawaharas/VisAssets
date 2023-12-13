@@ -443,6 +443,9 @@ namespace VisAssets
 
 			// turn on flag when data loading is complete
 			df.dataLoaded = true;
+
+			// this function must be called at this location
+			SetCoordinateSystem();
 		}
 
 		private void SetParamsToDataElements()
