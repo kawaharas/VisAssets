@@ -32,7 +32,7 @@ public int colCount = 0;
 public int idxCount = 0;
 		public bool   IsAnimation;
 		public bool   IsRepeat;
-		public bool   UseMagnitude = true;
+		public bool   UseMagnitude;
 		public bool   IsCalc;
 		public int    calculatedStep;
 		public int    step;
@@ -71,7 +71,6 @@ public int idxCount = 0;
 			calcState = false;
 			parent = transform.parent.gameObject;
 			df = GetComponent<DataField>();
-			UseMagnitude = true;
 
 			vertices  = new List<Vector3>();
 			colors    = new List<Color>();

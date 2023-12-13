@@ -23,11 +23,13 @@ namespace VisAssets.SciVis.Structured.StreamLines
 	public class StreamLinesEditor : Editor
 	{
 		SerializedProperty p0;
+		SerializedProperty UseMagnitude;
 
 		private void OnEnable()
 		{
 //			serializedObject.FindProperty("__dummy__"); // for null value
 			p0 = serializedObject.FindProperty("p0");
+			UseMagnitude = serializedObject.FindProperty("UseMagnitude");
 		}
 
 		public override void OnInspectorGUI()
@@ -57,6 +59,7 @@ namespace VisAssets.SciVis.Structured.StreamLines
 
 				GUILayout.Space(3f);
 			}
+			var _UseMagnitude = EditorGUILayout.Toggle("Use Magnitude Color", UseMagnitude.boolValue);
 /*
 			GUILayout.Space(3f);
 			EditorGUIUtility.labelWidth = 35;
@@ -81,14 +84,13 @@ namespace VisAssets.SciVis.Structured.StreamLines
 
 			if (EditorGUI.EndChangeCheck())
 			{
-/*
 				Undo.RecordObject(target, "StreamLines");
-
-				streamlines.SetColor(color);
-
-
+				if (EditorApplication.isPlaying)
+				{
+					streamlines.SetUseMagnitude(_UseMagnitude);
+//					streamlines.SetColor(color);
+				}
 				EditorUtility.SetDirty(target);
-*/
 			}
 			serializedObject.ApplyModifiedProperties();
 		}
@@ -101,11 +103,13 @@ namespace VisAssets.SciVis.Structured.StreamLines
 		List<Vector3> vertices;
 		List<Color>   colors;
 		List<int>     indices;
-		Material material;
-		Mesh mesh;
+		Material      material;
+		Mesh          mesh;
+	    public float         displayTime = 5f;
 
 		public bool   IsAnimation;
 		public bool   IsRepeat;
+		[SerializeField]
 		public bool   UseMagnitude = false;
 		public int    step;
 		public int    maxStep;
@@ -323,6 +327,9 @@ namespace VisAssets.SciVis.Structured.StreamLines
 		{
 			if (!IsDataLoadedToParent()) return;
 
+			// reset timer for disappear guide lines
+			displayTime = 5f;
+
 //			Calc();
 //			DrawGuideLines();
 
@@ -455,6 +462,21 @@ namespace VisAssets.SciVis.Structured.StreamLines
 		{
 			if (!IsDataLoadedToParent()) return;
 
+			// fade out guide line
+			displayTime -= Time.deltaTime;
+			if (displayTime <= 0)
+			{
+				displayTime = 0f;
+			}
+			var alpha = displayTime / 5f;
+			colors.Clear();
+			colors.Add(new Color(1f, 0, 0, alpha));
+			colors.Add(new Color(1f, 0, 0, alpha));
+			colors.Add(new Color(0, 1f, 0, alpha));
+			colors.Add(new Color(0, 1f, 0, alpha));
+			colors.Add(new Color(0, 0, 1f, alpha));
+			colors.Add(new Color(0, 0, 1f, alpha));
+
 			var p = new float[3];
 			for (int i = 0; i < 3; i++)
 			{
@@ -469,11 +491,25 @@ namespace VisAssets.SciVis.Structured.StreamLines
 			vertices[5] = new Vector3(p[0], p[1], boundMax[2]);
 
 			mesh.SetVertices(vertices);
+			mesh.SetColors(colors);
 
 			var filter = GetComponent<MeshFilter>();
 			// Warningが出ているので要調査
 			// SendMessage cannot be called during Awake, CheckConsistency, or OnValidate (StreamLines: OnMeshFilterChanged)
 			filter.mesh = mesh;
+		}
+
+		public void SetUseMagnitude(bool _UseMagnitude)
+		{
+			foreach(var line in lines)
+			{
+				var streamLine = line.GetComponent<StreamLine>();
+				if (streamLine != null)
+				{
+					streamLine.UseMagnitude = _UseMagnitude;
+				}
+			}
+			UseMagnitude = !UseMagnitude;
 		}
 	}
 }
