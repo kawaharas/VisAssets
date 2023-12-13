@@ -211,7 +211,7 @@ namespace VisAssets
 			}
 			if (df.coordinateSystem == DataField.CoordinateSystem.RIGHT_HANDED);
 			{
-				transform.localScale = new Vector3(1, 1, -1);
+				transform.localScale = Vector3.Scale(transform.localScale, new Vector3(1, 1, -1));
 			}
 		}
 	}
