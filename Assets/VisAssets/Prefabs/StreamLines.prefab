@@ -13,7 +13,7 @@ GameObject:
   - component: {fileID: 1055606706239549498}
   m_Layer: 0
   m_Name: StreamLines
-  m_TagString: Untagged
+  m_TagString: VisModule
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -65,17 +65,17 @@ MonoBehaviour:
   moduleType: 2
   activation: {fileID: 0}
   pdf: {fileID: 0}
+  displayTime: 3
   IsAnimation: 0
   IsRepeat: 0
   UseMagnitude: 0
   step: 0
-  sphereScale: 0
   maxStep: 0
-  color: {r: 0, g: 0, b: 0, a: 0}
+  linePrefab: {fileID: 1886520451042925390, guid: d7bcea3e1c36b844385962879f76a49e, type: 3}
+  seeds: []
+  lineColor: {r: 0, g: 0, b: 0, a: 0}
   p0:
   - 0
   - 0
   - 0
-  seeds: []
   elements: []
-  linePrefab: {fileID: 1886520451042925390, guid: d7bcea3e1c36b844385962879f76a49e, type: 3}
