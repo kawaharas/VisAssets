@@ -17,7 +17,6 @@ namespace VisAssets
 				localPosition.y = position.y;
 				localPosition.z = position.z;
 				pointer.transform.localPosition = localPosition;
-				Debug.Log("pointer position = " + position);
 				pointer.SetActive(true);
 			}
 		}

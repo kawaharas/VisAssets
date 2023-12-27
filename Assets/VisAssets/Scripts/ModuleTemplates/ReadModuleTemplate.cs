@@ -155,6 +155,7 @@ namespace VisAssets
 			for (int i = 0; i < 3; i++)
 			{
 				offset[i] = min[i] + (max[i] - min[i]) / 2f;
+				df.offset[i] = min[i] + (max[i] - min[i]) / 2f;
 			}
 
 			foreach (Transform child in transform)
@@ -166,6 +167,7 @@ namespace VisAssets
 			if (normalize)
 			{
 				float scale = 1f / maxDist * 10f;
+//				df.scale = new Vector3(scale, scale, scale);
 				transform.localScale = Vector3.Scale(transform.localScale, new Vector3(scale, scale, scale));
 			}
 		}
@@ -209,7 +211,7 @@ namespace VisAssets
 			{
 				transform.rotation = Quaternion.AngleAxis(90, new Vector3(1, 0, 0));
 			}
-			if (df.coordinateSystem == DataField.CoordinateSystem.RIGHT_HANDED);
+			if (df.coordinateSystem == DataField.CoordinateSystem.RIGHT_HANDED)
 			{
 				transform.localScale = Vector3.Scale(transform.localScale, new Vector3(1, 1, -1));
 			}

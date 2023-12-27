@@ -8,7 +8,7 @@
       "url": "https://packages.unity.com"
     },
     "com.meta.xr.sdk.core": {
-      "version": "59.0.0",
+      "version": "60.0.0",
       "depth": 0,
       "source": "registry",
       "dependencies": {},

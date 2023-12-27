@@ -97,6 +97,7 @@ namespace VisAssets
 		[SerializeField, ReadOnly]
 		public UpAxis upAxis = UpAxis.Y;
 		public Vector3 scale = new Vector3(1f, 1f, 1f);
+		public Vector3 offset = Vector3.zero;
 
 		[SerializeField, ReadOnly]
 		public bool dataLoaded = false;

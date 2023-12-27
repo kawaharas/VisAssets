@@ -135,6 +135,7 @@ namespace VisAssets.SciVis.Structured.ExtractVector
 			df.coordinateSystem = pdf.coordinateSystem;
 			df.upAxis = pdf.upAxis;
 			df.scale  = pdf.scale;
+			df.offset = pdf.offset;
 
 			CheckActiveElements();
 

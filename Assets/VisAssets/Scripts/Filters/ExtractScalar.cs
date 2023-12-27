@@ -56,6 +56,7 @@ namespace VisAssets.SciVis.Structured.ExtracterScalar
 			df.coordinateSystem = pdf.coordinateSystem;
 			df.upAxis = pdf.upAxis;
 			df.scale  = pdf.scale;
+			df.offset = pdf.offset;
 
 			return 1;
 		}

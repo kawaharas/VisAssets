@@ -131,6 +131,7 @@ namespace VisAssets.SciVis.Structured.Downsize
 			df.coordinateSystem = pdf.coordinateSystem;
 			df.upAxis = pdf.upAxis;
 			df.scale  = pdf.scale;
+			df.offset = pdf.offset;
 
 /*
 			for (int i = 0; i < 3; i++)

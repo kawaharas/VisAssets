@@ -8,12 +8,24 @@ namespace VisAssets
 {
 	public class DragUI : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler, IPointerEnterHandler, IPointerExitHandler
 	{
-		void Start()
-		{
-		}
-
 		void Update()
 		{
+			if (Input.touchCount > 0)
+			{
+				Touch t1 = Input.GetTouch(0);
+				var isPointerOverUIObject = IsPointerOverUIObject();
+				if (t1.phase == TouchPhase.Began)
+				{
+					if (isPointerOverUIObject == true)
+					{
+						EnterStatus(!isPointerOverUIObject);
+					}
+				}
+				else if (t1.phase == TouchPhase.Ended)
+				{
+					EnterStatus(!isPointerOverUIObject);
+				}
+			}
 		}
 
 		public void OnBeginDrag(PointerEventData eventData)
@@ -50,6 +62,24 @@ namespace VisAssets
 					gos[i].GetComponent<CtrlOBJ>().active = value;
 				}
 			}
+		}
+
+		private bool IsPointerOverUIObject()
+		{
+			PointerEventData eventDataCurrentPosition = new PointerEventData(EventSystem.current);
+			eventDataCurrentPosition.position = new Vector2(Input.mousePosition.x, Input.mousePosition.y);
+			List<RaycastResult> results = new List<RaycastResult>();
+			EventSystem.current.RaycastAll(eventDataCurrentPosition, results);
+
+			for (int i = 0; i < results.Count; i++)
+			{
+				if (results[i].gameObject.name == "MainPanel")
+				{
+					return true;
+				}
+			}
+
+			return false;
 		}
 	}
 }

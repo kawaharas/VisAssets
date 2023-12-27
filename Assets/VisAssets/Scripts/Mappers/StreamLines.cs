@@ -59,7 +59,7 @@ namespace VisAssets.SciVis.Structured.StreamLines
 
 				GUILayout.Space(3f);
 			}
-			var _UseMagnitude = EditorGUILayout.Toggle("Use Magnitude Color", UseMagnitude.boolValue);
+			UseMagnitude.boolValue = EditorGUILayout.Toggle("Use Magnitude Color", UseMagnitude.boolValue);
 /*
 			GUILayout.Space(3f);
 			EditorGUIUtility.labelWidth = 35;
@@ -81,17 +81,18 @@ namespace VisAssets.SciVis.Structured.StreamLines
 			{
 				streamlines.AddSeed();
 			}
-
+/*
 			if (EditorGUI.EndChangeCheck())
 			{
 				Undo.RecordObject(target, "StreamLines");
 				if (EditorApplication.isPlaying)
 				{
-					streamlines.SetUseMagnitude(_UseMagnitude);
+					if (_UseMagnitude_ORG != _UseMagnitude)
 //					streamlines.SetColor(color);
 				}
 				EditorUtility.SetDirty(target);
 			}
+*/
 			serializedObject.ApplyModifiedProperties();
 		}
 	}
@@ -123,8 +124,8 @@ namespace VisAssets.SciVis.Structured.StreamLines
 		public float [] p0 = new float[3];
 
 		[SerializeField, ReadOnly]
-		DataElement[] elements;
-		List<int> activeElements;
+		public DataElement[] elements;
+		public List<int> activeElements;
 		int[] dims;
 //		float[][] coords;
 		float min;
@@ -147,10 +148,18 @@ namespace VisAssets.SciVis.Structured.StreamLines
 
 		public ButtonState ButtonTrigger = ButtonState.RELEASED;
 */
+
+		public Vector3 [] seedsArray;
+		public int line_num;
+		public int max_line_num = 10;
+
 		#endregion // variables
 
 		public override void InitModule()
 		{
+			line_num = 0;
+			seedsArray = new Vector3[max_line_num];
+
 			for (int i = 0; i < 3; i++)
 			{
 				p0[i] = 0;
@@ -203,6 +212,19 @@ namespace VisAssets.SciVis.Structured.StreamLines
 
 			seeds = new List<Vector3>();
 			lines = new List<GameObject>();
+
+			if (linePrefab != null)
+			{
+				for (int i = 0; i < max_line_num; i++)
+				{
+					var line = Instantiate(linePrefab, Vector3.zero, Quaternion.identity);
+					line.transform.localScale = new Vector3(1f, 1f, 1f);
+					line.transform.SetParent(transform, false);
+//					line.GetComponent<StreamLine>().SetSeed(seed);
+					lines.Add(line);
+				}
+			}
+
 		}
 
 		public override int BodyFunc()
@@ -410,6 +432,7 @@ namespace VisAssets.SciVis.Structured.StreamLines
 
 			seeds.Add(seed);
 
+/*
 			if (linePrefab == null) return;
 
 			var line = Instantiate(linePrefab, Vector3.zero, Quaternion.identity);
@@ -417,10 +440,20 @@ namespace VisAssets.SciVis.Structured.StreamLines
 			line.transform.SetParent(transform, false);
 			line.GetComponent<StreamLine>().SetSeed(seed);
 			lines.Add(line);
+*/
+			if (line_num >= max_line_num)
+			{
+				line_num = 0;
+			}
+			seedsArray[line_num] = seed;
+			lines[line_num].GetComponent<StreamLine>().SetSeed(seed);
+			line_num++;
 		}
 
 		public void AddSeed()
 		{
+			if (activeElements.Count == 0) return;
+
 			var p = new float[3];
 			for (int i = 0; i < 3; i++)
 			{
@@ -428,6 +461,28 @@ namespace VisAssets.SciVis.Structured.StreamLines
 			}
 
 			AddSeed(new Vector3(p[0], p[1], p[2]));
+		}
+
+		public void AddSeed(float x, float y, float z)
+		{
+			// UI用。DataField.CoordinateSystemを使った処理が必要か
+			if (activeElements.Count == 0) return;
+
+			var p = new float[3];
+/*
+			for (int i = 0; i < 3; i++)
+			{
+				p[i] = boundMin[i] + (boundMax[i] - boundMin[i]);
+			}
+
+			AddSeed(new Vector3(p[0] * x + pdf.offset[0], p[1] * y + pdf.offset[1], p[2] * z + pdf.offset[2]));
+*/
+			p[0] = boundMin[0] + (boundMax[0] - boundMin[0]) * x;
+			p[1] = boundMin[1] + (boundMax[1] - boundMin[1]) * y;
+			p[2] = boundMin[2] + (boundMax[2] - boundMin[2]) * z;
+
+			AddSeed(new Vector3(p[0], p[1], p[2]));
+
 		}
 
 		// for vr controllers
@@ -449,13 +504,21 @@ namespace VisAssets.SciVis.Structured.StreamLines
 			seed = position;
 			seeds.Add(seed);
 
+/*
 			if (linePrefab == null) return;
-
 			var line = Instantiate(linePrefab, Vector3.zero, Quaternion.identity);
 			line.transform.localScale = new Vector3(1f, 1f, 1f);
 			line.transform.SetParent(transform, false);
 			line.GetComponent<StreamLine>().SetSeed(seed);
 			lines.Add(line);
+*/
+			if (line_num >= max_line_num)
+			{
+				line_num = 0;
+			}
+			seedsArray[line_num] = seed;
+			lines[line_num].GetComponent<StreamLine>().SetSeed(seed);
+			line_num++;
 		}
 
 		public void DrawGuideLines()
@@ -497,19 +560,6 @@ namespace VisAssets.SciVis.Structured.StreamLines
 			// Warningが出ているので要調査
 			// SendMessage cannot be called during Awake, CheckConsistency, or OnValidate (StreamLines: OnMeshFilterChanged)
 			filter.mesh = mesh;
-		}
-
-		public void SetUseMagnitude(bool _UseMagnitude)
-		{
-			foreach(var line in lines)
-			{
-				var streamLine = line.GetComponent<StreamLine>();
-				if (streamLine != null)
-				{
-					streamLine.UseMagnitude = _UseMagnitude;
-				}
-			}
-			UseMagnitude = !UseMagnitude;
 		}
 	}
 }

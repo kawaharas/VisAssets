@@ -5,9 +5,6 @@ using System.Linq;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.XR;
-//using UnityEngine.InputSystem;
-//using Unity.XR.CoreUtils;
-//using UnityEngine.XR.Interaction.Toolkit.UI;
 using UnityEngine.Experimental.XR.Interaction;
 using UnityEngine.SpatialTracking;
 using UnityEngine.XR.Interaction.Toolkit;
@@ -53,7 +50,6 @@ namespace VisAssets
 #endif
 
 	public class UIManager : MonoBehaviour
-//	public class UIManager : XRBaseController
 	{
 		public enum ButtonState
 		{
@@ -79,14 +75,10 @@ namespace VisAssets
 		public ButtonState ButtonTrigger = ButtonState.RELEASED;
 		RaycastHit hitInfo;
 
-		Vector3 initialCameraPosition;
 		public GameObject moduleSelector;
 		public GameObject paramChanger;
 		public GameObject laserPointer;
 		public Vector3    tip;
-
-		public Vector3 origin;
-		public Vector3 originController;
 
 		public GameObject currentModule;
 
@@ -107,12 +99,12 @@ namespace VisAssets
 					cardboardButton.SetActive(false);
 				}
 			}
-//			XRSettings.enabled = false;
+
 //			XRState = XRSettings.enabled;
 
 			if (XRSettings.enabled)
 			{
-				var canvas = this.transform.Find("Canvas");
+				var canvas = transform.Find("Canvas");
 				canvas.gameObject.SetActive(false);
 
 				var mainCamera = Camera.main;
@@ -145,6 +137,7 @@ namespace VisAssets
 		{
 			if (XRSettings.enabled)
 			{
+				var canvas = transform.Find("Canvas");
 				var inputDevices = new List<InputDevice>();
 				InputDevices.GetDevicesAtXRNode(XRNode.RightHand, inputDevices);
 				foreach (var device in inputDevices)
@@ -192,39 +185,28 @@ namespace VisAssets
 					}
 					else
 					{
-						var canvas = this.transform.Find("Canvas");
 						canvas.gameObject.SetActive(false);
 						ButtonA = ButtonState.RELEASED;
 					}
 
 					// trigger button (operate VRUI)
-					var _canvas = this.transform.Find("Canvas");
-					if (!_canvas.gameObject.activeSelf)
+					if (!canvas.gameObject.activeSelf)
 					{
 						if (device.TryGetFeatureValue(CommonUsages.triggerButton, out inputValue) && inputValue)
 						{
 							if (ButtonTrigger == ButtonState.RELEASED)
 							{
-/*
-//								Debug.Log("AddSeed");
-								var gos = GameObject.FindGameObjectsWithTag("VisModule");
-								foreach (var go in gos)
-								{
-									if (go.name.StartsWith("StreamLines"))
-									{
-										var streamLines = go.GetComponent<StreamLines>();
-										if (streamLines != null)
-										{
-											if (tip != null)
-											{
-//												var _tip = Vector3(4.95049524,4.95049524,-4.95049524)
-												var _tip = new Vector3(tip[0] / 4.95049524f, tip[2] / -4.95049524f, tip[1] / -4.95049524f);
-												streamLines.AddSeed(_tip);
-											}
-										}
-									}
-								}
-*/
+								ButtonTrigger = ButtonState.PRESSED;
+							}
+							else if (ButtonTrigger == ButtonState.PRESSED)
+							{
+								ButtonTrigger = ButtonState.KEEP_PRESSING;
+							}
+						}
+						else
+						{
+							if (ButtonTrigger != ButtonState.RELEASED)
+							{
 								if (currentModule.name.StartsWith("StreamLines"))
 								{
 									var streamLines = currentModule.GetComponent<StreamLines>();
@@ -232,56 +214,43 @@ namespace VisAssets
 									{
 										if (tip != null)
 										{
-//											var _tip = Vector3(4.95049524,4.95049524,-4.95049524)
-//											var _tip = new Vector3(tip[0] / 4.95049524f, tip[2] / -4.95049524f, tip[1] / 4.95049524f);
-//											streamLines.AddSeed(_tip);
 											streamLines.AddSeed2(tip);
 										}
 									}
 								}
-
-//								var position = tip;
-								laserPointer.SetActive(true);
-								ButtonTrigger = ButtonState.PRESSED;
 							}
-							else if (ButtonA == ButtonState.PRESSED)
-							{
-								ButtonTrigger = ButtonState.KEEP_PRESSING;
-							}
-						}
-						else
-						{
-							laserPointer.SetActive(false);
 							ButtonTrigger = ButtonState.RELEASED;
 						}
 					}
 				}
 
-				if (ButtonA == ButtonState.PRESSED)
+				// toggle visible state of laser pointer
+				if (canvas.gameObject.activeSelf)
 				{
-					laserPointer.SetActive(true);
-				}
-				else if (ButtonA == ButtonState.RELEASED)
-				{
-					laserPointer.SetActive(false);
-				}
-
-				// for streamline module
-				var __canvas = transform.Find("Canvas");
-				if (!__canvas.gameObject.activeSelf)
-				{
-					if (currentModule != null)
+					// for VRUI
+					if (ButtonA == ButtonState.PRESSED)
 					{
-						if (currentModule.name.StartsWith("StreamLines"))
+						laserPointer.SetActive(true);
+					}
+					else if (ButtonA == ButtonState.RELEASED)
+					{
+						laserPointer.SetActive(false);
+					}
+				}
+				else
+				{
+					if (currentModule == null) return;
+
+					// for streamline module
+					if (currentModule.name.StartsWith("StreamLines"))
+					{
+						if (ButtonTrigger == ButtonState.PRESSED)
 						{
-							if (ButtonTrigger == ButtonState.PRESSED)
-							{
-								laserPointer.SetActive(true);
-							}
-							else if (ButtonTrigger == ButtonState.RELEASED)
-							{
-								laserPointer.SetActive(false);
-							}
+							laserPointer.SetActive(true);
+						}
+						else if (ButtonTrigger == ButtonState.RELEASED)
+						{
+							laserPointer.SetActive(false);
 						}
 					}
 				}
@@ -355,7 +324,7 @@ namespace VisAssets
 		{
 			if (XRSettings.enabled)
 			{
-				var canvas = this.transform.Find("Canvas");
+				var canvas = transform.Find("Canvas");
 				canvas.gameObject.SetActive(true);
 //				canvas.GetComponent<Canvas>().renderMode = RenderMode.WorldSpace;
 				var rectTransform = canvas.GetComponent<RectTransform>();
@@ -363,13 +332,9 @@ namespace VisAssets
 				var rotation = camera.transform.rotation.eulerAngles;
 				var direction = Quaternion.AngleAxis(rotation.y, Vector3.up);
 
-				initialCameraPosition = Camera.main.transform.position;
-
-				rectTransform.localPosition = initialCameraPosition + direction * new Vector3(0f, 0f, 1f);
-//				rectTransform.localPosition = initialCameraPosition + direction * new Vector3(0f, 0f, 20f);
+				rectTransform.localPosition = camera.transform.position + direction * new Vector3(0f, 0f, 1f);
 				rectTransform.localRotation = direction;
 				rectTransform.sizeDelta  = new Vector2(100, 100);
-//				rectTransform.localScale = new Vector3(0.015f, 0.015f, 0.015f);
 				rectTransform.localScale = new Vector3(0.0015f, 0.0015f, 0.0015f);
 			}
 		}
@@ -392,9 +357,11 @@ namespace VisAssets
 		{
 			if (laserPointer != null)
 			{
-				Vector3 centerEyePosition = new Vector3();
-				var centerEyeDevices = new List<InputDevice>();
+				var centerEyePosition = new Vector3();
+				var centerEyeDevices  = new List<InputDevice>();
+
 				InputDevices.GetDevicesAtXRNode(XRNode.CenterEye, centerEyeDevices);
+
 				foreach (var device in centerEyeDevices)
 				{
 					device.TryGetFeatureValue(CommonUsages.devicePosition, out centerEyePosition);
@@ -402,16 +369,9 @@ namespace VisAssets
 
 				var inputDevices = new List<InputDevice>();
 				InputDevices.GetDevicesAtXRNode(XRNode.RightHand, inputDevices);
+
 				foreach (var device in inputDevices)
 				{
-/*
-//					Vector3 origin;
-					Quaternion quaternion;
-					device.TryGetFeatureValue(CommonUsages.devicePosition, out originController);
-					device.TryGetFeatureValue(CommonUsages.deviceRotation, out quaternion);
-
-					origin = originController - centerEyePosition + Camera.main.transform.position;
-*/
 					Vector3 origin;
 					Quaternion quaternion;
 					device.TryGetFeatureValue(CommonUsages.devicePosition, out origin);
@@ -419,20 +379,17 @@ namespace VisAssets
 
 					origin -= centerEyePosition - Camera.main.transform.position;
 
-//					tip = origin + quaternion * new Vector3(0f, 0f, 10f);
-					tip = origin + quaternion * new Vector3(0f, 0f, 1.2f);
+					tip = origin + quaternion * new Vector3(0f, 0f, 1f);
 					var renderer = laserPointer.GetComponent<LineRenderer>();
 					renderer.useWorldSpace = true;
 					renderer.SetPosition(0, origin);
 					renderer.SetPosition(1, tip);
-//					renderer.startWidth = 0.01f;
-//					renderer.endWidth = 0.01f;
 					renderer.startWidth = 0.002f;
-					renderer.endWidth = 0.002f;
+					renderer.endWidth   = 0.002f;
 
-//					float maxRayDistance = 1000.0f;
 					float maxRayDistance = 1.2f;
 					var ray = new Ray(origin, (tip - origin).normalized);
+
 					if (Physics.Raycast(ray, out hitInfo, Mathf.Infinity))
 					{
 						renderer.SetPosition(0, origin);

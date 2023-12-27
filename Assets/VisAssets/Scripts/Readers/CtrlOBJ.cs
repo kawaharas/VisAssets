@@ -36,7 +36,7 @@ namespace VisAssets
 
 		void Update()
 		{
-			if (Application.platform != RuntimePlatform.Android)
+//			if (Application.platform != RuntimePlatform.Android)
 			{
 				if (!active) return;
 			}

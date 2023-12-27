@@ -196,6 +196,7 @@ namespace VisAssets.SciVis.Structured.Isosurface
 				{
 					indices[i] = i;
 				}
+				mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
 				mesh.SetIndices(indices, MeshTopology.Triangles, 0);
 			}
 		}

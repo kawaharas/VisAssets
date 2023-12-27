@@ -8,12 +8,9 @@ namespace VisAssets.SciVis.Structured.StreamLines
 {
 	public class StreamLine : MonoBehaviour
 	{
-		GameObject parent;
-		public DataField pdf;
-		public DataField df;
-		bool dataLoaded;
-
-		bool calcState;
+		DataField     pdf; // refer DataField of parent ("StreamLines" module)
+		StreamLines   streamLines; // "StreamLines" script attached to "StreamLines" module
+		public bool   dataLoaded;
 
 		#region variables
 
@@ -24,21 +21,17 @@ namespace VisAssets.SciVis.Structured.StreamLines
 		List<int>     indices;
 		public Color  color;
 		Material      material;
+		MeshFilter    meshFilter;
 
-		public Vector3 seed = new Vector3();
+		Vector3 seed = new Vector3();
 
-public int vertCount = 0;
-public int colCount = 0;
-public int idxCount = 0;
 		public bool   IsAnimation;
 		public bool   IsRepeat;
-		public bool   UseMagnitude;
 		public bool   IsCalc;
-		public int    calculatedStep;
-		public int    step;
+		public int    calculatedSteps;
+		public int    currentStep;
 		GameObject    sphere;
 //		public float  sphereScale;
-		public int    maxStep;
 
 		[SerializeField, ReadOnly]
 		DataElement[] elements;
@@ -50,15 +43,9 @@ public int idxCount = 0;
 		float undef;
 		bool  useUndef;
 
-		Vector3 boundMin;
-		Vector3 boundMax;
-
-//		float h = 2e-3f;
-		float h = 5e-3f;
-//		float h = 0.005f;
+		float h = 0.005f;
 		float magMin;
 		float magMax;
-		float magnitude;
 
 		Vector3 position;
 
@@ -68,9 +55,8 @@ public int idxCount = 0;
 		void Start()
 		{
 			dataLoaded = false;
-			calcState = false;
-			parent = transform.parent.gameObject;
-			df = GetComponent<DataField>();
+			var parent = transform.parent.gameObject;
+			streamLines = parent.GetComponent<StreamLines>();
 
 			vertices  = new List<Vector3>();
 			colors    = new List<Color>();
@@ -81,9 +67,8 @@ public int idxCount = 0;
 
 			IsAnimation = false;
 			IsRepeat    = false;
-			step = 0;
-			calculatedStep = 0;
-			maxStep = 5000;
+			currentStep = 0;
+			calculatedSteps = 0;
 
 			elements = new DataElement[3];
 			dims = new int[3] { -1, -1, -1 };
@@ -97,7 +82,7 @@ public int idxCount = 0;
 
 			mesh = new Mesh();
 			mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
-			var meshFilter = GetComponent<MeshFilter>();
+			meshFilter = GetComponent<MeshFilter>();
 			if (meshFilter != null)
 			{
 				meshFilter.mesh = mesh;
@@ -111,36 +96,29 @@ public int idxCount = 0;
 			}
 		}
 
-		// Update is called once per frame
 		void FixedUpdate()
 		{
 			if (!IsCalc) return;
 
 			if (dataLoaded)
 			{
-				RungeKutta();
-/*
-				if (!calcState)
+				// test for speed control
+				for (int i = 0; i < 3; i++)
 				{
 					RungeKutta();
-					calcState = true;
 				}
-*/				
-/*
-				if (vertices.Count != 0)
+
+				if (indices.Count > 1)
 				{
 					sphere.SetActive(true);
 					sphere.transform.localPosition = vertices[vertices.Count - 1];
-				}
-*/
-				if (indices.Count > 0)
-				{
-					sphere.SetActive(true);
-//					sphere.transform.localPosition = vertices[vertices.Count - 1];
-					sphere.transform.localPosition = vertices[indices[indices.Count - 1]];
+//					sphere.transform.localPosition = vertices[indices[indices.Count - 1]];
 
+					mesh.Clear();
+					mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
 					mesh.SetVertices(vertices);
-					if (UseMagnitude)
+
+					if (streamLines.UseMagnitude)
 					{
 						mesh.SetColors(magColors);
 					}
@@ -148,16 +126,16 @@ public int idxCount = 0;
 					{
 						mesh.SetColors(colors);
 					}
-					mesh.SetIndices(indices.ToArray(), MeshTopology.Lines, 0);
+					mesh.SetIndices(indices.ToArray(), MeshTopology.LineStrip, 0);
 					mesh.RecalculateBounds();
-					var filter = GetComponent<MeshFilter>();
-					filter.mesh = mesh;
+
+					meshFilter.mesh = mesh;
 				}
 
 				return;
 			}
 
-			pdf = parent.GetComponent<StreamLines>().pdf;
+			pdf = streamLines.pdf;
 
 			if (pdf.dataLoaded)
 			{
@@ -177,23 +155,23 @@ public int idxCount = 0;
 			}
 
 /*
-			if (IsAnimation)
+			if (streamLines.IsAnimation)
 			{
-				step++;
-				if (IsRepeat)
+				currentStep++;
+				if (streamLines.IsRepeat)
 				{
-					if (step * 2 > indices.Count)
+					if (currentStep >= indices.Count)
 					{
-						step = 0;
+						currentStep = 0;
 					}
 				}
 				else
 				{
-					Mathf.Clamp(step, 0, indices.Count / 2);
+					Mathf.Clamp(currentStep, 0, indices.Count - 1);
 				}
-				int[] subIndices = new int[step];
-				System.Array.Copy(indices.ToArray(), subIndices, step);
-				mesh.SetIndices(subIndices, MeshTopology.Lines, 0);
+				int[] subIndices = new int[currentStep];
+				System.Array.Copy(indices.ToArray(), subIndices, currentStep);
+				mesh.SetIndices(subIndices, MeshTopology.LineStrip, 0);
 
 				if (vertices.Count != 0)
 				{
@@ -206,6 +184,18 @@ public int idxCount = 0;
 				sphere.transform.localPosition = vertices[subIndices.Last()];
 			}
 */
+		}
+
+		public void Reset()
+		{
+			vertices.Clear();
+			colors.Clear();
+			magColors.Clear();
+			indices.Clear();
+			sphere.SetActive(false);
+			IsCalc = false;
+			dataLoaded = false;
+			calculatedSteps = 0;
 		}
 
 		private void CheckActiveElements()
@@ -269,11 +259,6 @@ public int idxCount = 0;
 					magMax = Math.Max(magMax, vec3.magnitude);
 				}
 			}
-		}
-
-		public void SetAnimationState(bool state)
-		{
-			IsAnimation = state;
 		}
 
 		private Vector3 GetVector(Vector3 position)
@@ -440,7 +425,11 @@ public int idxCount = 0;
 
 		private void RungeKutta()
 		{
-			if (calculatedStep >= maxStep) return;
+			if (calculatedSteps >= streamLines.maxStep)
+			{
+				IsCalc = false; // stop calculation
+				return;
+			}
 
 			if (!JudgeInsideOrOutside(position)) return;
 
@@ -458,42 +447,16 @@ public int idxCount = 0;
 
 			position += deltaPosition;
 
-//			if (UseMagnitude)
-			{
-//				var vector = GetVector(position);
-//				magnitude = vector.magnitude;
-//				var vector = GetVector(position);
-				var magnitude = GetVector(position).magnitude;
-				var level = Mathf.Clamp((magnitude - magMin) / (magMax - magMin), 0, 1f);
-//				var magColor = GetColor(level);
-				magColors.Add(GetColor(level));
-			}
+			// set magnitude color
+			var magnitude = GetVector(position).magnitude;
+			var level = Mathf.Clamp((magnitude - magMin) / (magMax - magMin), 0, 1f);
+			magColors.Add(GetColor(level));
 
 			vertices.Add(position);
 			colors.Add(color);
-vertCount++;
-colCount++;
+			indices.Add(calculatedSteps);
 
-			if (calculatedStep > 0)
-			{
-idxCount += 2;
-				indices.Add(calculatedStep - 1);
-				indices.Add(calculatedStep - 1 + 1);
-/*
-				mesh.SetVertices(vertices);
-				if (UseMagnitude)
-				{
-					mesh.SetColors(magColors);
-				}
-				else
-				{
-					mesh.SetColors(colors);
-				}
-				mesh.SetIndices(indices.ToArray(), MeshTopology.Lines, 0);
-				mesh.RecalculateBounds();
-*/
-			}
-			calculatedStep++;
+			calculatedSteps++;
 		}
 
 		Color GetColor(float level)
@@ -551,8 +514,10 @@ var max = activeElement.boundMax;
 
 		public void SetSeed(Vector3 _seed)
 		{
-			IsCalc = true;
+			Reset();
+
 			seed = _seed;
+			IsCalc = true;
 		}
 	}
 }
