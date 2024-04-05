@@ -331,6 +331,15 @@ namespace VisAssets
 				Debug.Log("Exception : " + e);
 			}
 
+			// recheck if fieldtype of input data is irregular or rectilinear
+			if (fieldType == FieldType.IRREGULAR)
+			{
+				if (RecheckCoordinate(coords, dims))
+				{
+					fieldType = FieldType.RECTILINEAR;
+				}
+			}
+
 			df.CreateElements(vlen);
 			for (int i = 0; i < vlen; i++)
 			{
@@ -356,6 +365,68 @@ namespace VisAssets
 
 			StartCoroutine(LoadData());
 			return 1;
+		}
+
+		private bool RecheckCoordinate(List<float>[] coords, List<int> dims)
+		{
+			var check = new bool[3] {true, true, true};
+
+			for (int i = 0; i < dims[0]; i++)
+			{
+				coords[0].Add(coords[3][i * 3]);
+			}
+			for (int j = 0; j < dims[1]; j++)
+			{
+				coords[1].Add(coords[3][dims[0] * j * 3 + 1]);
+			}
+			for (int k = 0; k < dims[2]; k++)
+			{
+				coords[2].Add(coords[3][dims[0] * dims[1] * k * 3 + 2]);
+			}
+
+			// check axes
+			for (int k = 0; k < dims[2]; k++)
+			{
+				for (int j = 0; j < dims[1]; j++)
+				{
+					for (int i = 0; i < dims[0]; i++)
+					{
+						int idx = (dims[0] * dims[1] * k + dims[0] * j + i) * 3;
+						if (coords[0][i] != coords[3][idx])
+						{
+							check[0] = false;
+							break;
+						}
+						if (coords[1][j] != coords[3][idx + 1])
+						{
+							check[1] = false;
+							break;
+						}
+						if (coords[2][k] != coords[3][idx + 2])
+						{
+							check[2] = false;
+							break;
+						}
+					}
+				}
+			}
+
+			if (check[0] & check[1] & check[2])
+			{
+				// fieldtype is rectilinear
+				return true;
+			}
+			else
+			{
+				// fieldtype is irregular
+				for (int i = 0; i < 3; i++)
+				{
+					// clear coords for rectilinear
+					coords[i].Clear();
+				}
+			}
+
+			return false;
 		}
 
 		private int SetDummyData()
