@@ -106,7 +106,7 @@ namespace VisAssets.SciVis.Structured.StreamLines
 		List<int>     indices;
 		Material      material;
 		Mesh          mesh;
-	    public float         displayTime = 5f;
+		public float  displayTime = 5f;
 
 		public bool   IsAnimation;
 		public bool   IsRepeat;
@@ -138,6 +138,7 @@ namespace VisAssets.SciVis.Structured.StreamLines
 
 		float magMin; // minimum magnitude
 		float magMax; // maximum magnitude
+		public Vector3 upstreamReciprocalScale = Vector3.one;
 /*
 		public enum ButtonState
 		{
@@ -233,6 +234,17 @@ namespace VisAssets.SciVis.Structured.StreamLines
 			{
 //				RungeKutta();
 			}
+
+			// get scale to reset child object's scale
+			var root = transform.root; // set transform of root game object
+			var current = transform; // variable for check transform of current game object
+			var upstreamScale = Vector3.one;
+			while (root != current)
+			{
+				current = current.transform.parent;
+				upstreamScale = Vector3.Scale(upstreamScale, current.transform.localScale);
+			}
+			upstreamReciprocalScale = GetReciprocalVector3(upstreamScale);
 
 			return 1;
 		}
@@ -333,7 +345,7 @@ namespace VisAssets.SciVis.Structured.StreamLines
 
 			var meshFilter = GetComponent<MeshFilter>();
 			meshFilter.mesh = mesh;
-			
+
 			step = 0;
 		}
 
@@ -560,6 +572,12 @@ namespace VisAssets.SciVis.Structured.StreamLines
 			// Warningが出ているので要調査
 			// SendMessage cannot be called during Awake, CheckConsistency, or OnValidate (StreamLines: OnMeshFilterChanged)
 			filter.mesh = mesh;
+		}
+
+		Vector3 GetReciprocalVector3(Vector3 vec3)
+		{
+			var ret = new Vector3(1f / vec3.x, 1f / vec3.y, 1f / vec3.z);
+			return ret;
 		}
 	}
 }

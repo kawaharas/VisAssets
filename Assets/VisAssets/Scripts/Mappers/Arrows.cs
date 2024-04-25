@@ -123,8 +123,9 @@ namespace VisAssets.SciVis.Structured.Arrows
 		float prev_value;
 //		int   idx;
 		float ratio;
-		List<Vector3> vertices;
+		List<Vector3> positions;
 		List<Vector3> scales;
+		List<Vector3> eularAngles;
 
 		public override void InitModule()
 		{
@@ -216,14 +217,6 @@ namespace VisAssets.SciVis.Structured.Arrows
 			for (int i = 0; i < arrowNum; i++)
 			{
 				arrows[i] = Instantiate(arrowPrefab, Vector3.zero, Quaternion.identity);
-//				arrows[i].transform.parent = this.gameObject.transform;
-//				arrows[i].transform.localScale = new Vector3(1f, 1f, 1f);
-				var _scale = new Vector3(1f / pdf.scale.x, 1f / pdf.scale.y, 1f / pdf.scale.z);
-				if (pdf.coordinateSystem == DataField.CoordinateSystem.RIGHT_HANDED)
-				{
-					_scale = new Vector3(1f / pdf.scale.x, 1f / pdf.scale.y, 1f / -pdf.scale.z);
-				}
-				arrows[i].transform.localScale = _scale;
 				arrows[i].transform.SetParent(transform, false);
 			}
 		}
@@ -254,14 +247,12 @@ namespace VisAssets.SciVis.Structured.Arrows
 					arrows[i] = Instantiate(arrowPrefab, Vector3.zero, Quaternion.identity);
 //					arrows[i].transform.parent = this.gameObject.transform;
 //					arrows[i].transform.localScale = new Vector3(1f, 1f, 1f);
-//					arrows[i].transform.localScale = new Vector3(1f, 1f, 1f);
 					var _scale = new Vector3(1f / pdf.scale.x, 1f / pdf.scale.y, 1f / pdf.scale.z);
 					if (pdf.coordinateSystem == DataField.CoordinateSystem.RIGHT_HANDED)
 					{
 						_scale = new Vector3(1f / pdf.scale.x, 1f / pdf.scale.y, 1f / -pdf.scale.z);
 					}
 					arrows[i].transform.localScale = _scale;
-					
 					arrows[i].transform.SetParent(transform, false);
 				}
 			}
@@ -300,15 +291,13 @@ namespace VisAssets.SciVis.Structured.Arrows
 				}
 				useUndef = elements[index].useUndef;
 				undef    = elements[index].undef;
-
-				Debug.Log("Dims = (" + dims[0] + "," + dims[1] + "," + dims[2] + ")");
 			}
 		}
 
 		void CheckData()
 		{
-			List<float> valueList = new List<float>();
-
+			// scalarization
+			var valueList = new List<float>();
 			for (int k = 0; k < dims[2]; k++)
 			{
 				int index0 = k * dims[1] * dims[0];
@@ -337,8 +326,7 @@ namespace VisAssets.SciVis.Structured.Arrows
 						}
 						else
 						{
-							float norm = (float)Math.Sqrt((double)sum_of_squares);
-							valueList.Add(norm);
+							valueList.Add(Mathf.Sqrt(sum_of_squares));
 						}
 					}
 				}
@@ -352,10 +340,9 @@ namespace VisAssets.SciVis.Structured.Arrows
 				valid_values = values.Where(n => n != undef);
 			}
 
-//			min = valid_values.Min();
-//			max = valid_values.Max();
 			average   = valid_values.Average();
-			var sum2  = valid_values.Sum(a => (a - average) * (a - average));
+//			var sum2  = valid_values.Sum(a => (a - average) * (a - average));
+			var sum2  = valid_values.Sum(a => a * a);
 			var count = valid_values.Count();
 			variance  = sum2 / count - average * average;
 
@@ -369,8 +356,7 @@ namespace VisAssets.SciVis.Structured.Arrows
 					float[] coord = elements[activeElements[0]].coords[n];
 					for (int i = 0; i < dims[n] - 1; i++)
 					{
-						float d = Math.Abs(coord[i + 1] - coord[i]);
-						if (d < dmin) dmin = d;
+						dmin = Math.Min(dmin, Math.Abs(coord[i + 1] - coord[i]));
 					}
 				}
 //				arrowscale = dmin / max * scale_weight;
@@ -414,41 +400,25 @@ namespace VisAssets.SciVis.Structured.Arrows
 					var v100 = new Vector3(x100, y100, z100);
 					var v010 = new Vector3(x010, y010, z010);
 					var v001 = new Vector3(x001, y001, z001);
-					float d = Vector3.Distance(v000, v100);
-					if (d < dmin) dmin = d;
-					d = Vector3.Distance(v000, v010);
-					if (d < dmin) dmin = d;
-					d = Vector3.Distance(v000, v001);
-					if (d < dmin) dmin = d;
+
+					dmin = Math.Min(dmin, Vector3.Distance(v000, v100));
+					dmin = Math.Min(dmin, Vector3.Distance(v000, v010));
+					dmin = Math.Min(dmin, Vector3.Distance(v000, v001));
 				}
 				}
 				}
 				arrowscale = dmin / valid_values.Max() * scale_weight;
 //				arrowscale = 2f;
 			}
-/*
-			// for rectilinear coordinate
-			float dmin = float.MaxValue;
-			for (int n = 0; n < 3; n++)
-			{
-				float[] coord = elements[activeElements[0]].coords[n];
-				for (int i = 0; i < dims[n] - 1; i++)
-				{
-					float d = Math.Abs(coord[i + 1] - coord[i]);
-					if (d < dmin) dmin = d;
-				}
-			}
-//			arrowscale = dmin / max * scale_weight;
-			arrowscale = dmin / valid_values.Max() * scale_weight;
-*/
 		}
 
 		void InitSliceParams()
 		{
-			vertices = new List<Vector3>();
-			scales   = new List<Vector3>();
+			positions   = new List<Vector3>();
+			scales      = new List<Vector3>();
+			eularAngles = new List<Vector3>();
 
-			axis = prev_axis  = 0;
+			axis  = prev_axis  = 0;
 			slice = prev_slice = 0;
 			value = prev_value = 0;
 			value_min = 0;
@@ -602,7 +572,7 @@ namespace VisAssets.SciVis.Structured.Arrows
 
 		public void SetScale()
 		{
-			for (int i = 0; i < vertices.Count; i++)
+			for (int i = 0; i < positions.Count; i++)
 			{
 				if (normalize)
 				{
@@ -614,10 +584,10 @@ namespace VisAssets.SciVis.Structured.Arrows
 					_scale.x *= scale_weight;
 					_scale.y *= scale_weight;
 					_scale.z *= scale_weight;
-					arrows[i].transform.localScale = _scale;
+//					arrows[i].transform.localScale = _scale;
 				}
 //				arrows[i].transform.localEulerAngles = eularAngle[i];
-//				arrows[i].transform.localPosition = vertices[i];
+//				arrows[i].transform.localPosition = positions[i];
 			}
 
 			ParameterChanged();
@@ -703,8 +673,10 @@ namespace VisAssets.SciVis.Structured.Arrows
 			DataElement element = pdf.elements[activeElements[0]];
 			int idx = GetIndexOfCuttingEdge();
 
-			vertices.Clear();
+			positions.Clear();
 			scales.Clear();
+			eularAngles.Clear();
+			DeleteArrows();
 
 			int slice_w = 0; // width
 			int slice_h = 0; // height
@@ -820,58 +792,69 @@ namespace VisAssets.SciVis.Structured.Arrows
 								v0 = coord3[idx0 * 3 + 0];
 								v1 = coord3[idx0 * 3 + 1];
 								v2 = coord3[idx0 * 3 + 2];
-								vertices.Add(new Vector3(v0, v1, v2));
+								positions.Add(new Vector3(v0, v1, v2));
 							}
 							else
 							{
 								v0 = coord3[idx0 * 3 + 0] + (coord3[idx1 * 3 + 0] - coord3[idx0 * 3 + 0]) * ratio;
 								v1 = coord3[idx0 * 3 + 1] + (coord3[idx1 * 3 + 1] - coord3[idx0 * 3 + 1]) * ratio;
 								v2 = coord3[idx0 * 3 + 2] + (coord3[idx1 * 3 + 2] - coord3[idx0 * 3 + 2]) * ratio;
-								vertices.Add(new Vector3(v0, v1, v2));
+								positions.Add(new Vector3(v0, v1, v2));
 							}
 						}
 					}
 				}
 			}
 
-			List<Vector3> eularAngle = new List<Vector3>();
-			for (int i = 0; i < vertices.Count; i++)
+			CreateArrows(positions.Count);
+
+			// get scale to reset child object's scale
+			var root = transform.root; // set transform of root game object
+			var current = transform; // variable for check transform of current game object
+			var upstreamScale = Vector3.one;
+			while (root != current)
 			{
-				float ux = slicedata[i * 3 + 0];
-				float uy = slicedata[i * 3 + 1];
-				float uz = slicedata[i * 3 + 2];
-				float r2 = (float)Math.Sqrt((double)(ux * ux + uy * uy));
-				float phi = (float)(Math.Atan2((double)uy, (double)ux) / Math.PI * 180.0);
-				float tht = (float)(Math.Atan2((double)r2, (double)uz) / Math.PI * 180.0);
-				var rotX = Quaternion.AngleAxis(0f, new Vector3(1, 0, 0));
-				var rotY = Quaternion.AngleAxis(tht, new Vector3(0, 1, 0));
-				var rotZ = Quaternion.AngleAxis(-phi, new Vector3(0, 0, 1));
-				var quaternion = rotY * rotZ;
-				eularAngle.Add(new Vector3(0f, 0f, phi + 270f));
+				current = current.transform.parent;
+				upstreamScale = Vector3.Scale(upstreamScale, current.transform.localScale);
 			}
+			var upstreamReciprocalScale = GetReciprocalVector3(upstreamScale);
 
-			DeleteArrows();
-			CreateArrows(vertices.Count);
-
-//			List<Vector3> scale = new List<Vector3>();
-			for (int i = 0; i < sum_of_squares.Length; i++)
+			for (int i = 0; i < positions.Count; i++)
 			{
+				// calculate scale
 				float s = (float)Math.Sqrt((double)sum_of_squares[i]) * arrowscale;
 				scales.Add(new Vector3(s, s, s));
-			}
-			for (int i = 0; i < vertices.Count; i++)
-			{
+
+				// calculate eular angle
+				var ux = slicedata[i * 3 + 0];
+				var uy = slicedata[i * 3 + 1];
+				var uz = slicedata[i * 3 + 2];
+				var r2 = Mathf.Sqrt(ux * ux + uy * uy);
+				var phi = Mathf.Atan2(uy, ux) / Mathf.PI * 180.0f;
+				var tht = Mathf.Atan2(r2, uz) / Mathf.PI * 180.0f;
+				var rotX = Quaternion.AngleAxis(   0, new Vector3(1, 0, 0));
+				var rotY = Quaternion.AngleAxis( tht, new Vector3(0, 1, 0));
+				var rotZ = Quaternion.AngleAxis(-phi, new Vector3(0, 0, 1));
+				var quaternion = rotY * rotZ;
+				eularAngles.Add(new Vector3(0f, 0f, phi + 270f));
+
 				if (normalize)
 				{
-					arrows[i].transform.localScale = scales[i].normalized;
+					arrows[i].transform.localScale = Vector3.Scale(scales[i].normalized, upstreamReciprocalScale) / 10f;
 				}
 				else
 				{
-					arrows[i].transform.localScale = scales[i];
+					arrows[i].transform.localScale = Vector3.Scale(scales[i], upstreamReciprocalScale);
 				}
-				arrows[i].transform.localEulerAngles = eularAngle[i];
-				arrows[i].transform.localPosition = vertices[i];
+				arrows[i].transform.localEulerAngles = eularAngles[i];
+				arrows[i].transform.localPosition    = positions[i];
 			}
+		}
+
+		Vector3 GetReciprocalVector3(Vector3 vec3)
+		{
+			var ret = new Vector3(1f / vec3.x, 1f / vec3.y, 1f / vec3.z);
+			return ret;
 		}
 	}
 }

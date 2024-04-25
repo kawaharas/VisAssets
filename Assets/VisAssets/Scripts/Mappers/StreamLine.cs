@@ -98,7 +98,7 @@ namespace VisAssets.SciVis.Structured.StreamLines
 
 		void FixedUpdate()
 		{
-			if (!IsCalc) return;
+//			if (!IsCalc) return;
 
 			if (dataLoaded)
 			{
@@ -113,6 +113,8 @@ namespace VisAssets.SciVis.Structured.StreamLines
 					sphere.SetActive(true);
 					sphere.transform.localPosition = vertices[vertices.Count - 1];
 //					sphere.transform.localPosition = vertices[indices[indices.Count - 1]];
+//					sphere.transform.localScale = Vector3.Scale(sphere.transform.localScale, streamLines.upstreamReciprocalScale);
+					sphere.transform.localScale = Vector3.Scale(Vector3.one / 20f, streamLines.upstreamReciprocalScale);
 
 					mesh.Clear();
 					mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
@@ -135,6 +137,7 @@ namespace VisAssets.SciVis.Structured.StreamLines
 				return;
 			}
 
+			// set DataField of StreamLine module
 			pdf = streamLines.pdf;
 
 			if (pdf.dataLoaded)
@@ -433,10 +436,35 @@ namespace VisAssets.SciVis.Structured.StreamLines
 
 			if (!JudgeInsideOrOutside(position)) return;
 
-			var k1 = h * GetVector(position).normalized;
-			var k2 = h * GetVector(position + k1 / 2f).normalized;
-			var k3 = h * GetVector(position + k2 / 2f).normalized;
-			var k4 = h * GetVector(position + k3).normalized;
+			var v0 = GetVector(position);
+			if (useUndef == true & v0[0] == undef)
+			{
+				IsCalc = false; // stop calculation
+				return;
+			}
+			var k1 = h * v0.normalized;
+			var v1 = GetVector(position + k1 / 2f);
+			if (useUndef == true & v1[0] == undef)
+			{
+				IsCalc = false; // stop calculation
+				return;
+			}
+			var k2 = h * v1.normalized;
+			var v2 = GetVector(position + k2 / 2f);
+			if (useUndef == true & v2[0] == undef)
+			{
+				IsCalc = false; // stop calculation
+				return;
+			}
+			var k3 = h * v2.normalized;
+			var v3 = GetVector(position + k3);
+			if (useUndef == true & v3[0] == undef)
+			{
+				IsCalc = false; // stop calculation
+				return;
+			}
+			var k4 = h * v3.normalized;
+
 			var deltaPosition = (k1 + 2f * k2 + 2f * k3 + k4) / 6f;
 
 			if (deltaPosition.magnitude == 0)

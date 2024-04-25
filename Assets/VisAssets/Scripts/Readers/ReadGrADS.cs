@@ -432,6 +432,9 @@ namespace VisAssets
 
 			df.CreateElements(varnum);
 
+			df.upAxis = DataField.UpAxis.Z;
+			df.coordinateSystem = DataField.CoordinateSystem.RIGHT_HANDED;
+
 			SetParamsToDataElements();
 
 			yield return StartCoroutine(ReadBinary(datafile, ResponseCallbackBinary));
