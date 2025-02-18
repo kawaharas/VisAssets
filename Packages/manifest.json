@@ -1,4 +1,10 @@
 {
+  "name": "jp.go.jamstec.visassets",
+  "version": "0.3.0",
+  "displayName": "VisAssets",
+  "description": "Visualization Framework for Unity",
+  "unity": "2020.2",
+
   "dependencies": {
     "com.meta.xr.sdk.core": "62.0.0",
     "com.unity.collab-proxy": "2.2.0",
