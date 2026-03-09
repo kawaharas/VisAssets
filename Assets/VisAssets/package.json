@@ -1,7 +1,7 @@
 {
   "name": "jp.go.jamstec.visassets",
   "displayName": "VisAssets",
-  "version": "pre-0.3.0",
+  "version": "0.3.0-pre",
   "unity": "2020.2",
   "description": "Visualization Framework for Unity"
 }
