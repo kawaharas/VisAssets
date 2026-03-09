@@ -218,6 +218,7 @@ namespace VisAssets.SciVis.Structured.Arrows
 			{
 				arrows[i] = Instantiate(arrowPrefab, Vector3.zero, Quaternion.identity);
 				arrows[i].transform.SetParent(transform, false);
+				arrows[i].hideFlags = HideFlags.HideInHierarchy;
 			}
 		}
 
@@ -808,17 +809,19 @@ namespace VisAssets.SciVis.Structured.Arrows
 
 			CreateArrows(positions.Count);
 
+/*
 			// get scale to reset child object's scale
 			var root = transform.root; // set transform of root game object
 			var current = transform; // variable for check transform of current game object
 			var upstreamScale = Vector3.one;
+
 			while (root != current)
 			{
 				current = current.transform.parent;
 				upstreamScale = Vector3.Scale(upstreamScale, current.transform.localScale);
 			}
 			var upstreamReciprocalScale = GetReciprocalVector3(upstreamScale);
-
+*/
 			for (int i = 0; i < positions.Count; i++)
 			{
 				// calculate scale
@@ -840,11 +843,13 @@ namespace VisAssets.SciVis.Structured.Arrows
 
 				if (normalize)
 				{
-					arrows[i].transform.localScale = Vector3.Scale(scales[i].normalized, upstreamReciprocalScale) / 10f;
+//					arrows[i].transform.localScale = Vector3.Scale(scales[i].normalized, upstreamReciprocalScale) / 10f;
+					arrows[i].transform.localScale = Vector3.Scale(scales[i].normalized, GetReciprocalVector3(transform.lossyScale)) / 5f;
 				}
 				else
 				{
-					arrows[i].transform.localScale = Vector3.Scale(scales[i], upstreamReciprocalScale);
+//					arrows[i].transform.localScale = Vector3.Scale(scales[i], upstreamReciprocalScale);
+					arrows[i].transform.localScale = Vector3.Scale(scales[i], GetReciprocalVector3(transform.lossyScale));
 				}
 				arrows[i].transform.localEulerAngles = eularAngles[i];
 				arrows[i].transform.localPosition    = positions[i];
