@@ -5,9 +5,8 @@
   "unity": "2022.3",
   "description": "Visualization Framework for Unity",
   "dependencies": {
-    "com.unity.xr.interaction.toolkit": "2.6.4",
-    "com.unity.xr.legacyinputhelpers": "2.1.12",
     "com.unity.inputsystem": "1.14.0",
-    "com.yasirkula.simplefilebrowser": "https://github.com/yasirkula/UnitySimpleFileBrowser.git"
+    "com.unity.xr.interaction.toolkit": "2.6.4",
+    "com.unity.xr.legacyinputhelpers": "2.1.12"
   }
 }
