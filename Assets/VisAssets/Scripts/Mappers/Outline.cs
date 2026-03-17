@@ -31,6 +31,10 @@ namespace VisAssets.SciVis.Structured.Outline
 			var outline = target as Outline;
 
 			serializedObject.Update();
+
+			EditorGUILayout.PropertyField(
+				serializedObject.FindProperty("UIPrefab"), new GUIContent("UI Prefab"));
+
 			EditorGUI.BeginChangeCheck();
 
 			GUILayout.Space(10f);

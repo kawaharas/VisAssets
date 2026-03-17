@@ -12,7 +12,8 @@ namespace VisAssets
 		public GameObject UIPanel;
 		[SerializeField, ReadOnly]
 		public string FixedModuleName;
-		GameObject UIPrefab;
+		[SerializeField]
+		private GameObject UIPrefab;
 		bool disableUI = false;
 
 		public enum ModuleType
@@ -31,7 +32,8 @@ namespace VisAssets
 
 		public void SetupUI()
 		{
-			var UIManager = GameObject.Find("UIManager");
+//			var UIManager = GameObject.Find("UIManager");
+			var UIManager = GameObject.FindAnyObjectByType<UIManager>();
 			if (UIManager == null)
 			{
 				disableUI = true;
@@ -41,41 +43,62 @@ namespace VisAssets
 			var moduleInfo = GetModuleInfo();
 			if (moduleInfo.id < 0) return;
 
-			int moduleNum = UIManager.GetComponent<UIManager>().moduleCounter[moduleInfo.id];
-			FixedModuleName = moduleInfo.name;
-
-			if (moduleNum != 0)
+			int moduleNum = 0;
+			var UIManagerComponent = UIManager.GetComponent<UIManager>();
+			if (UIManagerComponent != null)
 			{
-				FixedModuleName += " #" + moduleNum.ToString();
+				moduleNum = UIManagerComponent.moduleCounter[moduleInfo.id];
+				FixedModuleName = moduleInfo.name;
+				if (moduleNum != 0)
+				{
+					FixedModuleName += " #" + moduleNum.ToString();
+				}
+				UIManagerComponent.moduleCounter[moduleInfo.id] = moduleNum + 1;
 			}
-			UIManager.GetComponent<UIManager>().moduleCounter[moduleInfo.id] = moduleNum + 1;
-			UIPrefab = (GameObject)Resources.Load("Prefabs/UIPanels/" + moduleInfo.name);
+
 			if (UIPrefab != null)
 			{
 				UIPanel = Instantiate(UIPrefab, Vector3.zero, Quaternion.identity);
 				UIPanel.name = FixedModuleName;
 				var paramChanger = UIManager.GetComponent<UIManager>().paramChanger;
 				UIPanel.transform.SetParent(paramChanger.transform, false);
-//				UIPanel.transform.SetParent(GameObject.Find("ParamChanger").transform, false);
-				UIPanel.transform.localScale = new Vector3(1.0f, 1.0f, 1.0f);
-				UIPanel.GetComponent<UIPanel>().TargetModule = this.gameObject;
+				UIPanel.transform.localScale = Vector3.one;
+
+				var UIPanelComponent = UIPanel.GetComponent<UIPanel>();
+				if (UIPanelComponent != null)
+				{
+					UIPanelComponent.TargetModule = this.gameObject;
+				}
+
 				UIPanel.SetActive(false);
 			}
-
-			var ModuleSelector = UIManager.GetComponent<UIManager>().moduleSelector;
-//			var dropdown = ModuleSelector.Find("Dropdown").GetComponent<Dropdown>();
-//			var ModuleSelector = GameObject.Find("ModuleSelector");
-			var dropdown = ModuleSelector.transform.Find("Dropdown").GetComponent<Dropdown>();
-			if (dropdown.options[0].text == "None")
+			else
 			{
-				dropdown.ClearOptions();
-				if (UIPrefab != null)
+				Debug.LogWarning($"{gameObject.name}: UI Prefab is not assigned.");
+			}
+
+			var ModuleSelector = UIManagerComponent.moduleSelector;
+			if (ModuleSelector != null)
+			{
+				var dropdown = ModuleSelector.transform.Find("Dropdown");
+				if (dropdown != null)
 				{
-					UIPanel.SetActive(true);
+					var dropdownComponent = dropdown.GetComponent<Dropdown>();
+					if (dropdownComponent != null)
+					{
+						if (dropdownComponent.options[0].text == "None")
+						{
+							dropdownComponent.ClearOptions();
+							if (UIPrefab != null)
+							{
+								UIPanel.SetActive(true);
+							}
+						}
+						dropdownComponent.options.Add(new Dropdown.OptionData { text = FixedModuleName });
+						dropdownComponent.RefreshShownValue();
+					}
 				}
 			}
-			dropdown.options.Add(new Dropdown.OptionData { text = FixedModuleName });
-			dropdown.RefreshShownValue();
 		}
 
 		ModuleInfo GetModuleInfo()

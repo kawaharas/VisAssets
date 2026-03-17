@@ -62,6 +62,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   UIPanel: {fileID: 0}
   FixedModuleName: 
+  UIPrefab: {fileID: 6388945722156695275, guid: bc58e025d23c7454ea62d950922f8d3d, type: 3}
   moduleType: 2
   activation: {fileID: 0}
   pdf: {fileID: 0}
@@ -79,3 +80,8 @@ MonoBehaviour:
   - 0
   - 0
   elements: []
+  activeElements: 
+  upstreamReciprocalScale: {x: 1, y: 1, z: 1}
+  seedsArray: []
+  line_num: 0
+  max_line_num: 10

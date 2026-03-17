@@ -18,6 +18,10 @@ namespace VisAssets.SciVis.Structured.ExtracterScalar
 			var extractScalar = target as ExtractScalar;
 
 			serializedObject.Update();
+
+			EditorGUILayout.PropertyField(
+				serializedObject.FindProperty("UIPrefab"), new GUIContent("UI Prefab"));
+
 			EditorGUI.BeginChangeCheck();
 			EditorGUILayout.Space();
 

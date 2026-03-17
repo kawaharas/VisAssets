@@ -36,6 +36,10 @@ namespace VisAssets.SciVis.Structured.ExtractVector
 			var extractVector = target as ExtractVector;
 
 			serializedObject.Update();
+
+			EditorGUILayout.PropertyField(
+				serializedObject.FindProperty("UIPrefab"), new GUIContent("UI Prefab"));
+
 			EditorGUI.BeginChangeCheck();
 
 			EditorStyles.popup.fontSize = 11;

@@ -13,7 +13,7 @@ GameObject:
   - component: {fileID: 7823653957748791833}
   - component: {fileID: 7823653957748791832}
   m_Layer: 0
-  m_Name: Interpolator
+  m_Name: Downsize
   m_TagString: VisModule
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -26,12 +26,13 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 7823653957748791830}
+  serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
-  m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &7823653957748791834
 MonoBehaviour:
@@ -62,17 +63,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   UIPanel: {fileID: 0}
   FixedModuleName: 
+  UIPrefab: {fileID: 1523329443637636058, guid: 18ee03e75f9af014b9d99251c4462ffd, type: 3}
   activation: {fileID: 0}
   df: {fileID: 0}
   pdf: {fileID: 0}
-  safetyValue: 50
-  idims: 
+  dims: {x: 0, y: 0, z: 0}
+  idims: {x: 0, y: 0, z: 0}
   activeElements: 
-  parentActiveElements: 
-  dims: 
-  idims_max: 
-  useUndef: 0
-  undef: 0
 --- !u!114 &7823653957748791832
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -86,5 +83,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   dataType: 0
+  coordinateSystem: 0
+  upAxis: 0
+  scale: {x: 1, y: 1, z: 1}
+  offset: {x: 0, y: 0, z: 0}
   dataLoaded: 0
   elements: []

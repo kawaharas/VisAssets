@@ -50,6 +50,10 @@ namespace VisAssets.SciVis.Structured.Isosurface
 			var isosurface = target as IsosurfaceV5;
 
 			serializedObject.Update();
+
+			EditorGUILayout.PropertyField(
+				serializedObject.FindProperty("UIPrefab"), new GUIContent("UI Prefab"));
+
 			EditorGUI.BeginChangeCheck();
 
 			GUILayout.Space(10f);

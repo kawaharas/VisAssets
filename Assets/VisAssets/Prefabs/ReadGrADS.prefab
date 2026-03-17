@@ -27,12 +27,13 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 8298286323118869101}
+  serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
-  m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &3941402407774582902
 MonoBehaviour:
@@ -63,10 +64,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   UIPanel: {fileID: 0}
   FixedModuleName: 
+  UIPrefab: {fileID: 6201456167639516696, guid: 95abe04d80333e24985cdbdbd8620d36, type: 3}
   activation: {fileID: 0}
   df: {fileID: 0}
   animator: {fileID: 0}
   loadAtStartup: 1
+  centering: 0
+  autoResize: 0
   currentStep: 0
   offsets: []
   minx: 0
@@ -92,6 +96,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   dataType: 0
+  coordinateSystem: 0
+  upAxis: 0
+  scale: {x: 1, y: 1, z: 1}
+  offset: {x: 0, y: 0, z: 0}
   dataLoaded: 0
   elements: []
 --- !u!114 &422397411343476683
@@ -107,9 +115,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   obj: {fileID: 8298286323118869101}
-  startPosition: {x: 0, y: 0}
-  tx: 0
-  ty: 0
   minScale: 0.5
   maxScale: 5
   scale: 1

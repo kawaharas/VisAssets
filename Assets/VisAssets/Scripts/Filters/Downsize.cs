@@ -31,6 +31,10 @@ namespace VisAssets.SciVis.Structured.Downsize
 			var downsize = target as Downsize;
 
 			serializedObject.Update();
+
+			EditorGUILayout.PropertyField(
+				serializedObject.FindProperty("UIPrefab"), new GUIContent("UI Prefab"));
+
 			EditorGUI.BeginChangeCheck();
 
 			bool IsVisible = false;

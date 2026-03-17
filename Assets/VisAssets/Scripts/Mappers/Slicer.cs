@@ -36,6 +36,10 @@ namespace VisAssets.SciVis.Structured.Slicer
 			var slicer = target as Slicer;
 
 			serializedObject.Update();
+
+			EditorGUILayout.PropertyField(
+				serializedObject.FindProperty("UIPrefab"), new GUIContent("UI Prefab"));
+
 			EditorGUI.BeginChangeCheck();
 
 			GUILayout.Space(10f);

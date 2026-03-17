@@ -55,6 +55,10 @@ namespace VisAssets.SciVis.Structured.DataLoader
 			var readRAW = target as ReadRAW;
 
 			serializedObject.Update();
+
+			EditorGUILayout.PropertyField(
+				serializedObject.FindProperty("UIPrefab"), new GUIContent("UI Prefab"));
+
 			EditorGUI.BeginChangeCheck();
 
 			EditorGUILayout.Space();

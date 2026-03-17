@@ -39,6 +39,10 @@ namespace VisAssets.SciVis.Structured.StreamLines
 			base.DrawDefaultInspector();
 
 			serializedObject.Update();
+
+			EditorGUILayout.PropertyField(
+				serializedObject.FindProperty("UIPrefab"), new GUIContent("UI Prefab"));
+
 			EditorGUI.BeginChangeCheck();
 
 			GUILayout.Space(10f);

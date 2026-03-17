@@ -42,6 +42,10 @@ namespace VisAssets
 			var readField = target as ReadField;
 
 			serializedObject.Update();
+
+			EditorGUILayout.PropertyField(
+				serializedObject.FindProperty("UIPrefab"), new GUIContent("UI Prefab"));
+
 			EditorGUI.BeginChangeCheck();
 
 			EditorGUILayout.LabelField("Filename:");

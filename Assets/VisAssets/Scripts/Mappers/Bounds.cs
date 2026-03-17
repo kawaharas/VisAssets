@@ -17,6 +17,7 @@ namespace VisAssets.SciVis.Structured.Bounds
 	public class BoundsEditor : Editor
 	{
 		SerializedProperty color;
+
 		private void OnEnable()
 		{
 			color = serializedObject.FindProperty("color");
@@ -27,6 +28,10 @@ namespace VisAssets.SciVis.Structured.Bounds
 			var bounds = target as Bounds;
 
 			serializedObject.Update();
+
+			EditorGUILayout.PropertyField(
+				serializedObject.FindProperty("UIPrefab"), new GUIContent("UI Prefab"));
+
 			EditorGUI.BeginChangeCheck();
 
 			GUILayout.Space(10f);

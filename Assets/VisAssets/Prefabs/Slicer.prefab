@@ -27,12 +27,13 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 9184860028360360910}
+  serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
-  m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &2764299847330314214
 MonoBehaviour:
@@ -63,6 +64,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   UIPanel: {fileID: 0}
   FixedModuleName: 
+  UIPrefab: {fileID: 5493597607777879935, guid: e8233c5b079ffe04f9d762fb27ecde71, type: 3}
   moduleType: 2
   activation: {fileID: 0}
   pdf: {fileID: 0}
@@ -89,10 +91,9 @@ MonoBehaviour:
     undef: 0
     fieldType: 4
     isActive: 0
-  idx: 0
+    boundMin: {x: 0, y: 0, z: 0}
+    boundMax: {x: 0, y: 0, z: 0}
   tri_idx: 0
-  idx0: 0
-  idx1: 0
   ratio: 0
   ratio2: 0
 --- !u!33 &6076052855385624970
@@ -114,10 +115,12 @@ MeshRenderer:
   m_CastShadows: 1
   m_ReceiveShadows: 1
   m_DynamicOccludee: 1
+  m_StaticShadowCaster: 0
   m_MotionVectors: 1
   m_LightProbeUsage: 1
   m_ReflectionProbeUsage: 1
   m_RayTracingMode: 2
+  m_RayTraceProcedural: 0
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
@@ -142,3 +145,4 @@ MeshRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
+  m_AdditionalVertexStreams: {fileID: 0}

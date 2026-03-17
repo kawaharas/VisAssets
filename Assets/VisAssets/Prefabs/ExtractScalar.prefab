@@ -26,12 +26,13 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 5304810834932384432}
+  serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
-  m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &5304810834932384435
 MonoBehaviour:
@@ -45,6 +46,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ddeb0049803ed404ba907c4860b87946, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  moduleType: 3
   parent_changed: 0
   parameter_changed: 0
 --- !u!114 &5304810834932384433
@@ -59,10 +61,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 621973219bf8cc046a94d438d2f51061, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  UIPanel: {fileID: 0}
+  FixedModuleName: 
+  UIPrefab: {fileID: 8288204197248746562, guid: e6d57d3c750969f41ae84e9473b01fdf, type: 3}
   activation: {fileID: 0}
-  dataField: {fileID: 0}
-  dataField_parent: {fileID: 0}
+  df: {fileID: 0}
+  pdf: {fileID: 0}
   channel: 0
+  varNames: []
 --- !u!114 &5304810834932384444
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -76,5 +82,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   dataType: 0
+  coordinateSystem: 0
+  upAxis: 0
+  scale: {x: 1, y: 1, z: 1}
+  offset: {x: 0, y: 0, z: 0}
   dataLoaded: 0
   elements: []
