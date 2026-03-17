@@ -1,0 +1,17 @@
+{
+    "name": "VisAssets",
+    "rootNamespace": "",
+    "references": [
+        "GUID:ba171b3dd2a51234ab864770f99741a5",
+        "GUID:fe685ec1767f73d42b749ea8045bfe43"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
