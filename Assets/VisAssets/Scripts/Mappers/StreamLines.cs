@@ -17,6 +17,8 @@ using UnityEditor.Compilation;
 
 namespace VisAssets.SciVis.Structured.StreamLines
 {
+	using ModuleState = Activation.ModuleState;
+
 #if UNITY_EDITOR
 //	[CanEditMultipleObjects]
 	[CustomEditor(typeof(StreamLines))]
@@ -371,7 +373,7 @@ namespace VisAssets.SciVis.Structured.StreamLines
 //			Calc();
 //			DrawGuideLines();
 
-			activation.SetParameterChanged(1);
+			activation.SetParameterChanged(ModuleState.PARAMETER_CHANGED);
 		}
 
 		private void CheckActiveElements()

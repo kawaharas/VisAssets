@@ -12,6 +12,8 @@ using UnityEditor.Compilation;
 
 namespace VisAssets.SciVis.Structured.Isosurface
 {
+	using ModuleState = Activation.ModuleState;
+
 #if UNITY_EDITOR
 	[CustomEditor(typeof(Isosurface))]
 	public class IsosurfaceEditor : Editor
@@ -160,7 +162,7 @@ namespace VisAssets.SciVis.Structured.Isosurface
 			threshold = min + (max - min) * slider;
 			Calc();
 
-			activation.SetParameterChanged(1);
+			activation.SetParameterChanged(ModuleState.PARAMETER_CHANGED);
 		}
 
 		public void SetShadingMode(int mode)
@@ -175,14 +177,14 @@ namespace VisAssets.SciVis.Structured.Isosurface
 			threshold = Mathf.Clamp(value, min, max);
 			slider = (threshold - min) / (max - min);
 
-			activation.SetParameterChanged(1);
+			activation.SetParameterChanged(ModuleState.PARAMETER_CHANGED);
 		}
 
 		public void SetColor(Color _color)
 		{
 			color = _color;
 
-			activation.SetParameterChanged(1);
+			activation.SetParameterChanged(ModuleState.PARAMETER_CHANGED);
 		}
 
 		public override void ResetUI()

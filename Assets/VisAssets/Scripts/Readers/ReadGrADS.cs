@@ -16,59 +16,45 @@ using UnityEditor.Compilation;
 
 namespace VisAssets
 {
+	using ModuleState = Activation.ModuleState;
+
 #if UNITY_EDITOR
 	[CustomEditor(typeof(ReadGrADS))]
-	public class ReadGrADSEditor : Editor
+	public class ReadGrADSEditor : ReadModuleTemplateEditor
 	{
 		SerializedProperty filename;
-		SerializedProperty loadAtStartup;
-		SerializedProperty useEmbeddedData;
 
-		public void OnEnable()
+		protected override void OnEnable()
 		{
+			base.OnEnable();
+
 			filename = serializedObject.FindProperty("filename");
-			loadAtStartup = serializedObject.FindProperty("loadAtStartup");
-			useEmbeddedData = serializedObject.FindProperty("useEmbeddedData");
 		}
 
-		public override void OnInspectorGUI()
+		protected override void DrawCustomSettingsTop()
 		{
-			var readField = target as ReadField;
-
-			serializedObject.Update();
-
-			EditorGUILayout.PropertyField(
-				serializedObject.FindProperty("UIPrefab"), new GUIContent("UI Prefab"));
-
-			EditorGUI.BeginChangeCheck();
-
-			EditorGUILayout.LabelField("Filename:");
-			filename.stringValue = EditorGUILayout.TextField(filename.stringValue);
-			GUILayout.Space(10f);
-			loadAtStartup.boolValue = EditorGUILayout.ToggleLeft("Load At Startup", loadAtStartup.boolValue);
-			GUILayout.Space(5f);
-			useEmbeddedData.boolValue = EditorGUILayout.ToggleLeft("Use Embedded Data", useEmbeddedData.boolValue);
 			GUILayout.Space(5f);
 
-			var message = new GUIContent("If you use an embedded data, it must be placed in \"Assets/StreamingAssets\".");
-			EditorGUILayout.BeginHorizontal(GUI.skin.box);
-			GUILayout.Space(5f);
-			GUIStyle style = new GUIStyle(GUI.skin.label);
-			style.alignment = TextAnchor.MiddleLeft;
-			style.wordWrap = true;
-			style.fontSize = 10;
-			style.CalcSize(message);
-			GUI.backgroundColor = Color.white;
-			EditorGUILayout.LabelField(message, style);
-			GUILayout.Space(5f);
-			EditorGUILayout.EndHorizontal();
-
-			EditorGUILayout.Space();
-
-			if (EditorGUI.EndChangeCheck())
+			if (useStreamingAssets != null && useStreamingAssets.boolValue)
 			{
+				EditorGUILayout.LabelField("File Name (Relative to StreamingAssets):");
 			}
-			serializedObject.ApplyModifiedProperties();
+			else
+			{
+				EditorGUILayout.LabelField("Absolute File Path:");
+			}
+
+			GUILayout.Space(5f);
+
+			EditorGUI.indentLevel++;
+			filename.stringValue = EditorGUILayout.TextField(filename.stringValue);
+			EditorGUI.indentLevel--;
+
+			GUILayout.Space(5f);
+		}
+
+		protected override void DrawCustomSettingsBottom()
+		{
 		}
 	}
 #endif
@@ -88,15 +74,12 @@ namespace VisAssets
 
 		public string filename = string.Empty;
 		public string ctlfile  = string.Empty;
-		public bool useEmbeddedData;
 		byte[] bytedata;
 
 		int[]  dims;
 		int    varnum;
 		string datafile;
 		List<VarInfo> varInfo;
-		float  undef;
-		bool   useUndef;
 		bool[] options;
 		int header_size;
 
@@ -129,6 +112,11 @@ namespace VisAssets
 			public string description;
 		}
 
+		private void Reset()
+		{
+			useUndefMenu = false;
+		}
+
 		public override void InitModule()
 		{
 			offsets = new float[3];
@@ -145,7 +133,7 @@ namespace VisAssets
 		{
 			if (filename != "")
 			{
-				activation.SetParameterChanged(1);
+				activation.SetParameterChanged(ModuleState.PARAMETER_CHANGED);
 			}
 		}
 
@@ -155,7 +143,7 @@ namespace VisAssets
 
 			if (Application.platform == RuntimePlatform.Android)
 			{
-				if (useEmbeddedData)
+				if (useStreamingAssets)
 				{
 					url = System.IO.Path.Combine(Application.streamingAssetsPath, filename);
 					if (url.Contains("://"))
@@ -181,7 +169,7 @@ namespace VisAssets
 			}
 			else
 			{
-				if (useEmbeddedData)
+				if (useStreamingAssets)
 				{
 					url = System.IO.Path.Combine(Application.streamingAssetsPath, filename);
 				}
@@ -218,7 +206,7 @@ namespace VisAssets
 
 			if (Application.platform == RuntimePlatform.Android)
 			{
-				if (useEmbeddedData)
+				if (useStreamingAssets)
 				{
 					url = System.IO.Path.Combine(Application.streamingAssetsPath, filename);
 					if (url.Contains("://"))
@@ -244,7 +232,7 @@ namespace VisAssets
 			}
 			else
 			{
-				if (useEmbeddedData)
+				if (useStreamingAssets)
 				{
 					url = System.IO.Path.Combine(Application.streamingAssetsPath, filename);
 				}

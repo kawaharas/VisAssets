@@ -16,9 +16,11 @@ using UnityEditor.Compilation;
 
 namespace VisAssets.SciVis.Structured.DataLoader
 {
+	using ModuleState = Activation.ModuleState;
+
 #if UNITY_EDITOR
 	[CustomEditor(typeof(ReadRAW))]
-	public class ReadRAWEditor : Editor
+	public class ReadRAWEditor : ReadModuleTemplateEditor
 	{
 		#region custom inspector
 		SerializedProperty filename;
@@ -27,51 +29,53 @@ namespace VisAssets.SciVis.Structured.DataLoader
 		SerializedProperty precision;
 		SerializedProperty byteswap;
 		SerializedProperty header; // record marker of fortran
-		SerializedProperty loadAtStartup;
-		SerializedProperty useEmbeddedData;
-		SerializedProperty centering;
-		SerializedProperty autoResize;
-		SerializedProperty useUndef;
-		SerializedProperty undef;
 
-		public void OnEnable()
+		protected override void OnEnable()
 		{
-			filename        = serializedObject.FindProperty("filename");
-			dims            = serializedObject.FindProperty("dims");
-			varname         = serializedObject.FindProperty("varname");
-			precision       = serializedObject.FindProperty("precision");
-			byteswap        = serializedObject.FindProperty("byteswap");
-			header          = serializedObject.FindProperty("header");
-			loadAtStartup   = serializedObject.FindProperty("loadAtStartup");
-			useEmbeddedData = serializedObject.FindProperty("useEmbeddedData");
-			centering       = serializedObject.FindProperty("centering");
-			autoResize      = serializedObject.FindProperty("autoResize");
-			useUndef        = serializedObject.FindProperty("useUndef");
-			undef           = serializedObject.FindProperty("undef");
+			base.OnEnable();
+
+			filename  = serializedObject.FindProperty("filename");
+			dims      = serializedObject.FindProperty("dims");
+			varname   = serializedObject.FindProperty("varname");
+			precision = serializedObject.FindProperty("precision");
+			byteswap  = serializedObject.FindProperty("byteswap");
+			header    = serializedObject.FindProperty("header");
 		}
 
-		public override void OnInspectorGUI()
+		protected override void DrawCustomSettingsTop()
 		{
-			var readRAW = target as ReadRAW;
+			GUILayout.Space(5f);
 
-			serializedObject.Update();
+			if (useStreamingAssets != null && useStreamingAssets.boolValue)
+			{
+				EditorGUILayout.LabelField("File Name (Relative to StreamingAssets):");
+			}
+			else
+			{
+				EditorGUILayout.LabelField("Absolute File Path:");
+			}
 
-			EditorGUILayout.PropertyField(
-				serializedObject.FindProperty("UIPrefab"), new GUIContent("UI Prefab"));
+			GUILayout.Space(5f);
 
-			EditorGUI.BeginChangeCheck();
-
-			EditorGUILayout.Space();
-			EditorGUILayout.LabelField("Filename:");
+			EditorGUI.indentLevel++;
 			filename.stringValue = EditorGUILayout.TextField(filename.stringValue);
-			GUILayout.Space(10f);
+			EditorGUI.indentLevel--;
+
+			GUILayout.Space(5f);
+
 			dims.vector3IntValue = EditorGUILayout.Vector3IntField("Size", dims.vector3IntValue);
-			GUILayout.Space(10f);
+
+			GUILayout.Space(5f);
+
 			varname.stringValue = EditorGUILayout.TextField("Variable Name", varname.stringValue);
-			GUILayout.Space(10f);
+
+			GUILayout.Space(5f);
+
 			var label = new GUIContent("Precision:");
 			EditorGUILayout.PropertyField(precision, label, true);
+
 			GUILayout.Space(5f);
+
 			EditorGUILayout.BeginHorizontal();
 			GUILayout.Space(10.0f);
 			byteswap.boolValue = EditorGUILayout.ToggleLeft("Byteswap", byteswap.boolValue, GUILayout.MaxWidth(100.0f));
@@ -79,63 +83,11 @@ namespace VisAssets.SciVis.Structured.DataLoader
 			GUILayout.FlexibleSpace();
 			EditorGUILayout.EndHorizontal();
 
-			GUILayout.Space(10f);
-
-			loadAtStartup.boolValue = EditorGUILayout.ToggleLeft("Load At Startup", loadAtStartup.boolValue);
 			GUILayout.Space(5f);
-			useEmbeddedData.boolValue = EditorGUILayout.ToggleLeft("Use Embedded Data", useEmbeddedData.boolValue);
-			GUILayout.Space(5f);
+		}
 
-			var message = new GUIContent("If you use an embedded data, it must be placed in \"Assets/StreamingAssets\".");
-			EditorGUILayout.BeginHorizontal(GUI.skin.box);
-			GUILayout.Space(5f);
-			GUIStyle style = new GUIStyle(GUI.skin.label);
-			style.alignment = TextAnchor.MiddleLeft;
-			style.wordWrap = true;
-			style.fontSize = 10;
-			style.CalcSize(message);
-			EditorGUILayout.LabelField(message, style);
-			GUILayout.Space(5f);
-			EditorGUILayout.EndHorizontal();
-
-			GUILayout.Space(10f);
-			useUndef.boolValue = EditorGUILayout.ToggleLeft("Use Undef", useUndef.boolValue);
-			GUILayout.Space(5f);
-			EditorGUI.BeginDisabledGroup(!useUndef.boolValue);
-			undef.floatValue = EditorGUILayout.FloatField("Undef Value", undef.floatValue);
-			EditorGUI.EndDisabledGroup();
-			GUILayout.Space(10f);
-
-			GUILayout.Space(5f);
-			centering.boolValue = EditorGUILayout.ToggleLeft("Centering", centering.boolValue);
-			GUILayout.Space(5f);
-			EditorGUI.BeginDisabledGroup(!centering.boolValue);
-			autoResize.boolValue = EditorGUILayout.ToggleLeft("Auto Resize", autoResize.boolValue);
-			EditorGUI.EndDisabledGroup();
-
-			GUILayout.Space(10f);
-			if (GUILayout.Button("Load Default Values"))
-			{
-				filename.stringValue = string.Empty;
-				dims.vector3IntValue = Vector3Int.zero;
-				varname.stringValue = string.Empty;
-				precision.enumValueIndex = 0;
-				byteswap.boolValue = false;
-				header.boolValue = false;
-				loadAtStartup.boolValue = false;
-				useEmbeddedData.boolValue = false;
-				centering.boolValue = false;
-				autoResize.boolValue = false;
-			}
-			EditorGUILayout.Space();
-//			EditorGUILayout.Space();
-
-			if (EditorGUI.EndChangeCheck())
-			{
-			}
-			serializedObject.ApplyModifiedProperties();
-
-//			base.OnInspectorGUI();
+		protected override void DrawCustomSettingsBottom()
+		{
 		}
 		#endregion // custom inspector
 	}
@@ -143,12 +95,6 @@ namespace VisAssets.SciVis.Structured.DataLoader
 
 	public class ReadRAW : ReadModuleTemplate
 	{
-		public enum PRECISION
-		{
-			SINGLE,
-			DOUBLE
-		};
-
 		[SerializeField]
 		public Vector3Int dims;
 		public string filename = string.Empty;
@@ -156,9 +102,6 @@ namespace VisAssets.SciVis.Structured.DataLoader
 		public PRECISION precision = PRECISION.DOUBLE;
 		public bool byteswap = false;
 		public bool header = true; // true: with header, false: without header
-		public bool useEmbeddedData;
-		public bool useUndef;
-		public float undef;
 
 		byte[] bytedata;
 
@@ -231,14 +174,12 @@ namespace VisAssets.SciVis.Structured.DataLoader
 				filename, values, dimension, header, byteswap));
 
 			df.elements[0].SetDims(dims);
-//			df.elements[0].SetDims(dims[0], dims[1], dims[2]);
 			df.elements[0].SetCoords(coords);
 			if (useUndef)
 			{
 				df.elements[0].SetUndef(undef);
 			}
 			df.elements[0].SetValues(values);
-//			df.elements[0].varName = varname.Replace("\\n", " ");
 			df.elements[0].SetVarName(varname);
 			df.elements[0].SetFieldType(DataElement.FieldType.UNIFORM);
 			df.elements[0].SetActive(true);
@@ -258,7 +199,7 @@ namespace VisAssets.SciVis.Structured.DataLoader
 
 			if (Application.platform == RuntimePlatform.Android)
 			{
-				if (useEmbeddedData)
+				if (useStreamingAssets)
 				{
 					url = System.IO.Path.Combine(Application.streamingAssetsPath, filename);
 					url = url.Replace('\\', '/');
@@ -286,7 +227,7 @@ namespace VisAssets.SciVis.Structured.DataLoader
 			}
 			else
 			{
-				if (useEmbeddedData)
+				if (useStreamingAssets)
 				{
 					Debug.Log("filename in LoadBinaryData = " + filename);
 					url = System.IO.Path.Combine(Application.streamingAssetsPath, filename);

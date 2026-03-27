@@ -15,78 +15,51 @@ using UnityEditor.Compilation;
 namespace VisAssets
 {
 	using FieldType = DataElement.FieldType;
+	using ModuleState = Activation.ModuleState;
 
 #if UNITY_EDITOR
 	[CustomEditor(typeof(ReadField))]
-	public class ReadFieldEditor : Editor
+	public class ReadFieldEditor : ReadModuleTemplateEditor
 	{
 		SerializedProperty filename;
-		SerializedProperty loadAtStartup;
-		SerializedProperty useEmbeddedData;
 		SerializedProperty useDummyData;
-		SerializedProperty useUndef;
-		SerializedProperty undef;
 
-		public void OnEnable()
+		protected override void OnEnable()
 		{
-			filename        = serializedObject.FindProperty("filename");
-			loadAtStartup   = serializedObject.FindProperty("loadAtStartup");
-			useEmbeddedData = serializedObject.FindProperty("useEmbeddedData");
-			useDummyData    = serializedObject.FindProperty("useDummyData");
-			useUndef        = serializedObject.FindProperty("useUndef");
-			undef           = serializedObject.FindProperty("undef");
+			base.OnEnable();
+
+			filename     = serializedObject.FindProperty("filename");
+			useDummyData = serializedObject.FindProperty("useDummyData");
 		}
 
-		public override void OnInspectorGUI()
+		protected override void DrawCustomSettingsTop()
 		{
-			var readField = target as ReadField;
-
-			serializedObject.Update();
-
-			EditorGUILayout.PropertyField(
-				serializedObject.FindProperty("UIPrefab"), new GUIContent("UI Prefab"));
-
-			EditorGUI.BeginChangeCheck();
-
-			EditorGUILayout.LabelField("Filename:");
-			filename.stringValue = EditorGUILayout.TextField(filename.stringValue);
-			GUILayout.Space(10f);
-			loadAtStartup.boolValue = EditorGUILayout.ToggleLeft("Load At Startup", loadAtStartup.boolValue);
-			GUILayout.Space(5f);
-			useEmbeddedData.boolValue = EditorGUILayout.ToggleLeft("Use Embedded Data", useEmbeddedData.boolValue);
 			GUILayout.Space(5f);
 
-			var message = new GUIContent("If you use an embedded data, it must be placed in \"Assets/StreamingAssets\".");
-			EditorGUILayout.BeginHorizontal(GUI.skin.box);
-			GUILayout.Space(5f);
-			GUIStyle style = new GUIStyle(GUI.skin.label);
-			style.alignment = TextAnchor.MiddleLeft;
-			style.wordWrap = true;
-			style.fontSize = 10;
-			style.CalcSize(message);
-			EditorGUILayout.LabelField(message, style);
-			GUILayout.Space(5f);
-			EditorGUILayout.EndHorizontal();
-
-			GUILayout.Space(10f);
-			useUndef.boolValue = EditorGUILayout.ToggleLeft("Use Undef", useUndef.boolValue);
-			GUILayout.Space(5f);
-			EditorGUI.BeginDisabledGroup(!useUndef.boolValue);
-			undef.floatValue = EditorGUILayout.FloatField("Undef Value", undef.floatValue);
-			EditorGUI.EndDisabledGroup();
-			GUILayout.Space(10f);
-
-			EditorGUI.BeginDisabledGroup(useEmbeddedData.boolValue);
-			useDummyData.boolValue = EditorGUILayout.ToggleLeft("Use Dummy Data", useDummyData.boolValue);
-			EditorGUI.EndDisabledGroup();
-			GUILayout.Space(5f);
-			readField.currentStep = EditorGUILayout.IntField("Current Step:", readField.currentStep);
-			EditorGUILayout.Space();
-
-			if (EditorGUI.EndChangeCheck())
+			EditorGUI.BeginDisabledGroup(useDummyData.boolValue);
+			if (useStreamingAssets != null && useStreamingAssets.boolValue)
 			{
+				EditorGUILayout.LabelField("File Name (Relative to StreamingAssets):");
 			}
-			serializedObject.ApplyModifiedProperties();
+			else
+			{
+				EditorGUILayout.LabelField("Absolute File Path:");
+			}
+
+			GUILayout.Space(5f);
+
+			EditorGUI.indentLevel++;
+			filename.stringValue = EditorGUILayout.TextField(filename.stringValue);
+			EditorGUI.indentLevel--;
+			EditorGUI.EndDisabledGroup();
+
+			GUILayout.Space(5f);
+
+			useDummyData.boolValue = EditorGUILayout.ToggleLeft("Use Dummy Data (for Test)", useDummyData.boolValue);
+		}
+
+		protected override void DrawCustomSettingsBottom()
+		{
 		}
 	}
 #endif
@@ -95,12 +68,11 @@ namespace VisAssets
 	{
 		public string filename = string.Empty;
 		public bool useDummyData;
-		public bool useEmbeddedData;
 		string textString = string.Empty;
 		public string debugString = string.Empty;
 
-		public bool useUndef;
-		public float undef;
+//		public bool useUndef;
+//		public float undef;
 
 		public override void InitModule()
 		{
@@ -110,7 +82,7 @@ namespace VisAssets
 		{
 			int ret;
 
-			if (useEmbeddedData)
+			if (useStreamingAssets)
 			{
 				ret = ReadDataFile();
 			}
@@ -137,7 +109,7 @@ namespace VisAssets
 		{
 			if ((filename != "") || (useDummyData == true))
 			{
-				activation.SetParameterChanged(1);
+				activation.SetParameterChanged(ModuleState.PARAMETER_CHANGED);
 			}
 		}
 
@@ -147,7 +119,7 @@ namespace VisAssets
 
 			if (Application.platform == RuntimePlatform.Android)
 			{
-				if (useEmbeddedData)
+				if (useStreamingAssets)
 				{
 					url = System.IO.Path.Combine(Application.streamingAssetsPath, filename);
 					if (url.Contains("://"))
@@ -185,7 +157,7 @@ namespace VisAssets
 			}
 			else
 			{
-				if (useEmbeddedData)
+				if (useStreamingAssets)
 				{
 					url = System.IO.Path.Combine(Application.streamingAssetsPath, filename);
 				}

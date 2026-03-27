@@ -23,10 +23,14 @@ namespace VisAssets
 			GUILayout.Space(10f);
 			if (GUILayout.Button("Force Module Update"))
 			{
-				activation.SetParameterChanged(1);
+				activation.SetParameterChanged(ModuleState.PARAMETER_CHANGED);
 			}
 			EditorGUILayout.Space();
 
+			if (EditorGUI.EndChangeCheck())
+			{
+				EditorUtility.SetDirty(target);
+			}
 			serializedObject.ApplyModifiedProperties();
 		}
 	}
@@ -40,40 +44,39 @@ namespace VisAssets
 			PARAMETER_CHANGED,
 			DATAFIELD_CHANGED,
 			TIMESTEP_CHANGED,
+			TRANSFORM_CHANGED,
+			CONNECTION_CHANGED,
+			VISIBILITY_CHANGED,
 			UNDEFINED
 		}
 
 		[ReadOnly]
 		public ModuleType moduleType = ModuleType.UNDEFINED;
 
-		public int parent_changed    = (int)(ModuleState.UNCHANGED);
-		public int parameter_changed = (int)(ModuleState.UNCHANGED);
+		public ModuleState parent_changed    = ModuleState.UNCHANGED;
+		public ModuleState parameter_changed = ModuleState.UNCHANGED;
 
 		public void SetModuleType(ModuleType type)
 		{
 			moduleType = type;
 		}
 
-		public void SetParentChanged(int i)
-		{
-			parent_changed = i;
-		}
 		public void SetParentChanged(ModuleState moduleState)
 		{
-			parent_changed = (int)moduleState;
+			parent_changed = moduleState;
 		}
 
-		public int  GetParentChanged()
+		public ModuleState GetParentChanged()
 		{
 			return parent_changed;
 		}
 
-		public void SetParameterChanged(int i)
+		public void SetParameterChanged(ModuleState moduleState)
 		{
-			parameter_changed = i;
+			parameter_changed = moduleState;
 		}
 
-		public int GetParameterChanged()
+		public ModuleState GetParameterChanged()
 		{
 			return parameter_changed;
 		}

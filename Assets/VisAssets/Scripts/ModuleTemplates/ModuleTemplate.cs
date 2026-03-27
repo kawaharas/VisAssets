@@ -3,17 +3,107 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 namespace VisAssets
 {
+	#if UNITY_EDITOR
+	[CustomEditor(typeof(ModuleTemplate), true)]
+	public class ModuleTemplateEditor : Editor
+	{
+		protected SerializedProperty uiPrefab;
+
+		protected virtual void OnEnable()
+		{
+			uiPrefab = serializedObject.FindProperty("UIPrefab");
+		}
+
+		protected void DrawProp(SerializedProperty prop, string label = null, float spaceAfter = 0f, int indent = 0, bool isDisabled = false)
+		{
+			if (prop == null) return;
+
+			if (isDisabled)
+			{
+				EditorGUI.BeginDisabledGroup(true);
+			}
+
+			if (indent > 0)
+			{
+				EditorGUI.indentLevel += indent;
+			}
+			
+			if (string.IsNullOrEmpty(label))
+			{
+				EditorGUILayout.PropertyField(prop);
+			}
+			else
+			{
+				EditorGUILayout.PropertyField(prop, new GUIContent(label));
+			}
+			
+			if (indent > 0)
+			{
+				EditorGUI.indentLevel -= indent;
+			}
+
+			if (isDisabled)
+			{
+				EditorGUI.EndDisabledGroup();
+			}
+
+			if (spaceAfter > 0f)
+			{
+				GUILayout.Space(spaceAfter);
+			}
+		}
+
+		protected void DrawToggle(SerializedProperty prop, string label, float spaceAfter = 0f, int indent = 0, bool isDisabled = false)
+		{
+			if (prop == null) return;
+
+			if (isDisabled)
+			{
+				EditorGUI.BeginDisabledGroup(true);
+			}
+
+			if (indent > 0)
+			{
+				EditorGUI.indentLevel += indent;
+			}
+
+			prop.boolValue = EditorGUILayout.ToggleLeft(label, prop.boolValue);
+
+			if (indent > 0)
+			{
+				EditorGUI.indentLevel -= indent;
+			}
+
+			if (isDisabled)
+			{
+				EditorGUI.EndDisabledGroup();
+			}
+
+			if (spaceAfter > 0f)
+			{
+				GUILayout.Space(spaceAfter);
+			}
+		}
+	}
+#endif
+
 	public class ModuleTemplate : MonoBehaviour
 	{
 		[SerializeField, ReadOnly]
 		public GameObject UIPanel;
+
 		[SerializeField, ReadOnly]
 		public string FixedModuleName;
+
 		[SerializeField]
 		private GameObject UIPrefab;
+
 		bool disableUI = false;
 
 		public enum ModuleType
@@ -32,7 +122,6 @@ namespace VisAssets
 
 		public void SetupUI()
 		{
-//			var UIManager = GameObject.Find("UIManager");
 			var UIManager = GameObject.FindAnyObjectByType<UIManager>();
 			if (UIManager == null)
 			{

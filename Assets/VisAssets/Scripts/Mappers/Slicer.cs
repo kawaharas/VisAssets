@@ -11,6 +11,7 @@ using UnityEditor.Compilation;
 namespace VisAssets.SciVis.Structured.Slicer
 {
 	using FieldType = DataElement.FieldType;
+	using ModuleState = Activation.ModuleState;
 
 #if UNITY_EDITOR
 	[CustomEditor(typeof(Slicer))]
@@ -289,7 +290,7 @@ namespace VisAssets.SciVis.Structured.Slicer
 				}
 			}
 
-			activation.SetParameterChanged(1);
+			activation.SetParameterChanged(ModuleState.PARAMETER_CHANGED);
 		}
 
 		public override void ResetUI()
