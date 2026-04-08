@@ -54,10 +54,14 @@ namespace VisAssets.SciVis.Structured.DataLoader
 		public string varname = string.Empty;
 
 		/// <summary>
-		/// Resets the component to its default values. Called automatically when attaching the script or selecting 'Reset' in the Inspector.
+		/// Resets the component to its default values and applies component reordering.
 		/// </summary>
-		private void Reset()
+		protected override void Reset()
 		{
+#if UNITY_EDITOR
+			// Execute the base class component reordering logic.
+			base.Reset();
+#endif
 			sourceType = DataSourceType.FILE;
 
 			useUndefMenu      = true;

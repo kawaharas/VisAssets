@@ -9,7 +9,7 @@ using UnityEditor;
 
 namespace VisAssets
 {
-	#if UNITY_EDITOR
+#if UNITY_EDITOR
 	[CustomEditor(typeof(ModuleTemplate), true)]
 	public class ModuleTemplateEditor : Editor
 	{
@@ -114,11 +114,24 @@ namespace VisAssets
 			UNDEFINED
 		}
 
-		struct ModuleInfo
+#if UNITY_EDITOR
+		/// <summary>
+		/// Automatically assigns the required tag to the GameObject when attached or reset.
+		/// </summary>
+		protected virtual void Reset()
 		{
-			public string name;
-			public int id;
+			// Automatically assign the "VisModule" tag.
+			this.gameObject.tag = "VisModule";
+			try
+			{
+				this.gameObject.tag = "VisModule";
+			}
+			catch (System.Exception)
+			{
+				Debug.LogWarning("[VisAssets] Tag 'VisModule' is not defined in Tag Manager. Please add it to avoid potential issues.");
+			}
 		}
+#endif
 
 		public void SetupUI()
 		{
@@ -129,20 +142,29 @@ namespace VisAssets
 				return;
 			}
 
-			var moduleInfo = GetModuleInfo();
-			if (moduleInfo.id < 0) return;
-
+			// 🌟 変更点1：Enum（ID）による検索を廃止し、アタッチされているC#スクリプトのクラス名（例: "ReadDICOM"）をそのまま取得
+			string moduleName = this.GetType().Name;
+			FixedModuleName = moduleName;
 			int moduleNum = 0;
+
 			var UIManagerComponent = UIManager.GetComponent<UIManager>();
 			if (UIManagerComponent != null)
 			{
-				moduleNum = UIManagerComponent.moduleCounter[moduleInfo.id];
-				FixedModuleName = moduleInfo.name;
+				// 🌟 変更点2：UIManagerのカウント管理をDictionaryで行う
+				if (!UIManagerComponent.moduleCounter.ContainsKey(moduleName))
+				{
+					UIManagerComponent.moduleCounter[moduleName] = 0;
+				}
+
+				moduleNum = UIManagerComponent.moduleCounter[moduleName];
+
 				if (moduleNum != 0)
 				{
 					FixedModuleName += " #" + moduleNum.ToString();
 				}
-				UIManagerComponent.moduleCounter[moduleInfo.id] = moduleNum + 1;
+				
+				// カウントをインクリメント
+				UIManagerComponent.moduleCounter[moduleName] = moduleNum + 1;
 			}
 
 			if (UIPrefab != null)
@@ -175,7 +197,7 @@ namespace VisAssets
 					var dropdownComponent = dropdown.GetComponent<Dropdown>();
 					if (dropdownComponent != null)
 					{
-						if (dropdownComponent.options[0].text == "None")
+						if (dropdownComponent.options.Count > 0 && dropdownComponent.options[0].text == "None")
 						{
 							dropdownComponent.ClearOptions();
 							if (UIPrefab != null)
@@ -188,27 +210,6 @@ namespace VisAssets
 					}
 				}
 			}
-		}
-
-		ModuleInfo GetModuleInfo()
-		{
-			ModuleInfo info;
-			info.name = "";
-			info.id = -1;
-
-			var moduleNum = Enum.GetNames(typeof(ModuleName)).Length;
-			for (int i = 0; i < moduleNum; ++i)
-			{
-				var moduleName = Enum.GetName(typeof(ModuleName), i);
-				if (this.gameObject.name.StartsWith(moduleName))
-				{
-					info.name = moduleName;
-					info.id = i;
-					return info;
-				}
-			}
-
-			return info;
 		}
 
 		public void ResetUICore()

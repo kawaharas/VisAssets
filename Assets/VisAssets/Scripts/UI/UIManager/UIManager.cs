@@ -59,8 +59,7 @@ namespace VisAssets
 		}
 
 		GameObject[] go;
-		public int[] moduleCounter;
-		int moduleNum;
+		public Dictionary<string, int> moduleCounter = new Dictionary<string, int>();
 		public string debugString = "";
 		public GameObject cardboardButton;
 
@@ -85,8 +84,6 @@ namespace VisAssets
 		void Awake()
 		{
 			currentModule = null;
-			moduleNum = Enum.GetNames(typeof(ModuleName)).Length;
-			moduleCounter = new int[moduleNum];
 			hitInfo = new RaycastHit();
 		}
 

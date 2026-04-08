@@ -171,7 +171,7 @@ namespace VisAssets
 
 			if (useHeaderSkipMenu.boolValue)
 			{
-				DrawToggle(skipHeader, "Skip Header / Record Length");
+				DrawToggle(skipHeader, "Skip Header / Record Length", 5f);
 				bool isSkipDisabled = !skipHeader.boolValue;
 				DrawProp(headerBytes, "Header Bytes to Skip", 5f, 1, isSkipDisabled);
 			}
@@ -237,6 +237,7 @@ namespace VisAssets
 	// =========================================================================
 	[RequireComponent(typeof(Activation))]
 	[RequireComponent(typeof(DataField))]
+	[RequireComponent(typeof(CtrlOBJ))]
 
 	public class ReadModuleTemplate : ModuleTemplate
 	{
@@ -322,6 +323,33 @@ namespace VisAssets
 
 		[HideInInspector]
 		public int currentStep;
+
+#if UNITY_EDITOR
+		/// <summary>
+		/// Called when the component is attached or reset in the Inspector.
+		/// Automatically reorders components so this script sits directly below DataField.
+		/// </summary>
+		protected override void Reset()
+		{
+			// Execute the base class Reset logic (Tag assignment).
+			base.Reset();
+
+			// --- Component Reordering Logic ---
+			Component[] components = GetComponents<Component>();
+			
+			int myIndex = System.Array.IndexOf(components, this);
+			int dataFieldIndex = System.Array.IndexOf(components, GetComponent<DataField>());
+
+			if (dataFieldIndex != -1 && myIndex > dataFieldIndex + 1)
+			{
+				int moveCount = myIndex - (dataFieldIndex + 1);
+				for (int i = 0; i < moveCount; i++)
+				{
+					UnityEditorInternal.ComponentUtility.MoveComponentUp(this);
+				}
+			}
+		}
+#endif
 
 		/// <summary>
 		/// Initializes core components (Activation, DataField) and checks for the existence of an Animator module in the scene.
