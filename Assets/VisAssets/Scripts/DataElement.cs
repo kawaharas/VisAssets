@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -17,10 +18,12 @@ namespace VisAssets
 		[System.NonSerialized]
 		public float[]   values;
 		public float     scale;
+		
 		public float     min;
 		public float     max;
 		public float     average;
 		public float     variance;
+		
 		public string    varName;
 		public bool      useUndef;
 		public float     undef;
@@ -61,6 +64,7 @@ namespace VisAssets
 		{
 			ndim = 3;
 			size = 1;
+
 			for (int i = 0; i < ndim; i++)
 			{
 				dims[i] = d[i];
@@ -73,6 +77,7 @@ namespace VisAssets
 			dims = d.ToArray();
 			ndim = 3;
 			size = 1;
+
 			for (int i = 0; i < ndim; i++)
 			{
 				size *= dims[i];
@@ -84,6 +89,7 @@ namespace VisAssets
 			dims = new int[3] { x, y, z };
 			ndim = 3;
 			size = 1;
+
 			for (int i = 0; i < ndim; i++)
 			{
 				size *= dims[i];
@@ -98,6 +104,7 @@ namespace VisAssets
 		public void SetCoords(List<float>[] c)
 		{
 			coords = new float[4][];
+
 			for (int i = 0; i < 4; i++)
 			{
 				coords[i] = c[i].ToArray();
@@ -106,7 +113,6 @@ namespace VisAssets
 			// for safety
 			if (coords[3].Length == 0)
 			{
-				// merge coordinates to 4th list
 				for (int k = 0; k < dims[2]; k++)
 				{
 					for (int j = 0; j < dims[1]; j++)
@@ -124,6 +130,7 @@ namespace VisAssets
 
 			boundMin = GetCoord(0, 0, 0);
 			boundMax = GetCoord(0, 0, 0);
+
 			for (int k = 0; k < dims[2]; k++)
 			{
 				for (int j = 0; j < dims[1]; j++)
@@ -150,21 +157,6 @@ namespace VisAssets
 				return;
 			}
 			values = v.ToArray();
-
-			if (min != float.MaxValue) return;
-
-			IEnumerable<float> valid_values = values;
-			if (useUndef)
-			{
-				valid_values = values.Where(n => n != undef);
-			}
-
-			min       = valid_values.Min();
-			max       = valid_values.Max();
-			average   = valid_values.Average();
-			var sum2  = valid_values.Sum(a => (a - average) * (a - average));
-			var count = valid_values.Count();
-			variance  = sum2 / count - average * average;
 		}
 
 		public void SetValues(float[] v)
@@ -174,53 +166,10 @@ namespace VisAssets
 				Debug.Log("Error in SetValues in DataElement. You must call SetDims in advance\n");
 				return;
 			}
-//			values = v.ToArray();
 			values = new float[v.Length];
-			System.Array.Copy(v, values, v.Length);
-
-			if (min != float.MaxValue) return;
-
-			IEnumerable<float> valid_values = values;
-			if (useUndef)
-			{
-				valid_values = values.Where(n => n != undef);
-			}
-
-			min = valid_values.Min();
-			max = valid_values.Max();
-			average = valid_values.Average();
-			var sum2 = valid_values.Sum(a => (a - average) * (a - average));
-			var count = valid_values.Count();
-			variance = sum2 / count - average * average;
+			Array.Copy(v, values, v.Length);
 		}
-/*
-		public unsafe void SetValues(byte[] v)
-		{
-			if (size == 0)
-			{
-				Debug.Log("Error in SetValues in DataElement. You must call SetDims in advance\n");
-				return;
-			}
-			//			values = v.ToArray();
-			values = new float[size];
-			System.Buffer.BlockCopy(v, 0, values, 0, v.Length);
 
-			if (min != float.MaxValue) return;
-
-			IEnumerable<float> valid_values = values;
-			if (useUndef)
-			{
-				valid_values = values.Where(n => n != undef);
-			}
-
-			min = valid_values.Min();
-			max = valid_values.Max();
-			average = valid_values.Average();
-			var sum2 = valid_values.Sum(a => (a - average) * (a - average));
-			var count = valid_values.Count();
-			variance = sum2 / count - average * average;
-		}
-*/
 		public void SetVarName(string str)
 		{
 			varName = str.Replace("\\n", " ");

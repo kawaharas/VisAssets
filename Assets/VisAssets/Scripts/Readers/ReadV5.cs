@@ -1,570 +1,398 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using UnityEngine;
-using UnityEngine.Networking;
-using UnityEngine.UI;
-using SimpleFileBrowser;
 #if UNITY_EDITOR
 using UnityEditor;
-using UnityEditor.Compilation;
 #endif
 
 namespace VisAssets.SciVis.Structured.DataLoader
 {
 	using ModuleState = Activation.ModuleState;
+	using FieldType   = DataElement.FieldType;
 
+	// =========================================================================
+	// Editor Extension
+	// =========================================================================
 #if UNITY_EDITOR
 	[CustomEditor(typeof(ReadV5))]
 	public class ReadV5Editor : ReadModuleTemplateEditor
 	{
-		SerializedProperty filename;
-		SerializedProperty precision;
-		SerializedProperty byteswap;
-		SerializedProperty header; // record marker of fortran
+		SerializedProperty logicalFields;
 
+		/// <summary>
+		/// Overrides the base class method. Initializes serialized properties.
+		/// </summary>
 		protected override void OnEnable()
 		{
 			base.OnEnable();
 
-			filename  = serializedObject.FindProperty("filename");
-			precision = serializedObject.FindProperty("precision");
-			byteswap  = serializedObject.FindProperty("byteswap");
-			header    = serializedObject.FindProperty("header");
+			logicalFields = serializedObject.FindProperty("logicalFields");
 		}
 
-		protected override void DrawCustomSettingsTop()
+		/// <summary>
+		/// Overrides the base class method. Draws additional common settings, displaying parsed logical fields.
+		/// </summary>
+		protected override void DrawCommonSettingsExtension()
 		{
-			GUILayout.Space(5f);
+			GUILayout.Space(10f);
 
-			if (useStreamingAssets != null && useStreamingAssets.boolValue)
-			{
-				EditorGUILayout.LabelField("File Name (Relative to StreamingAssets):");
-			}
-			else
-			{
-				EditorGUILayout.LabelField("Absolute File Path:");
-			}
+			EditorGUILayout.LabelField("[Parsed Logical Fields]", EditorStyles.boldLabel);
 
 			GUILayout.Space(5f);
 
-			EditorGUI.indentLevel++;
-			filename.stringValue = EditorGUILayout.TextField(filename.stringValue);
-			EditorGUI.indentLevel--;
-
-			GUILayout.Space(5f);
-
-			var label = new GUIContent("Precision:");
-			EditorGUILayout.PropertyField(precision, label, true);
-			GUILayout.Space(5f);
-			EditorGUILayout.BeginHorizontal();
-			GUILayout.Space(10.0f);
-			byteswap.boolValue = EditorGUILayout.ToggleLeft("Byteswap", byteswap.boolValue, GUILayout.MaxWidth(100.0f));
-			header.boolValue = EditorGUILayout.ToggleLeft("Header", header.boolValue, GUILayout.MaxWidth(100.0f));
-			GUILayout.FlexibleSpace();
-			EditorGUILayout.EndHorizontal();
+			EditorGUI.BeginDisabledGroup(true);
+			EditorGUILayout.PropertyField(logicalFields, new GUIContent("Logical Fields"), true);
+			EditorGUI.EndDisabledGroup();
 
 			GUILayout.Space(5f);
 		}
 
+		/// <summary>
+		/// Overrides the base class method to prevent rendering default custom settings at the bottom.
+		/// </summary>
 		protected override void DrawCustomSettingsBottom()
 		{
 		}
 	}
 #endif
 
+	[System.Serializable]
+	public class LogicalFieldInfo
+	{
+		public string FieldName;
+		public bool IsVector;
+		public int[] ElementIndices;
+	}
+	
+	// =========================================================================
+	// Main Class
+	// =========================================================================
 	public class ReadV5 : ReadModuleTemplate
 	{
-		public string filename = string.Empty;
-		public PRECISION precision = PRECISION.DOUBLE;
-		public bool byteswap = false;
-		public bool header = true; // true: with header, false: without header
+		public List<LogicalFieldInfo> logicalFields = new List<LogicalFieldInfo>();
 
-		string v5file;
-		byte[] bytedata;
-
-		string debugString = string.Empty;
-
+		/// <summary>
+		/// Resets the component to its default values. Called automatically when attaching the script or selecting 'Reset' in the Inspector.
+		/// </summary>
 		private void Reset()
 		{
+			sourceType = DataSourceType.FILE;
+
+			useUndefMenu      = false;
+			usePrecisionMenu  = true;
+			precision         = Precision.DOUBLE;
+			useByteswapMenu   = true;
+			useHeaderSkipMenu = true;
 		}
 
+		/// <summary>
+		/// Overrides the base class method. Initializes module-specific settings.
+		/// </summary>
 		public override void InitModule()
 		{
 		}
 
+		/// <summary>
+		/// Overrides the base class method. The main execution function of the module that triggers the data loading.
+		/// </summary>
 		public override int BodyFunc()
 		{
-			if (filename == "") return 0;
+			if (string.IsNullOrEmpty(dataSource)) return 0;
 
 			StartCoroutine(Load());
+
 			return 1;
 		}
 
-		public void Exec()
-		{
-			if (filename != "")
-			{
-				activation.SetParameterChanged(ModuleState.PARAMETER_CHANGED);
-			}
-		}
-
+		/// <summary>
+		/// Coroutine that orchestrates the VFIVE metadata and binary data loading, parsing, and application processes.
+		/// </summary>
 		IEnumerator Load()
 		{
-			yield return StartCoroutine(ReadV5File(filename, ResponseCallbackText));
+			string v5Text = null;
+			bool hasError = false;
 
-			header = true;
-			int[] dims = new int[3];
-			int scalars;
-			int vectors;
-			float scale = 0f;
-			List<string> label = new List<string>();
-			List<string> datafile = new List<string>();
-			string[] coordfile = new string[3];
-			string filePath = System.IO.Path.GetDirectoryName(filename);
+			Debug.Log($"[ReadV5] Loading Meta Data: {dataSource}");
 
-			MemoryStream memoryStream = new MemoryStream();
-			StreamWriter writer = new StreamWriter(memoryStream);
-			writer.Write(v5file);
-			writer.Flush();
-			memoryStream.Position = 0;
-			StreamReader streamReader = new StreamReader(memoryStream);
+			yield return StartCoroutine(FetchTextRoutine(dataSource, (text) => { v5Text = text; }, (err) => { hasError = true; }));
 
-			while (streamReader.Peek() != -1)
-			{
-				string line = streamReader.ReadLine();
-				string[] stringList = line.Split(new char[0], StringSplitOptions.RemoveEmptyEntries);
-				if (stringList.Length != 0)
-				{
-					string keyword = stringList[0].ToUpper();
-					if (keyword.Contains("SCALE"))
-					{
-						scale = Convert.ToSingle(stringList[1]);
-					}
-					else if (keyword.Contains("SCAL") && keyword.IndexOf("SCAL") == 0)
-					{
-						string indexString = Regex.Replace(keyword, @"[^0-9]", "");
-						int index = Convert.ToInt32(indexString);
-						if (keyword.Contains("_LABEL"))
-						{
-							label.Add(stringList[1]);
-						}
-						else if (keyword.Contains("SCALMIN"))
-						{
-							// not implemented yet
-						}
-						else if (keyword.Contains("SCALMAX"))
-						{
-							// not implemented yet
-						}
-						else
-						{
-							var tmpStr = string.Empty;
-							if (stringList[1].StartsWith("./"))
-							{
-								tmpStr = stringList[1].Remove(0, 2);
-								stringList[1] = tmpStr;
-							}
-							tmpStr = (filePath + '/' + stringList[1]).Replace('\\', '/');
-							datafile.Add(tmpStr);
-						}
-					}
-					else if (keyword.Contains("VECT") && keyword.IndexOf("VECT") == 0)
-					{
-						string indexString = keyword.Replace("VECT", "").Replace("_LABEL", "");
-						char axisString = indexString[indexString.Length - 1];
-						int index = Convert.ToInt32(Regex.Replace(indexString, @"[^0-9]", ""));
-						switch (axisString)
-						{
-							case 'X':
-								index *= 3;
-								break;
-							case 'Y':
-								index *= 3;
-								index += 1;
-								break;
-							case 'Z':
-								index *= 3;
-								index += 2;
-								break;
-							default:
-								break;
-						}
-						if (keyword.Contains("_LABEL"))
-						{
-							label.Add(stringList[1] + " (U)");
-							label.Add(stringList[1] + " (V)");
-							label.Add(stringList[1] + " (W)");
-						}
-						else if (keyword.Contains("VECTMIN"))
-						{
-							// not implemented yet
-						}
-						else if (keyword.Contains("VECTMAX"))
-						{
-							// not implemented yet
-						}
-						else
-						{
-							var tmpStr = string.Empty;
-							if (stringList[1].StartsWith("./"))
-							{
-								tmpStr = stringList[1].Remove(0, 2);
-								stringList[1] = tmpStr;
-							}
-							datafile.Add((filePath + '/' + stringList[1]).Replace('\\', '/'));
-						}
-					}
-					else
-					{
-						switch (stringList[0].ToUpper())
-						{
-							case "NOSKIP4":
-								int flag = Convert.ToInt32(stringList[1]);
-								if (flag == 1)
-								{
-									header = false;
-								}
-								break;
-							case "SCALE":
-								scale = Convert.ToInt32(stringList[1]);
-								break;
-							case "N1":
-								dims[0] = Convert.ToInt32(stringList[1]);
-								break;
-							case "N2":
-								dims[1] = Convert.ToInt32(stringList[1]);
-								break;
-							case "N3":
-								dims[2] = Convert.ToInt32(stringList[1]);
-								break;
-							case "NSCAL":
-								scalars = Convert.ToInt32(stringList[1]);
-								break;
-							case "NVEC":
-								vectors = Convert.ToInt32(stringList[1]);
-								break;
-							case "XFILE":
-								if (stringList[1].StartsWith("./"))
-								{
-									var tmpStr = stringList[1].Remove(0, 2);
-									stringList[1] = tmpStr;
-								}
-								coordfile[0] = (filePath + '/' + stringList[1]).Replace('\\', '/');
-								break;
-							case "YFILE":
-								if (stringList[1].StartsWith("./"))
-								{
-									var tmpStr = stringList[1].Remove(0, 2);
-									stringList[1] = tmpStr;
-								}
-								coordfile[1] = (filePath + '/' + stringList[1]).Replace('\\', '/');
-								break;
-							case "ZFILE":
-								if (stringList[1].StartsWith("./"))
-								{
-									var tmpStr = stringList[1].Remove(0, 2);
-									stringList[1] = tmpStr;
-								}
-								coordfile[2] = (filePath + '/' + stringList[1]).Replace('\\', '/');
-								break;
-							default:
-								break;
-						}
-					}
-				}
-			}
-			streamReader.Close();
-			memoryStream.Close();
+			if (hasError || string.IsNullOrEmpty(v5Text)) yield break;
 
-			List<float>[] coords = new List<float>[4]; // 0:x, 1:y, 2:z, 3:(x, y, z)
-			List<Vector3> coords3d = new List<Vector3>();
+			V5Metadata meta = ParseV5Metadata(v5Text);
+
+			if (meta.dims[0] * meta.dims[1] * meta.dims[2] == 0) yield break;
+
+			List<float>[] coords = new List<float>[4];
+
 			for (int i = 0; i < 4; i++)
 			{
 				coords[i] = new List<float>();
 			}
+			
 			for (int i = 0; i < 3; i++)
 			{
-				yield return StartCoroutine(LoadBinaryData(coordfile[i], coords[i], dims[i], header, byteswap));
-			}
+				if (string.IsNullOrEmpty(meta.coordFiles[i])) continue;
+				
+				Debug.Log($"[ReadV5] Loading Coordinate Data ({i}): {meta.coordFiles[i]}");
+				
+				byte[] coordBytes = null;
 
-			// merge coordinates to 4th list
-			for (int k = 0; k < dims[2]; k++)
-			{
-				for (int j = 0; j < dims[1]; j++)
+				yield return StartCoroutine(FetchBinaryRoutine(meta.coordFiles[i], (data) => { coordBytes = data; }));
+
+				if (coordBytes != null)
 				{
-					for (int i = 0; i < dims[0]; i++)
+					coords[i] = ParseBinaryToFloatList(coordBytes, meta.dims[i], precision, byteswap, skipHeader, headerBytes);
+				}
+			}
+			
+			for (int k = 0; k < meta.dims[2]; k++)
+			{
+				for (int j = 0; j < meta.dims[1]; j++)
+				{
+					for (int i = 0; i < meta.dims[0]; i++)
 					{
 						coords[3].Add(coords[0][i]);
 						coords[3].Add(coords[1][j]);
 						coords[3].Add(coords[2][k]);
-						coords3d.Add(new Vector3(coords[0][i], coords[1][j], coords[2][k]));
 					}
 				}
 			}
 
-			// set data to datafield
-			df.CreateElements(datafile.Count);
-
-			// upper direction is defined as z-axis in VFIVE
+			int totalElements = meta.scalars.Count + (meta.vectors.Count * 3);
+			df.CreateElements(totalElements);
 			df.upAxis = DataField.UpAxis.Z;
 
-			for (int i = 0; i < datafile.Count; i++)
+			int totalGridSize = meta.dims[0] * meta.dims[1] * meta.dims[2];
+			int elementCounter = 0;
+
+			List<LogicalFieldDef> allFields = new List<LogicalFieldDef>();
+			allFields.AddRange(meta.scalars.Values);
+			allFields.AddRange(meta.vectors.Values);
+			allFields.Sort((a, b) => a.sequence.CompareTo(b.sequence));
+
+			foreach (var def in allFields)
 			{
-				df.elements[i].SetDims(dims[0], dims[1], dims[2]);
+				var fieldInfo = new LogicalFieldInfo { FieldName = def.label, IsVector = def.isVector, ElementIndices = new int[def.isVector ? 3 : 1] };
 
-				List<float> values = new List<float>();
+				if (!def.isVector)
+				{
+					Debug.Log($"[ReadV5] Loading Scalar Data [{def.label}]: {def.files[0]}");
 
-				yield return StartCoroutine(LoadBinaryData(datafile[i], values, dims[0] * dims[1] * dims[2], header, byteswap));
+					yield return StartCoroutine(FetchAndParseBinaryRoutine(
+						def.files[0], totalGridSize, precision, byteswap, skipHeader, headerBytes,
+						onSuccess: (values) => { SetElementData(elementCounter, meta.dims, coords, values, def.label); },
+						onError: (err) => { Debug.LogError($"[ReadV5] Error: {err}"); }
+					));
 
-				df.elements[i].SetCoords(coords);
-				df.elements[i].SetValues(values);
-				df.elements[i].SetFieldType(DataElement.FieldType.RECTILINEAR);
-				df.elements[i].varName = label[i].Replace("\\n", " ");
-				df.elements[i].SetActive(true);
+					fieldInfo.ElementIndices[0] = elementCounter;
+					elementCounter++;
+				}
+				else
+				{
+					string[] axisNames = { " (U)", " (V)", " (W)" };
+
+					for (int i = 0; i < 3; i++)
+					{
+						if (string.IsNullOrEmpty(def.files[i])) continue;
+
+						Debug.Log($"[ReadV5] Loading Vector Data [{def.label}{axisNames[i]}]: {def.files[i]}");
+
+						yield return StartCoroutine(FetchAndParseBinaryRoutine(
+							def.files[i], totalGridSize, precision, byteswap, skipHeader, headerBytes,
+							onSuccess: (values) => { SetElementData(elementCounter, meta.dims, coords, values, def.label + axisNames[i]); },
+							onError: (err) => { Debug.LogError($"[ReadV5] Error: {err}"); }
+						));
+
+						fieldInfo.ElementIndices[i] = elementCounter;
+						elementCounter++;
+					}
+				}
+
+				logicalFields.Add(fieldInfo);
 			}
 
-			// turn on flag when data loading is complete
-			df.dataLoaded = true;
+			yield return StartCoroutine(CalcStatsForCurrentElementsRoutine());
 
-			if (centering)
-			{
-				Centering(autoResize);
-			}
+			Debug.Log("[ReadV5] All data successfully loaded!");
 
-			// this function must be called at this location
-			SetCoordinateSystem();
+			ApplyLoadedData();
 		}
 
-		private IEnumerator ReadV5File(string filename, Action<string> callback = null)
+		/// <summary>
+		/// Sets the parsed dimensions, coordinates, and values to a specific DataElement.
+		/// </summary>
+		private void SetElementData(int index, int[] dims, List<float>[] coords, List<float> values, string varName)
 		{
-			string url;
+			df.elements[index].SetDims(new List<int>(dims));
+			df.elements[index].SetCoords(coords);
+			df.elements[index].SetValues(values);
+			df.elements[index].SetFieldType(FieldType.RECTILINEAR);
+			df.elements[index].varName = varName.Replace("\\n", " ");
+			df.elements[index].SetActive(true);
+		}
 
-			if (Application.platform == RuntimePlatform.Android)
+		// --- Helper Structures and Parsing Logic ---
+
+		private class LogicalFieldDef
+		{
+			public int sequence;
+			public bool isVector;
+			public string label = "Unknown";
+			public string[] files;
+
+			public LogicalFieldDef(int size, bool vector)
 			{
-				if (useStreamingAssets)
-				{
-					url = System.IO.Path.Combine(Application.streamingAssetsPath, filename);
-					if (url.Contains("://"))
-					{
-						var www = new UnityWebRequest(url);
-						www.downloadHandler = new DownloadHandlerBuffer();
-						yield return www.SendWebRequest();
-						v5file = www.downloadHandler.text;
-					}
-					else
-					{
-						v5file = FileBrowserHelpers.ReadTextFromFile(url);
-					}
-				}
-				else
-				{
-					url = filename;
-					v5file = FileBrowserHelpers.ReadTextFromFile(url);
-				}
-				debugString += url + '\n';
-
-//				UIPanel.transform.Find("DebugText").GetComponent<Text>().text = debugString;
-			}
-			else
-			{
-				if (useStreamingAssets)
-				{
-					url = System.IO.Path.Combine(Application.streamingAssetsPath, filename);
-				}
-				else
-				{
-					url = "file://" + filename;
-				}
-				var www = UnityWebRequest.Get(url);
-				yield return www.SendWebRequest();
-
-#if UNITY_2020_2_OR_NEWER
-				if (www.result == UnityWebRequest.Result.ProtocolError ||
-					www.result == UnityWebRequest.Result.ConnectionError)
-#else
-				if (www.isHttpError || www.isNetworkError)
-#endif
-				{
-					Debug.Log(www.error);
-				}
-				else
-				{
-					v5file = www.downloadHandler.text;
-					if (callback != null)
-					{
-						callback(www.downloadHandler.text);
-					}
-				}
+				files = new string[size];
+				isVector = vector;
 			}
 		}
 
-		private IEnumerator ReadBinary(string filename, Action<byte[]> callback = null)
+		private struct V5Metadata
 		{
-			string url;
+			public int[] dims;
+			public string[] coordFiles;
+			public SortedDictionary<int, LogicalFieldDef> scalars;
+			public SortedDictionary<int, LogicalFieldDef> vectors;
 
-			if (Application.platform == RuntimePlatform.Android)
+			public V5Metadata(int dummy)
 			{
-				if (useStreamingAssets)
-				{
-					url = System.IO.Path.Combine(Application.streamingAssetsPath, filename);
-					if (url.Contains("://"))
-					{
-						var www = new UnityWebRequest(url);
-						www.downloadHandler = new DownloadHandlerBuffer();
-						yield return www.SendWebRequest();
-						bytedata = www.downloadHandler.data;
-					}
-					else
-					{
-						bytedata = FileBrowserHelpers.ReadBytesFromFile(url);
-					}
-				}
-				else
-				{
-					url = filename;
-					bytedata = FileBrowserHelpers.ReadBytesFromFile(url);
-				}
-				debugString += url + '\n';
-
-//				UIPanel.transform.Find("DebugText").GetComponent<Text>().text = debugString;
-			}
-			else
-			{
-				if (useStreamingAssets)
-				{
-					url = System.IO.Path.Combine(Application.streamingAssetsPath, filename);
-#if UNITY_EDITOR
-					url = "file://" + Application.streamingAssetsPath + '/' + filename;
-#endif
-				}
-				else
-				{
-					url = "file://" + filename;
-				}
-				Debug.Log(url);
-				var www = new UnityWebRequest(url);
-				www.downloadHandler = new DownloadHandlerBuffer();
-				yield return www.SendWebRequest();
-				debugString += url + '\n';
-
-//				UIPanel.transform.Find("DebugText").GetComponent<Text>().text = debugString;
-
-#if UNITY_2020_2_OR_NEWER
-				if (www.result == UnityWebRequest.Result.ProtocolError ||
-					www.result == UnityWebRequest.Result.ConnectionError)
-#else
-				if (www.isHttpError || www.isNetworkError)
-#endif
-				{
-					Debug.Log(www.error);
-				}
-				else
-				{
-					bytedata = www.downloadHandler.data;
-					if (callback != null)
-					{
-						callback(www.downloadHandler.data);
-					}
-				}
+				dims = new int[3];
+				coordFiles = new string[3];
+				scalars = new SortedDictionary<int, LogicalFieldDef>();
+				vectors = new SortedDictionary<int, LogicalFieldDef>();
 			}
 		}
 
-		private void ResponseCallbackText(string inputdata)
+		/// <summary>
+		/// Parses the VFIVE metadata text to extract grid dimensions, coordinate files, and variable fields.
+		/// </summary>
+		private V5Metadata ParseV5Metadata(string text)
 		{
-			v5file = inputdata;
-		}
+			V5Metadata meta = new V5Metadata(0);
+			string filePath = Path.GetDirectoryName(dataSource);
+			int sequenceCounter = 0;
 
-		private void ResponseCallbackBinary(byte[] inputdata)
-		{
-			bytedata = inputdata;
-		}
-
-		private IEnumerator LoadBinaryData(string filename, List<float> v, int size, bool header = true, bool byteswap = false)
-		{
-			yield return StartCoroutine(ReadBinary(filename, ResponseCallbackBinary));
-
-			using (MemoryStream memoryStream = new MemoryStream(bytedata))
-			using (BinaryReader reader = new BinaryReader(memoryStream))
+			using (StringReader reader = new StringReader(text))
 			{
-				if (reader != null)
+				string line;
+
+				while ((line = reader.ReadLine()) != null)
 				{
-					if (header)
-					{
-						// read record length of fortran file (unformatted-sequential).
-						var bytes = reader.ReadBytes(4);
-						// byteswap is necessary because the record length of VFIVE sample data
-						// (little-endian ver.) is big-endian.
-						Array.Reverse(bytes);
-						uint record = BitConverter.ToUInt32(bytes, 0);
-					}
+					if (line.TrimStart().StartsWith("#")) continue;
 
-					int dataLength = sizeof(float);
-					if (precision == PRECISION.DOUBLE)
-					{
-						dataLength = sizeof(double);
-					}
-					var buffer = new byte[size * dataLength];
-					var length = reader.Read(buffer, 0, size * dataLength);
-					if (length != size * dataLength)
-					{
-						Debug.Log("ERROR: Failed to load data.");
-					}
+					string[] tokens = line.Split(new char[0], StringSplitOptions.RemoveEmptyEntries);
 
-					for (int n = 0; n < size; n++)
+					if (tokens.Length == 0) continue;
+
+					string keyword = tokens[0].ToUpper();
+
+					if (keyword == "N1")
 					{
-						float value = 0f;
-						if (precision == PRECISION.SINGLE)
+						meta.dims[0] = Convert.ToInt32(tokens[1]);
+					}
+					else if (keyword == "N2")
+					{
+						meta.dims[1] = Convert.ToInt32(tokens[1]);
+					}
+					else if (keyword == "N3")
+					{
+						meta.dims[2] = Convert.ToInt32(tokens[1]);
+					}
+					else if (keyword == "NOSKIP4")
+					{
+						if (Convert.ToInt32(tokens[1]) == 1)
 						{
-							if (byteswap)
+							skipHeader = false;
+						}
+					}
+					else if (keyword == "XFILE")
+					{
+						meta.coordFiles[0] = GetAdjustedPath(filePath, tokens[1]);
+					}
+					else if (keyword == "YFILE")
+					{
+						meta.coordFiles[1] = GetAdjustedPath(filePath, tokens[1]);
+					}
+					else if (keyword == "ZFILE")
+					{
+						meta.coordFiles[2] = GetAdjustedPath(filePath, tokens[1]);
+					}
+					else if (keyword.StartsWith("SCAL") && keyword != "SCALE" && keyword != "NSCAL")
+					{
+						int idx = int.Parse(Regex.Match(keyword, @"\d+").Value);
+
+						if (!meta.scalars.ContainsKey(idx))
+						{
+							meta.scalars[idx] = new LogicalFieldDef(1, false) { sequence = sequenceCounter++ };
+						}
+
+						if (keyword.Contains("_LABEL"))
+						{
+							meta.scalars[idx].label = tokens[1];
+						}
+						else if (!keyword.Contains("MIN") && !keyword.Contains("MAX"))
+						{
+							meta.scalars[idx].files[0] = GetAdjustedPath(filePath, tokens[1]);
+						}
+					}
+					else if (keyword.StartsWith("VECT") && keyword != "NVEC")
+					{
+						int idx = int.Parse(Regex.Match(keyword, @"\d+").Value);
+
+						if (!meta.vectors.ContainsKey(idx))
+						{
+							meta.vectors[idx] = new LogicalFieldDef(3, true) { sequence = sequenceCounter++ };
+						}
+
+						if (keyword.Contains("_LABEL"))
+						{
+							meta.vectors[idx].label = tokens[1];
+						}
+						else if (!keyword.Contains("MIN") && !keyword.Contains("MAX"))
+						{
+							if (keyword.EndsWith("X"))
 							{
-								byte[] tmp = new byte[4];
-								tmp[3] = buffer[n * dataLength + 0];
-								tmp[2] = buffer[n * dataLength + 1];
-								tmp[1] = buffer[n * dataLength + 2];
-								tmp[0] = buffer[n * dataLength + 3];
-								value = (float)BitConverter.ToDouble(tmp, 0);
+								meta.vectors[idx].files[0] = GetAdjustedPath(filePath, tokens[1]);
 							}
-							else
+							else if (keyword.EndsWith("Y"))
 							{
-								value = BitConverter.ToSingle(buffer, n * dataLength);
+								meta.vectors[idx].files[1] = GetAdjustedPath(filePath, tokens[1]);
+							}
+							else if (keyword.EndsWith("Z"))
+							{
+								meta.vectors[idx].files[2] = GetAdjustedPath(filePath, tokens[1]);
 							}
 						}
-						else
-						{
-							if (byteswap)
-							{
-								byte[] tmp = new byte[8];
-								tmp[7] = buffer[n * dataLength + 0];
-								tmp[6] = buffer[n * dataLength + 1];
-								tmp[5] = buffer[n * dataLength + 2];
-								tmp[4] = buffer[n * dataLength + 3];
-								tmp[3] = buffer[n * dataLength + 4];
-								tmp[2] = buffer[n * dataLength + 5];
-								tmp[1] = buffer[n * dataLength + 6];
-								tmp[0] = buffer[n * dataLength + 7];
-								value = (float)BitConverter.ToDouble(tmp, 0);
-							}
-							else
-							{
-								value = (float)BitConverter.ToDouble(buffer, n * dataLength);
-							}
-						}
-						v.Add(value);
 					}
 				}
 			}
+
+			return meta;
 		}
 
-		public void SetPrecision(int mode)
+		/// <summary>
+		/// Adjusts relative file paths defined in the metadata to absolute paths.
+		/// </summary>
+		private string GetAdjustedPath(string basePath, string subPath)
 		{
-			precision = (PRECISION)mode;
+			string p = subPath.StartsWith("./") ? subPath.Remove(0, 2) : subPath;
 
-			ParameterChanged();
+			return Path.Combine(basePath, p).Replace('\\', '/');
+		}
+
+		/// <summary>
+		/// Manually triggers a parameter change notification to force an update.
+		/// </summary>
+		public void Exec()
+		{
+			if (!string.IsNullOrEmpty(dataSource))
+			{
+				activation.SetParameterChanged(ModuleState.PARAMETER_CHANGED);
+			}
 		}
 	}
 }

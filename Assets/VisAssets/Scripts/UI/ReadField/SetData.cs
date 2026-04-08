@@ -22,7 +22,6 @@ namespace VisAssets.SciVis.Structured.DataLoader.UI
 			if (target != null)
 			{
 				string str = inputField.GetComponent<InputField>().text;
-
 /*
 				var filename = target.transform.Find("FileBrowser").GetComponent<String_param>();
 				if (filename != null)
@@ -31,25 +30,22 @@ namespace VisAssets.SciVis.Structured.DataLoader.UI
 					filename.SetString(str);
 				}
 */
-//				target.GetComponent<ReadData>().filename = str;
-//				target.GetComponent<ReadData>().Exec();
-
 				var readfield = target.GetComponent<ReadField>();
 				if (readfield != null)
 				{
-					readfield.filename = str;
+					readfield.DataSource = str;
 					readfield.Exec();
 				}
 				var readV5 = target.GetComponent<ReadV5>();
 				if (readV5 != null)
 				{
-					readV5.filename = str;
+					readV5.DataSource = str;
 					readV5.Exec();
 				}
 				var readGrADS = target.GetComponent<ReadGrADS>();
 				if (readGrADS != null)
 				{
-					readGrADS.filename = str;
+					readGrADS.DataSource = str;
 					readGrADS.Exec();
 				}
 			}

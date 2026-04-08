@@ -59,7 +59,7 @@ namespace VisAssets
 			{
 				if (gos[i].name.StartsWith("Read"))
 				{
-					gos[i].GetComponent<CtrlOBJ>().active = value;
+					gos[i].GetComponent<CtrlOBJ>().isActive = value;
 				}
 			}
 		}

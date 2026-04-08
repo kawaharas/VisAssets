@@ -1,118 +1,211 @@
-﻿using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 namespace VisAssets
 {
+	/// <summary>
+	/// Controls rotation and scaling of the object via mouse and touch inputs.
+	/// </summary>
 	public class CtrlOBJ : MonoBehaviour
 	{
-		public GameObject obj;
+		[Header("Rotation Speeds")]
+		public float rotationSpeedMouse = 1200f;
+		public float rotationSpeedTouch = 15f;
 
-		// for rotation
-		Vector2    startPosition;  // screen position when touched
-		Quaternion startRotation;  // rotation when touched
-		float w, h, d;             // screen size
+		[Header("Scale Speeds")]
+		public float scaleSpeedMouse = 0.1f;
+		public float scaleSpeedTouch = 0.005f;
 
-		// for pinch-in and pinch-out
-		public float minScale = 0.5f;
-		public float maxScale = 5.0f;
-		float dist = 0.0f;
-		float prev_dist = 0.0f;
-		Vector3 initScale;
-		public float scale = 1.0f;
-		public bool IsDrag = false;
-		public float sensitivity = 5f;
-		public bool InitScaleSet = false;
-		public bool active = true;
+		[Header("Scale Limits (Relative to initial size)")]
+		public float minScale = 0.1f;
+		public float maxScale = 10.0f;
+
+		[Header("Interaction Settings")]
+		[Tooltip("Indicates whether interaction is active. Disabled when the pointer is over UI.")]
+		public bool isActive = true;
+
+		[Tooltip("Indicates whether the user is currently dragging the object.")]
+		public bool isDragging = false;
+
+		// The current scale ratio relative to the initial size (starts at 1.0)
+		private float currentScaleRatio = 1.0f;
+		private DataField df;
 
 		void Start()
 		{
-			w = Screen.width;
-			h = Screen.height;
-			d = Mathf.Sqrt(Mathf.Pow(w, 2) + Mathf.Pow(h, 2));
-			obj = this.gameObject;
-			initScale = obj.transform.localScale;
+			df = GetComponent<DataField>();
 		}
 
 		void Update()
 		{
-//			if (Application.platform != RuntimePlatform.Android)
+			// Do not process if disabled (e.g., when interacting with UI)
+			if (!isActive) return;
+			
+			// Do not process if the data has not finished loading
+			if (df != null && !df.dataLoaded) return;
+
+			HandleInput();
+		}
+
+		/// <summary>
+		/// Handles both mouse and touch inputs.
+		/// </summary>
+		private void HandleInput()
+		{
+			// Prioritize touch processing if supported and at least one finger is touching
+			if (Input.touchSupported && Input.touchCount > 0)
 			{
-				if (!active) return;
+				HandleTouch();
+			}
+			else
+			{
+				HandleMouse();
+			}
+		}
+
+		/// <summary>
+		/// Handles mouse drag for rotation and scroll wheel for scaling.
+		/// </summary>
+		private void HandleMouse()
+		{
+			// Rotation (Drag)
+			if (Input.GetMouseButtonDown(0)) isDragging = true;
+			if (Input.GetMouseButtonUp(0)) isDragging = false;
+
+			if (isDragging)
+			{
+				float mouseX = Input.GetAxis("Mouse X") * rotationSpeedMouse * Time.deltaTime;
+				float mouseY = Input.GetAxis("Mouse Y") * rotationSpeedMouse * Time.deltaTime;
+
+				RotateObject(mouseX, mouseY);
 			}
 
-			var df = obj.GetComponent<DataField>();
-
-			if (df != null)
+			// Scaling (Mouse Wheel)
+			float scroll = Input.mouseScrollDelta.y;
+			if (scroll != 0)
 			{
-				if (df.dataLoaded)
+				ApplyScale(scroll * scaleSpeedMouse);
+			}
+		}
+
+		/// <summary>
+		/// Handles single-finger touch for rotation and two-finger pinch for scaling.
+		/// </summary>
+		private void HandleTouch()
+		{
+			// Rotation (Single-finger drag)
+			if (Input.touchCount == 1)
+			{
+				Touch touch = Input.GetTouch(0);
+
+				if (touch.phase == TouchPhase.Began) isDragging = true;
+				if (touch.phase == TouchPhase.Ended || touch.phase == TouchPhase.Canceled) isDragging = false;
+
+				if (touch.phase == TouchPhase.Moved)
 				{
-					if (!InitScaleSet)
-					{
-						initScale = obj.transform.localScale;
-						InitScaleSet = true;
-					}
+					// Use deltaPosition (movement amount from the previous frame)
+					float touchX = touch.deltaPosition.x * rotationSpeedTouch * Time.deltaTime;
+					float touchY = touch.deltaPosition.y * rotationSpeedTouch * Time.deltaTime;
 
-					// for mouse operation
-					if (Input.GetMouseButtonDown(0))
-					{
-						startPosition = Input.mousePosition;
-						startRotation = obj.transform.rotation;
-						IsDrag = true;
-					}
-					if (Input.GetMouseButtonUp(0))
-					{
-						IsDrag = false;
-					}
-					if (IsDrag)
-					{
-						float tx = (Input.mousePosition.x - startPosition.x) / w * sensitivity;
-						float ty = (Input.mousePosition.y - startPosition.y) / h * sensitivity;
-						obj.transform.rotation = startRotation;
-						obj.transform.Rotate(new Vector3(90 * ty, -90 * tx, 0), Space.World);
-					}
-					scale += Input.mouseScrollDelta.y * 0.1f;
-					scale = Mathf.Clamp(scale, minScale, maxScale);
-					obj.transform.localScale = initScale * scale;
+					RotateObject(touchX, touchY);
+				}
+			}
+			// Scaling (Two-finger pinch in/out)
+			else if (Input.touchCount == 2)
+			{
+				isDragging = false; 
 
-					// for touch operation
-					if (Input.touchCount == 1)
-					{
-						Touch t1 = Input.GetTouch(0);
-						if (t1.phase == TouchPhase.Began)
-						{
-							startPosition = t1.position;
-							startRotation = obj.transform.rotation;
-						}
-						else if ((t1.phase == TouchPhase.Moved) || (t1.phase == TouchPhase.Stationary))
-						{
-							float tx = (t1.position.x - startPosition.x) / w * sensitivity;
-							float ty = (t1.position.y - startPosition.y) / h * sensitivity;
-							obj.transform.rotation = startRotation;
-							obj.transform.Rotate(new Vector3(90 * ty, -90 * tx, 0), Space.World);
-						}
-					}
-					else if (Input.touchCount >= 2)
-					{
-						Touch t1 = Input.GetTouch(0);
-						Touch t2 = Input.GetTouch(1);
+				Touch touch0 = Input.GetTouch(0);
+				Touch touch1 = Input.GetTouch(1);
 
-						if (t2.phase == TouchPhase.Began)
-						{
-							prev_dist = Vector2.Distance(t1.position, t2.position);
-						}
-						else if (((t1.phase == TouchPhase.Moved) || (t1.phase == TouchPhase.Stationary)) &&
-								 ((t2.phase == TouchPhase.Moved) || (t2.phase == TouchPhase.Stationary)))
-						{
-							dist = Vector2.Distance(t1.position, t2.position);
-							scale += (dist - prev_dist) / d * 3f;
-							prev_dist = dist;
-							scale = Mathf.Clamp(scale, minScale, maxScale);
-							obj.transform.localScale = initScale * scale;
-						}
-					}
+				// Calculate the positions of the two fingers in the previous frame
+				Vector2 touch0PrevPos = touch0.position - touch0.deltaPosition;
+				Vector2 touch1PrevPos = touch1.position - touch1.deltaPosition;
+
+				// Calculate the difference in distance between the fingers across frames
+				float prevTouchDeltaMag = (touch0PrevPos - touch1PrevPos).magnitude;
+				float touchDeltaMag = (touch0.position - touch1.position).magnitude;
+
+				float deltaMagnitudeDiff = touchDeltaMag - prevTouchDeltaMag;
+
+				if (Mathf.Abs(deltaMagnitudeDiff) > 0.01f)
+				{
+					ApplyScale(deltaMagnitudeDiff * scaleSpeedTouch);
 				}
 			}
 		}
+
+		/// <summary>
+		/// Rotates the object relative to the main camera's orientation.
+		/// </summary>
+		private void RotateObject(float deltaX, float deltaY)
+		{
+			if (Camera.main != null)
+			{
+				transform.Rotate(Camera.main.transform.up, -deltaX, Space.World);
+				transform.Rotate(Camera.main.transform.right, deltaY, Space.World);
+			}
+		}
+
+		/// <summary>
+		/// Safely applies scaling while maintaining the current aspect ratio (non-uniform scale).
+		/// </summary>
+		private void ApplyScale(float deltaScale)
+		{
+			float prevRatio = currentScaleRatio;
+			
+			// Add or subtract the scale multiplier and clamp it within limits
+			currentScaleRatio += deltaScale;
+			currentScaleRatio = Mathf.Clamp(currentScaleRatio, minScale, maxScale);
+
+			if (prevRatio > 0) 
+			{
+				// Calculate the multiplier ratio and apply it to the current scale
+				// This ensures any custom scale balance set by modules (e.g., ReadGrADSMod) is perfectly preserved
+				float multiplier = currentScaleRatio / prevRatio;
+				transform.localScale *= multiplier;
+			}
+		}
 	}
+
+	// =========================================================================
+	// Editor Extension
+	// =========================================================================
+#if UNITY_EDITOR
+	[CustomEditor(typeof(CtrlOBJ))]
+	public class CtrlOBJEditor : Editor
+	{
+		public override void OnInspectorGUI()
+		{
+			serializedObject.Update();
+
+			SerializedProperty iterator = serializedObject.GetIterator();
+			bool enterChildren = true;
+
+			while (iterator.NextVisible(enterChildren))
+			{
+				enterChildren = false;
+
+				// Skip the default m_Script property
+				if (iterator.name == "m_Script") continue;
+
+				// Make isActive and isDragging read-only in the Inspector
+				if (iterator.name == "isActive" || iterator.name == "isDragging")
+				{
+					EditorGUI.BeginDisabledGroup(true);
+					EditorGUILayout.PropertyField(iterator, true);
+					EditorGUI.EndDisabledGroup();
+				}
+				else
+				{
+					EditorGUILayout.PropertyField(iterator, true);
+				}
+			}
+
+			serializedObject.ApplyModifiedProperties();
+		}
+	}
+#endif
 }

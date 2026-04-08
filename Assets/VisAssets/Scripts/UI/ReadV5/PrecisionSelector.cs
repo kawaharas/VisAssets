@@ -15,10 +15,10 @@ namespace VisAssets.SciVis.Structured.DataLoader.UI
 			target = GetComponentInParent<UIPanel>().TargetModule;
 			var dropdown = GetComponent<Dropdown>();
 			dropdown.ClearOptions();
-			var modeNum = Enum.GetNames(typeof(ReadV5.PRECISION)).Length;
+			var modeNum = Enum.GetNames(typeof(ReadV5.Precision)).Length;
 			for (int i = 0; i < modeNum; i++)
 			{
-				var modeString = Enum.GetName(typeof(ReadV5.PRECISION), i);
+				var modeString = Enum.GetName(typeof(ReadV5.Precision), i);
 				dropdown.options.Add(new Dropdown.OptionData { text = modeString });
 			}
 			dropdown.interactable = true;

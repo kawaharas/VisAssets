@@ -10,9 +10,9 @@ GameObject:
   m_Component:
   - component: {fileID: 5371124302536753469}
   - component: {fileID: 5371124302536753470}
-  - component: {fileID: 5371124302536753471}
+  - component: {fileID: 1982591384115355145}
   - component: {fileID: 980028169445324378}
-  - component: {fileID: 8195596288451878298}
+  - component: {fileID: 4645551954307596298}
   m_Layer: 0
   m_Name: ReadField
   m_TagString: VisModule
@@ -50,7 +50,7 @@ MonoBehaviour:
   moduleType: 3
   parent_changed: 0
   parameter_changed: 0
---- !u!114 &5371124302536753471
+--- !u!114 &1982591384115355145
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -59,7 +59,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 5371124302536753409}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: a5153637d378569409771f2388330fa1, type: 3}
+  m_Script: {fileID: 11500000, guid: fce3fee79918f4a4c95ae14913878571, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   UIPanel: {fileID: 0}
@@ -68,16 +68,25 @@ MonoBehaviour:
   activation: {fileID: 0}
   df: {fileID: 0}
   animator: {fileID: 0}
-  loadAtStartup: 0
-  centering: 0
-  autoResize: 0
-  currentStep: 0
-  filename: 
-  useDummyData: 0
-  useEmbeddedData: 0
-  debugString: 
+  dataSource: 
+  sourceType: 0
+  precision: 0
+  byteswap: 0
+  skipHeader: 0
+  headerBytes: 4
+  useStreamingAssets: 1
+  loadAtStartup: 1
+  centering: 1
+  autoResize: 1
   useUndef: 0
   undef: 0
+  useUndefMenu: 0
+  usePrecisionMenu: 0
+  useByteswapMenu: 0
+  useHeaderSkipMenu: 0
+  currentStep: 0
+  useDummyData: 0
+  debugString: 
 --- !u!114 &980028169445324378
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -97,7 +106,7 @@ MonoBehaviour:
   offset: {x: 0, y: 0, z: 0}
   dataLoaded: 0
   elements: []
---- !u!114 &8195596288451878298
+--- !u!114 &4645551954307596298
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -106,14 +115,14 @@ MonoBehaviour:
   m_GameObject: {fileID: 5371124302536753409}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f0e602d050608ef49b71de49b9ee04f5, type: 3}
+  m_Script: {fileID: 11500000, guid: 407970220f52c8e4fbc1b985dfc4b616, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  obj: {fileID: 2236395068244410446, guid: 181ca4f4d435ec34e9c94598cf4769db, type: 3}
-  minScale: 0.5
-  maxScale: 5
-  scale: 1
-  IsDrag: 0
-  sensitivity: 5
-  InitScaleSet: 0
-  active: 1
+  rotationSpeedMouse: 1200
+  rotationSpeedTouch: 15
+  scaleSpeedMouse: 0.1
+  scaleSpeedTouch: 0.005
+  minScale: 0.1
+  maxScale: 10
+  isActive: 1
+  isDragging: 0
