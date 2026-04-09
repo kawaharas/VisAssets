@@ -71,7 +71,16 @@ namespace VisAssets
 		private void HandleMouse()
 		{
 			// Rotation (Drag)
-			if (Input.GetMouseButtonDown(0)) isDragging = true;
+			if (Input.GetMouseButtonDown(0))
+			{
+				isDragging = true;
+
+				Input.GetAxis("Mouse X");
+				Input.GetAxis("Mouse Y");
+
+				return;
+			}
+
 			if (Input.GetMouseButtonUp(0)) isDragging = false;
 
 			if (isDragging)

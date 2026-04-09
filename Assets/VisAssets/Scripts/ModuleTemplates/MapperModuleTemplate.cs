@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace VisAssets
 {
@@ -19,6 +20,36 @@ namespace VisAssets
 		public Activation  activation;
 		[SerializeField, HideInInspector]
 		public DataField   pdf;
+
+#if UNITY_EDITOR
+		/// <summary>
+		/// Called when the component is attached or reset in the Inspector.
+		/// Sets up default values ensuring user modifications are respected at runtime.
+		/// </summary>
+		protected override void Reset()
+		{
+			// 基底クラスの処理（VisModuleタグの付与など）を実行
+			base.Reset();
+
+			// MeshFilter / MeshRenderer が無ければ追加
+			if (this.GetComponent<MeshFilter>() == null)
+			{
+				this.gameObject.AddComponent<MeshFilter>();
+			}
+
+			var meshRenderer = this.GetComponent<MeshRenderer>();
+			if (meshRenderer == null)
+			{
+				meshRenderer = this.gameObject.AddComponent<MeshRenderer>();
+			}
+
+			// ?? 初期値の設定（アタッチ時・リセット時のみ実行されるため、ユーザーの変更を阻害しない）
+			// 1. 自身の影による色の歪みを防ぐため、デフォルトは影を受け取らない
+			meshRenderer.receiveShadows = false;
+			// 2. VolumeRendererの深度テクスチャ計算を機能させるため、ShadowCasterパスは実行させる
+			meshRenderer.shadowCastingMode = ShadowCastingMode.On;
+		}
+#endif
 
 		void Awake()
 		{

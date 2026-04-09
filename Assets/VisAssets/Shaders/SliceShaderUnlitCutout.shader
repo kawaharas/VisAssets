@@ -64,6 +64,51 @@ Shader "VisAssets/SliceShaderUnlitCutout"
 			}
 			ENDCG
 		}
+
+		Pass
+        {
+            Name "ShadowCaster"
+            Tags { "LightMode" = "ShadowCaster" }
+
+            ZWrite On
+            ZTest LEqual
+            Cull Off
+
+            CGPROGRAM
+            #pragma vertex vert
+            #pragma fragment frag
+            #pragma multi_compile_shadowcaster
+            #include "UnityCG.cginc"
+
+            struct v2f
+			{
+                V2F_SHADOW_CASTER;
+                float2 uv : TEXCOORD1;
+            };
+
+            sampler2D _MainTex;
+            float4 _MainTex_ST;
+            float _Cutoff;
+
+            v2f vert(appdata_base v)
+            {
+                v2f o;
+                // Unity標準のシャドウキャスター用頂点計算
+                TRANSFER_SHADOW_CASTER_NORMALOFFSET(o)
+                o.uv = TRANSFORM_TEX(v.texcoord, _MainTex);
+                return o;
+            }
+
+            float4 frag(v2f i) : SV_Target
+            {
+                fixed4 col = tex2D(_MainTex, i.uv);
+                // 透明部分は深度にも書き込まない
+                clip(col.a - _Cutoff);
+                // 深度バッファへの確実な書き込み
+                SHADOW_CASTER_FRAGMENT(i)
+            }
+            ENDCG
+        }
 	}
 
 	FallBack "Unlit/Transparent Cutout"
