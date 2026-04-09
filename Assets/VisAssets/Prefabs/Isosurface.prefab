@@ -15,7 +15,7 @@ GameObject:
   - component: {fileID: 781005704448709788}
   m_Layer: 0
   m_Name: Isosurface
-  m_TagString: Untagged
+  m_TagString: VisModule
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -72,12 +72,11 @@ MonoBehaviour:
   threshold: 0
   min: 0
   max: 1
-  color: {r: 0, g: 0, b: 0, a: 0}
-  shadingMode: 0
   triCount: 0
-  alpha: 1
+  renderShader: {fileID: 4800000, guid: 2a0b09d4c7444a44e927e714ef791dde, type: 3}
+  forceChunkModeOnPC: 0
+  chunkSize: 96
   shader: {fileID: 7200000, guid: 7535bba997a251e498d15765f51d7467, type: 3}
-  useGPU: 1
 --- !u!33 &781005704448709789
 MeshFilter:
   m_ObjectHideFlags: 0
@@ -106,7 +105,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: aee36963d8da2264fb062782ad1d67ed, type: 2}
+  - {fileID: 0}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0

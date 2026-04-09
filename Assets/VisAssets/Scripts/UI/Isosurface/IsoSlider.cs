@@ -29,14 +29,6 @@ namespace VisAssets.SciVis.Structured.Isosurface.UI
 					inputField.GetComponent<InputField>().text = value.ToString();
 					placeholder.GetComponent<Text>().text = value.ToString();
 				}
-
-				var isosurfaceV5 = target.GetComponent<IsosurfaceV5>();
-				if (isosurfaceV5 != null)
-				{
-					isosurfaceV5.SetValue(value);
-					inputField.GetComponent<InputField>().text = value.ToString();
-					placeholder.GetComponent<Text>().text = value.ToString();
-				}
 			}
 		}
 	}
