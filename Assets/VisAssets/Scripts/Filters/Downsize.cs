@@ -1,332 +1,334 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.UI;
 #if UNITY_EDITOR
 using UnityEditor;
-using UnityEditor.Compilation;
 #endif
 
 namespace VisAssets.SciVis.Structured.Downsize
 {
-	using FieldType = DataElement.FieldType;
+	using ModuleState = Activation.ModuleState;
+	using FieldType   = DataElement.FieldType;
 
+	// =========================================================================
+	// Editor Extension
+	// =========================================================================
 #if UNITY_EDITOR
 	[CustomEditor(typeof(Downsize))]
 	public class DownsizeEditor : Editor
 	{
-		SerializedProperty dims;
-		SerializedProperty idims;
+		SerializedProperty targetDims, androidMaxDim;
+		private bool pendingUpdate = false;
 
+		/// <summary>
+		/// Initializes serialized properties when the object is selected in the Inspector.
+		/// </summary>
 		private void OnEnable()
 		{
-			dims  = serializedObject.FindProperty("dims");
-			idims = serializedObject.FindProperty("idims");
+			targetDims = serializedObject.FindProperty("targetDims");
+			androidMaxDim = serializedObject.FindProperty("androidMaxDim");
 		}
 
+		/// <summary>
+		/// Renders the custom Inspector GUI for the Downsize module.
+		/// </summary>
 		public override void OnInspectorGUI()
 		{
 			var downsize = target as Downsize;
 
 			serializedObject.Update();
 
-			EditorGUILayout.PropertyField(
-				serializedObject.FindProperty("UIPrefab"), new GUIContent("UI Prefab"));
+			EditorGUILayout.PropertyField(serializedObject.FindProperty("UIPrefab"), new GUIContent("UI Prefab"));
 
 			EditorGUI.BeginChangeCheck();
 
-			bool IsVisible = false;
-			if (downsize.activeElements.Count > 0)
+			GUILayout.Space(5f);
+
+			EditorGUILayout.LabelField("--- Target Resolution ---", EditorStyles.boldLabel);
+
+			int maxX = 100; int maxY = 100; int maxZ = 100;
+
+			// Dynamically determine the maximum allowed dimensions based on the loaded data field
+			if (downsize.pdf != null && downsize.pdf.dataLoaded && downsize.pdf.elements != null)
 			{
-				IsVisible = true;
+				maxX = 1; maxY = 1; maxZ = 1;
+				foreach (var el in downsize.pdf.elements)
+				{
+					if (el != null && el.dims != null && el.dims.Length >= 3)
+					{
+						maxX = Mathf.Max(maxX, el.dims[0]);
+						maxY = Mathf.Max(maxY, el.dims[1]);
+						maxZ = Mathf.Max(maxZ, el.dims[2]);
+					}
+				}
+
+#if UNITY_ANDROID
+				maxX = Mathf.Min(maxX, downsize.androidMaxDim);
+				maxY = Mathf.Min(maxY, downsize.androidMaxDim);
+				maxZ = Mathf.Min(maxZ, downsize.androidMaxDim);
+#endif
 			}
 
-			GUILayout.Space(10f);
-			EditorGUI.BeginDisabledGroup(true);
-			dims.vector3IntValue = EditorGUILayout.Vector3IntField("Input Size (Maximum Size)", dims.vector3IntValue);
-			EditorGUI.EndDisabledGroup();
+			Vector3Int currentDims = targetDims.vector3IntValue;
+			currentDims.x = EditorGUILayout.IntSlider("Target X", currentDims.x, 1, maxX);
+			currentDims.y = EditorGUILayout.IntSlider("Target Y", currentDims.y, 1, maxY);
+			currentDims.z = EditorGUILayout.IntSlider("Target Z", currentDims.z, 1, maxZ);
+			targetDims.vector3IntValue = currentDims;
+
 			GUILayout.Space(6f);
-			idims.vector3IntValue = EditorGUILayout.Vector3IntField("New Size", idims.vector3IntValue);
 
-			GUIContent label = new GUIContent("All input elements must have the same number of grids.");
-			EditorGUILayout.BeginHorizontal(GUI.skin.box);
-			GUILayout.Space(5f);
-			GUIStyle style = new GUIStyle(GUI.skin.label);
-			style.alignment = TextAnchor.MiddleLeft;
-			style.wordWrap = true;
-			style.CalcSize(label);
-			if (!IsVisible)
-			{
-				EditorGUILayout.LabelField(label, style);
-			}
-			else
-			{
-				EditorGUILayout.LabelField("", style);
-			}
-			GUILayout.Space(5f);
-			EditorGUILayout.EndHorizontal();
-			GUILayout.Space(3f);
+			// Disable modification of the Android Max Size Cap during runtime to prevent inconsistencies
+			EditorGUI.BeginDisabledGroup(Application.isPlaying);
+			EditorGUILayout.PropertyField(androidMaxDim, new GUIContent("Android Max Size Cap"));
+			EditorGUI.EndDisabledGroup();
+
+			GUILayout.Space(6f);
 
 			if (EditorGUI.EndChangeCheck())
 			{
 				Undo.RecordObject(target, "Downsize");
+				EditorUtility.SetDirty(target);
+
 				if (EditorApplication.isPlaying)
 				{
-//					downsize.SetDims(idims);
+					pendingUpdate = true;
 				}
-				EditorUtility.SetDirty(target);
 			}
 
 			serializedObject.ApplyModifiedProperties();
 
-//			base.DrawDefaultInspector();
+			if (pendingUpdate && GUIUtility.hotControl == 0)
+			{
+				pendingUpdate = false;
+				if (downsize.activation != null)
+				{
+					downsize.activation.SetParameterChanged(ModuleState.PARAMETER_CHANGED);
+				}
+			}
 		}
 	}
 #endif
 
+	// =========================================================================
+	// Main Class
+	// =========================================================================
 	[System.Serializable]
 	public class Downsize : FilterModuleTemplate
 	{
-		DataElement[] elements; // data elements of parent gameobject
-
 		[SerializeField]
-		public Vector3Int dims;  // dims of input data
-		[SerializeField]
-		public Vector3Int idims; // dims of interpolated data
+		public Vector3Int targetDims = new Vector3Int(50, 50, 50);
 
-		List<float>[] icoords; // 0:x, 1:y, 2:z, 3:(x, y, z)
+		[Header("Mobile Optimization")]
+		[Tooltip("Maximum grid size per axis for Android builds (prevents memory exhaustion).")]
+		public int androidMaxDim = 100;
 
-		[HideInInspector]
-		public List<int> activeElements;
-		List<int> parentActiveElements;
+		[HideInInspector] public List<int> activeElements = new List<int>();
 
+		// ==========================================================
+		// uGUI Compatibility Properties & Methods
+		// ==========================================================
+
+		/// <summary>
+		/// Compatibility property for external uGUI scripts (e.g., IPSlider, IPValue) to access and modify the target dimensions.
+		/// </summary>
+		public Vector3Int idims
+		{
+			get { return targetDims; }
+			set { targetDims = value; }
+		}
+
+		// ==========================================================
+		// Core Module Logic
+		// ==========================================================
+
+		/// <summary>
+		/// Initializes module-specific internal variables.
+		/// </summary>
 		public override void InitModule()
 		{
 			activeElements = new List<int>();
-			for (int i = 0; i < 3; i++)
-			{
-				idims[i] = 50; // initial value
-			}
 		}
 
+		/// <summary>
+		/// The main execution function of the module that triggers the downsize processing.
+		/// </summary>
 		public override int BodyFunc()
 		{
 			if (activeElements.Count > 0)
 			{
-				InitCoords();
-				InitData();
+				for (int i = 0; i < activeElements.Count; i++)
+				{
+					ProcessElement(activeElements[i]);
+				}
 			}
-
 			return 1;
 		}
 
-		public override void ReSetParameters() // runs when parent was updated
+		/// <summary>
+		/// Resets and prepares the local DataField elements based on the parent data field.
+		/// </summary>
+		public override void ReSetParameters()
 		{
 			df.DisposeElements();
-			elements = pdf.elements;
+			df.CreateElements(pdf.elements.Length);
 
-			df.CreateElements(elements.Length);
-			for (int i = 0; i < elements.Length; i++)
+			for (int i = 0; i < pdf.elements.Length; i++)
 			{
-				df.elements[i] = elements[i].Clone();
+				df.elements[i] = pdf.elements[i].Clone();
 			}
 			df.coordinateSystem = pdf.coordinateSystem;
 			df.upAxis = pdf.upAxis;
-			df.scale  = pdf.scale;
+			df.scale = pdf.scale;
 			df.offset = pdf.offset;
-
-/*
-			for (int i = 0; i < 3; i++)
-			{
-				idims[i] = 50;
-			}
-*/
 
 			CheckActiveElements();
 		}
 
-		public override void SetParameters() // runs when parameters were updated
+		/// <summary>
+		/// Applies parameter changes from the UI. (Empty in this module as updates are handled dynamically)
+		/// </summary>
+		public override void SetParameters()
 		{
 		}
 
-		public void SetDims(int[] ndims)
-		{
-			for (int i = 0; i < 3; i++)
-			{
-				idims[i] = Mathf.Clamp(ndims[i], 1, dims[i]);
-			}
-
-			ParameterChanged();
-		}
-
+		/// <summary>
+		/// Resets the associated uGUI components (sliders and input fields) to their default states based on the current data dimensions.
+		/// </summary>
 		public override void ResetUI()
 		{
-			Slider slider;
-			slider = UIPanel.transform.Find("X/Slider").GetComponent<Slider>();
-			slider.minValue = 1;
-			slider.maxValue = dims[0];
-			slider.value = dims[0];
-			slider = UIPanel.transform.Find("Y/Slider").GetComponent<Slider>();
-			slider.minValue = 1;
-			slider.maxValue = dims[1];
-			slider.value = dims[1];
-			slider = UIPanel.transform.Find("Z/Slider").GetComponent<Slider>();
-			slider.minValue = 1;
-			slider.maxValue = dims[2];
-			slider.value = dims[2];
+			if (UIPanel == null || pdf == null || pdf.elements == null || pdf.elements.Length == 0) return;
+
+			int[] oDims = pdf.elements[0].dims;
+			if (oDims == null || oDims.Length < 3) return;
+
+			string[] axes = { "X", "Y", "Z" };
+			int[] limits = { oDims[0], oDims[1], oDims[2] };
+			int[] currentVals = { targetDims.x, targetDims.y, targetDims.z };
+
+			for (int i = 0; i < 3; i++)
+			{
+				Transform sliderTransform = UIPanel.transform.Find($"{axes[i]}/Slider");
+				if (sliderTransform != null)
+				{
+					Slider slider = sliderTransform.GetComponent<Slider>();
+					if (slider != null)
+					{
+						slider.minValue = 1;
+						slider.maxValue = limits[i];
+						slider.value = currentVals[i];
+					}
+				}
+			}
 		}
 
+		/// <summary>
+		/// Updates the target dimensions from external uGUI components, clamps them to valid ranges, and triggers an update.
+		/// </summary>
+		public void SetDims(int[] ndims)
+		{
+			if (ndims == null || ndims.Length < 3) return;
+
+			int maxX = int.MaxValue; int maxY = int.MaxValue; int maxZ = int.MaxValue;
+
+			if (pdf != null && pdf.dataLoaded && pdf.elements != null && pdf.elements.Length > 0)
+			{
+				int[] oDims = pdf.elements[0].dims;
+				if (oDims != null && oDims.Length >= 3)
+				{
+					maxX = oDims[0];
+					maxY = oDims[1];
+					maxZ = oDims[2];
+				}
+			}
+
+			targetDims.x = Mathf.Clamp(ndims[0], 1, maxX);
+			targetDims.y = Mathf.Clamp(ndims[1], 1, maxY);
+			targetDims.z = Mathf.Clamp(ndims[2], 1, maxZ);
+
+			if (activation != null)
+			{
+				activation.SetParameterChanged(ModuleState.PARAMETER_CHANGED);
+			}
+		}
+
+		/// <summary>
+		/// Evaluates and caches which data elements are currently active and need processing.
+		/// </summary>
 		private void CheckActiveElements()
 		{
-			// create a list of active elements in the parent module
-			parentActiveElements = new List<int>();
+			activeElements.Clear();
+
 			for (int i = 0; i < pdf.elements.Length; i++)
 			{
 				if (pdf.elements[i].isActive)
 				{
-					parentActiveElements.Add(i);
+					df.elements[i].isActive = true;
+					activeElements.Add(i);
 				}
-			}
-
-			// check if all active elements have the same dimension
-			bool check_result = true;
-			if (parentActiveElements.Count > 0)
-			{
-				// get variables in the 1st active element
-				var index = parentActiveElements[0];
-				for (int i = 0; i < 3; i++)
-				{
-					dims[i] = df.elements[index].dims[i];
-				}
-				var useUndef = df.elements[index].useUndef;
-				var undef    = df.elements[index].undef;
-
-				// compare variables in the 1st active element 
-				// with variables in other active elements
-				for (int i = 1; i < parentActiveElements.Count; i++)
-				{
-					for (int n = 0; n < 3; n++)
-					{
-						if (dims[n] != df.elements[i].dims[n])
-						{
-							check_result = false;
-						}
-					}
-					if (useUndef == df.elements[i].useUndef)
-					{
-						if (undef != df.elements[i].undef)
-						{
-							check_result = false;
-						}
-					}
-					else
-					{
-						check_result = false;
-					}
-				}
-
-				if (check_result)
-				{
-					for (int i = 0; i < parentActiveElements.Count; i++)
-					{
-						df.elements[parentActiveElements[i]].isActive = true;
-					}
-					for (int i = 0; i < 3; i++)
-					{
-						idims[i] = Math.Clamp(idims[i], 1, dims[i]);
-					}
-				}
-/*
 				else
 				{
-					for (int i = 0; i < 3; i++)
-					{
-//						dims[i] = -1;
-						dims[i] = 50;
-					}
-				}
-*/
-			}
-
-			// create a list of "current" active elements
-			activeElements.Clear();
-			for (int i = 0; i < elements.Length; i++)
-			{
-				if (df.elements[i].isActive)
-				{
-					activeElements.Add(i);
+					df.elements[i].isActive = false;
 				}
 			}
 		}
 
-		private void InitCoords()
+		/// <summary>
+		/// Core logic for downsizing a single data element using trilinear interpolation.
+		/// Handles both rectilinear and irregular grids.
+		/// </summary>
+		private void ProcessElement(int index)
 		{
-			DataElement activeElement = df.elements[activeElements[0]];
-			FieldType fieldType = activeElement.fieldType;
+			DataElement src = pdf.elements[index];
+			DataElement dst = df.elements[index];
 
-			// for uniform and rectilinear
-			float[] delta = new float[3] { 0, 0, 0 };
-			float[] imin  = new float[3] { 0, 0, 0 };
-			float[] imax  = new float[3] { 0, 0, 0 };
+			int[] oDims = src.dims;
+			int[] nDims = new int[3];
 
-			if (fieldType == FieldType.UNIFORM)
+			int capX = targetDims.x; int capY = targetDims.y; int capZ = targetDims.z;
+#if UNITY_ANDROID && !UNITY_EDITOR
+			capX = Mathf.Min(capX, androidMaxDim);
+			capY = Mathf.Min(capY, androidMaxDim);
+			capZ = Mathf.Min(capZ, androidMaxDim);
+#endif
+			nDims[0] = Mathf.Clamp(capX, 1, oDims[0]);
+			nDims[1] = Mathf.Clamp(capY, 1, oDims[1]);
+			nDims[2] = Mathf.Clamp(capZ, 1, oDims[2]);
+
+			dst.SetDims(nDims[0], nDims[1], nDims[2]);
+
+			// Pre-allocate list capacities to completely eliminate dynamic resizing overhead during loops
+			List<float>[] icoords = new List<float>[4];
+			icoords[0] = new List<float>(nDims[0]);
+			icoords[1] = new List<float>(nDims[1]);
+			icoords[2] = new List<float>(nDims[2]);
+			icoords[3] = new List<float>(nDims[0] * nDims[1] * nDims[2] * 3);
+
+			List<float> newValues = new List<float>(nDims[0] * nDims[1] * nDims[2]);
+
+			// ==========================================================
+			// Branch 1: Rectilinear or Uniform Grid (Interpolation in physical space)
+			// ==========================================================
+			if (src.fieldType == FieldType.RECTILINEAR || src.fieldType == FieldType.UNIFORM)
 			{
 				for (int i = 0; i < 3; i++)
 				{
-					imin[i] = 0;
-					imax[i] = (float)(activeElement.dims[i] - 1);
-					if (idims[i] != 1)
-					{
-						delta[i] = (imax[i] - imin[i]) / (float)(idims[i] - 1);
-					}
-				}
-			}
-			else if (fieldType == FieldType.RECTILINEAR)
-			{
-				for (int i = 0; i < 3; i++)
-				{
-					imin[i] = activeElement.coords[i].First();
-					imax[i] = activeElement.coords[i].Last();
-					if (idims[i] != 1)
-					{
-						delta[i] = (imax[i] - imin[i]) / (float)(idims[i] - 1);
-					}
-				}
-			}
-			else if (fieldType == FieldType.IRREGULAR)
-			{
-				// not implemented yet
-			}
-			else
-			{
-				// ERROR: FieldType.UNDEFINED
-			}
+					float imin = src.coords[i].First();
+					float imax = src.coords[i].Last();
+					float delta = (nDims[i] > 1) ? (imax - imin) / (nDims[i] - 1) : 0;
 
-			if ((fieldType == FieldType.UNIFORM) || (fieldType == FieldType.RECTILINEAR))
-			{
-				icoords = new List<float>[4];
-				for (int i = 0; i < 4; i++)
-				{
-					icoords[i] = new List<float>();
-				}
-
-				// set new coords in the 1st to 3rd lists
-				for (int j = 0; j < 3; j++)
-				{
-					for (int i = 0; i < idims[j]; i++)
+					for (int j = 0; j < nDims[i]; j++)
 					{
-						icoords[j].Add(imin[j] + delta[j] * i);
+						icoords[i].Add(imin + delta * j);
 					}
 				}
 
-				// merge coords to 4th list
-				for (int k = 0; k < idims[2]; k++)
+				for (int k = 0; k < nDims[2]; k++)
 				{
-					for (int j = 0; j < idims[1]; j++)
+					for (int j = 0; j < nDims[1]; j++)
 					{
-						for (int i = 0; i < idims[0]; i++)
+						for (int i = 0; i < nDims[0]; i++)
 						{
 							icoords[3].Add(icoords[0][i]);
 							icoords[3].Add(icoords[1][j]);
@@ -334,46 +336,21 @@ namespace VisAssets.SciVis.Structured.Downsize
 						}
 					}
 				}
-			}
-			else if (fieldType == FieldType.IRREGULAR)
-			{
-				// not implemented yet
-			}
-			else
-			{
-				// ERROR: FieldType.UNDEFINED
-			}
 
-			// set dims and coords to all active elements
-			for (int i = 0; i < activeElements.Count; i++)
-			{
-				int idx = activeElements[i];
-				df.elements[idx].SetDims(idims[0], idims[1], idims[2]);
-				df.elements[idx].SetCoords(icoords);
-			}
-		}
-
-		private void InitData()
-		{
-			int[][] idx = new int[3][];
-			for (int n = 0; n < 3; n++)
-			{
-				idx[n] = new int[idims[n]];
-			}
-
-			DataElement activeElement = pdf.elements[activeElements[0]];
-			for (int n = 0; n < 3; n++)
-			{
-
-				float[] coord = activeElement.coords[n];
-				int size = activeElement.dims[n];
-				if (coord.First() < coord.Last())
+				int[][] idx = new int[3][];
+				for (int n = 0; n < 3; n++)
 				{
-					for (int j = 0; j < idims[n]; j++)
+					idx[n] = new int[nDims[n]];
+					float[] coord = src.coords[n].ToArray();
+					bool ascending = coord.First() < coord.Last();
+
+					for (int j = 0; j < nDims[n]; j++)
 					{
-						for (int i = 0; i < size - 1; i++)
+						idx[n][j] = Mathf.Max(0, oDims[n] - 2);
+
+						for (int i = 0; i < oDims[n] - 1; i++)
 						{
-							if (coord[i + 1] >= icoords[n][j])
+							if (ascending ? coord[i + 1] >= icoords[n][j] : coord[i + 1] <= icoords[n][j])
 							{
 								idx[n][j] = i;
 								break;
@@ -381,183 +358,195 @@ namespace VisAssets.SciVis.Structured.Downsize
 						}
 					}
 				}
-				else
+
+				for (int k = 0; k < nDims[2]; k++)
 				{
-					for (int j = 0; j < idims[n]; j++)
+					for (int j = 0; j < nDims[1]; j++)
 					{
-						for (int i = 0; i < size - 1; i++)
+						for (int i = 0; i < nDims[0]; i++)
 						{
-							if (coord[i + 1] <= icoords[n][j])
-							{
-								idx[n][j] = i;
-								break;
-							}
-						}
-					}
-				}
-			}
+							int xa = idx[0][i];
+							int xb = (xa == oDims[0] - 1) ? xa : xa + 1;
+							int ya = idx[1][j];
+							int yb = (ya == oDims[1] - 1) ? ya : ya + 1;
+							int za = idx[2][k];
+							int zb = (oDims[2] == 1 || za == oDims[2] - 1) ? za : za + 1;
 
-			int xa, xb, ya, yb, za, zb;
-			float x0, x1, y0, y1, z0, z1;
-			float v0, v1, v2, v3, v4, v5, v6, v7;
-			float p, q, r;
+							float x0 = src.coords[0][xa];
+							float x1 = src.coords[0][xb];
+							float y0 = src.coords[1][ya];
+							float y1 = src.coords[1][yb];
+							float z0 = src.coords[2][za];
+							float z1 = src.coords[2][zb];
 
-			for (int n = 0; n < activeElements.Count; n++)
-			{
-				List<float> ivalues = new List<float>();
-				int elements_id = activeElements[n];
-				for (int k = 0; k < idims[2]; k++)
-				{
-					for (int j = 0; j < idims[1]; j++)
-					{
-						for (int i = 0; i < idims[0]; i++)
-						{
-							xa = idx[0][i];
-							if (xa == elements[elements_id].dims[0] - 1)
-							{
-								xb = xa;
-							}
-							else
-							{
-								xb = xa + 1;
-							}
-							ya = idx[1][j];
-							if (ya == elements[elements_id].dims[1] - 1)
-							{
-								yb = ya;
-							}
-							else
-							{
-								yb = ya + 1;
-							}
-							if (idims[2] == 1)
-							{
-								za = idx[2][k];
-								zb = za;
-							}
-							else
-							{
-								za = idx[2][k];
-								if (za == elements[elements_id].dims[2] - 1)
-								{
-									zb = za;
-								}
-								else
-								{
-									zb = za + 1;
-								}
-							}
+							int sx = oDims[0]; int sy = oDims[1];
+							float v0 = src.values[(za * sx * sy) + (ya * sx) + xa];
+							float v1 = src.values[(za * sx * sy) + (ya * sx) + xb];
+							float v2 = src.values[(zb * sx * sy) + (ya * sx) + xa];
+							float v3 = src.values[(zb * sx * sy) + (ya * sx) + xb];
+							float v4 = src.values[(za * sx * sy) + (yb * sx) + xa];
+							float v5 = src.values[(za * sx * sy) + (yb * sx) + xb];
+							float v6 = src.values[(zb * sx * sy) + (yb * sx) + xa];
+							float v7 = src.values[(zb * sx * sy) + (yb * sx) + xb];
 
-							x0 = elements[elements_id].coords[0][xa];
-							x1 = elements[elements_id].coords[0][xb];
-							y0 = elements[elements_id].coords[1][ya];
-							y1 = elements[elements_id].coords[1][yb];
-							z0 = elements[elements_id].coords[2][za];
-							z1 = elements[elements_id].coords[2][zb];
+							float p = 0, q = 0, r = 0;
 
-							int sx = elements[elements_id].dims[0];
-							int sy = elements[elements_id].dims[1];
-							int sz = elements[elements_id].dims[2];
+							if (x0 != x1) p = (icoords[0][i] - x0) / (x1 - x0);
+							if (y0 != y1) q = (icoords[1][j] - y0) / (y1 - y0);
+							if (z0 != z1) r = (icoords[2][k] - z0) / (z1 - z0);
 
-							v0 = elements[elements_id].values[(za * sx * sy) + (ya * sx) + xa];
-							v1 = elements[elements_id].values[(za * sx * sy) + (ya * sx) + xb];
-							v2 = elements[elements_id].values[(zb * sx * sy) + (ya * sx) + xa];
-							v3 = elements[elements_id].values[(zb * sx * sy) + (ya * sx) + xb];
-							v4 = elements[elements_id].values[(za * sx * sy) + (yb * sx) + xa];
-							v5 = elements[elements_id].values[(za * sx * sy) + (yb * sx) + xb];
-							v6 = elements[elements_id].values[(zb * sx * sy) + (yb * sx) + xa];
-							v7 = elements[elements_id].values[(zb * sx * sy) + (yb * sx) + xb];
-
-							float min = elements[elements_id].min;
-							float max = elements[elements_id].max;
-							float undef = elements[elements_id].undef;
-							float ansf = 0f;
-							bool useUndef = elements[elements_id].useUndef;
-
-							bool isUndef = false;
-							if (useUndef)
+							bool isUndef = false; float undef = src.undef;
+							if (src.useUndef && (v0 == undef || v1 == undef || v2 == undef || v3 == undef ||
+								v4 == undef || v5 == undef || v6 == undef || v7 == undef))
 							{
-								if ((v0 == undef) || (v1 == undef) || (v2 == undef) || (v3 == undef) ||
-									(v4 == undef) || (v5 == undef) || (v6 == undef) || (v7 == undef))
-								{
-									isUndef = true;
-								}
+								isUndef = true;
 							}
 
 							if (isUndef)
 							{
-								ansf = undef;
+								newValues.Add(undef);
 							}
 							else
 							{
-								p = q = r = 0f;
-								if (x0 != x1)
-								{
-									p = (icoords[0][i] - x0) / (x1 - x0);
-								}
-								if (y0 != y1)
-								{
-									q = (icoords[1][j] - y0) / (y1 - y0);
-								}
-								if (z0 != z1)
-								{
-									r = (icoords[2][k] - z0) / (z1 - z0);
-								}
-								double ans = 0.0;
-								ans += v0 * (1 - p) * (1 - q) * (1 - r);
-								ans += v1 * p * (1 - q) * (1 - r);
-								ans += v2 * (1 - p) * (1 - q) * r;
-								ans += v3 * p * (1 - q) * r;
-								ans += v4 * (1 - p) * q * (1 - r);
-								ans += v5 * p * q * (1 - r);
-								ans += v6 * (1 - p) * q * r;
-								ans += v7 * p * q * r;
-								ansf = (float)ans;
+								double ans =
+									v0 * (1 - p) * (1 - q) * (1 - r) +
+									v1 *      p  * (1 - q) * (1 - r) +
+									v2 * (1 - p) * (1 - q) *      r  +
+									v3 *      p  * (1 - q) *      r  +
+									v4 * (1 - p) *      q  * (1 - r) +
+									v5 *      p  *      q  * (1 - r) +
+									v6 * (1 - p) *      q  *      r  +
+									v7 *      p  *      q  *      r;
+
+								newValues.Add(Mathf.Clamp((float)ans, src.min, src.max));
+							}
+						}
+					}
+				}
+			}
+			// ==========================================================
+			// Branch 2: Irregular / Curvilinear Grid (Interpolation in topological space)
+			// ==========================================================
+			else if (src.fieldType == FieldType.IRREGULAR)
+			{
+				// Ratio (step size) of original array size to new array size for I, J, and K axes
+				float ratioX = (nDims[0] > 1) ? (float)(oDims[0] - 1) / (nDims[0] - 1) : 0;
+				float ratioY = (nDims[1] > 1) ? (float)(oDims[1] - 1) / (nDims[1] - 1) : 0;
+				float ratioZ = (nDims[2] > 1) ? (float)(oDims[2] - 1) / (nDims[2] - 1) : 0;
+
+				int sx = oDims[0]; int sy = oDims[1];
+
+				for (int k = 0; k < nDims[2]; k++)
+				{
+					float srcZ = k * ratioZ; int za = (int)Mathf.Floor(srcZ); int zb = Mathf.Min(za + 1, oDims[2] - 1); float r = srcZ - za;
+
+					for (int j = 0; j < nDims[1]; j++)
+					{
+						float srcY = j * ratioY; int ya = (int)Mathf.Floor(srcY); int yb = Mathf.Min(ya + 1, oDims[1] - 1); float q = srcY - ya;
+
+						for (int i = 0; i < nDims[0]; i++)
+						{
+							float srcX = i * ratioX;
+							int xa = (int)Mathf.Floor(srcX);
+							int xb = Mathf.Min(xa + 1, oDims[0] - 1);
+							float p = srcX - xa;
+
+							// Calculate the indices of the 8 surrounding vertices
+							int idx0 = (za * sx * sy) + (ya * sx) + xa;
+							int idx1 = (za * sx * sy) + (ya * sx) + xb;
+							int idx2 = (zb * sx * sy) + (ya * sx) + xa;
+							int idx3 = (zb * sx * sy) + (ya * sx) + xb;
+							int idx4 = (za * sx * sy) + (yb * sx) + xa;
+							int idx5 = (za * sx * sy) + (yb * sx) + xb;
+							int idx6 = (zb * sx * sy) + (yb * sx) + xa;
+							int idx7 = (zb * sx * sy) + (yb * sx) + xb;
+
+							// 1. Interpolate the scalar/vector values
+							float v0 = src.values[idx0];
+							float v1 = src.values[idx1];
+							float v2 = src.values[idx2];
+							float v3 = src.values[idx3];
+							float v4 = src.values[idx4];
+							float v5 = src.values[idx5];
+							float v6 = src.values[idx6];
+							float v7 = src.values[idx7];
+
+							bool isUndef = false; float undef = src.undef;
+							if (src.useUndef && (v0 == undef || v1 == undef || v2 == undef || v3 == undef ||
+								v4 == undef || v5 == undef || v6 == undef || v7 == undef))
+							{
+								isUndef = true;
 							}
 
-							if (ansf == undef)
+							if (isUndef)
 							{
-								ivalues.Add(undef);
+								newValues.Add(undef);
 							}
 							else
 							{
-								if (ansf < min)
+								double ans =
+									v0 * (1 - p) * (1 - q) * (1 - r) +
+									v1 *      p  * (1 - q) * (1 - r) +
+									v2 * (1 - p) * (1 - q) *      r  +
+									v3 *      p  * (1 - q) *      r  +
+									v4 * (1 - p) *      q  * (1 - r) +
+									v5 *      p  *      q  * (1 - r) +
+									v6 * (1 - p) *      q  *      r +
+									v7 *      p  *      q  *      r;
+
+								newValues.Add(Mathf.Clamp((float)ans, src.min, src.max));
+							}
+
+							// 2. Interpolate the physical 3D coordinates (coords[3]: X, Y, Z)
+							// Note: coords[0] to [2] are not used in IRREGULAR fields, so they are ignored
+							if (src.coords.Length > 3 && src.coords[3].Length > 0)
+							{
+								for (int axis = 0; axis < 3; axis++)
 								{
-									ivalues.Add(min);
-								}
-								else if (ansf > max)
-								{
-									ivalues.Add(max);
-								}
-								else
-								{
-									ivalues.Add(ansf);
+									float c0 = src.coords[3][idx0 * 3 + axis];
+									float c1 = src.coords[3][idx1 * 3 + axis];
+									float c2 = src.coords[3][idx2 * 3 + axis];
+									float c3 = src.coords[3][idx3 * 3 + axis];
+									float c4 = src.coords[3][idx4 * 3 + axis];
+									float c5 = src.coords[3][idx5 * 3 + axis];
+									float c6 = src.coords[3][idx6 * 3 + axis];
+									float c7 = src.coords[3][idx7 * 3 + axis];
+
+									float c_ans =
+										c0 * (1 - p) * (1 - q) * (1 - r) +
+										c1 *      p  * (1 - q) * (1 - r) +
+										c2 * (1 - p) * (1 - q) *      r  +
+										c3 *      p  * (1 - q) *      r  +
+										c4 * (1 - p) *      q  * (1 - r) +
+										c5 *      p  *      q  * (1 - r) +
+										c6 * (1 - p) *      q  *      r  +
+										c7 *      p  *      q  *      r;
+
+									icoords[3].Add(c_ans);
 								}
 							}
 						}
 					}
 				}
-
-				df.elements[elements_id].SetValues(ivalues);
 			}
-		}
+			// ==========================================================
+			// Exception Handling: Unsupported data types like UNDEFINED or UNSTRUCTURED
+			// ==========================================================
+			else
+			{
+				Debug.LogWarning($"[Downsize] Skipped downsizing for Element {index} due to unsupported FieldType ({src.fieldType}).");
 
-		int GetIndex(int i, int j, int k)
-		{
-			int index = dims[1] * dims[0] * k + dims[0] * j + i;
+				// Disable this element's output to prevent errors from propagating to downstream modules (e.g., Slicer)
+				dst.isActive = false;
 
-			return index;
-		}
+				// Communicate "no data" to downstream modules and safely halt execution
+				df.dataLoaded = false;
 
-		private int GetIndex(int i, int j, int k, int element_id)
-		{
-			int mx = elements[element_id].dims[0];
-			int my = elements[element_id].dims[1];
-			int mz = elements[element_id].dims[2];
-			int index = k * my * mx + j * mx + i;
+				return;
+			}
 
-			return index;
+			dst.SetCoords(icoords);
+			dst.SetValues(newValues);
 		}
 	}
 }
-			

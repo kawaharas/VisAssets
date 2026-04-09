@@ -426,7 +426,7 @@ namespace VisAssets.SciVis.Structured.DataLoader
 
 			useUndefMenu      = true;
 			useUndef          = true;
-			undef             = -2000;
+			undef             = 0;
 			usePrecisionMenu  = false;
 			useByteswapMenu   = false;
 			useHeaderSkipMenu = false;
