@@ -1,320 +1,322 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
-using UnityEngine.XR;
-//using UnityEngine.InputSystem;
-//using Unity.XR.CoreUtils;
-//using UnityEngine.XR.Interaction.Toolkit.UI;
-//using UnityEngine.Experimental.XR.Interaction;
-//using UnityEngine.SpatialTracking;
-//using UnityEngine.XR.Interaction.Toolkit;
 #if UNITY_EDITOR
 using UnityEditor;
-using UnityEditor.Compilation;
 #endif
 
 namespace VisAssets.SciVis.Structured.StreamLines
 {
 	using ModuleState = Activation.ModuleState;
 
+	// =========================================================================
+	// Editor Extension
+	// =========================================================================
 #if UNITY_EDITOR
-//	[CanEditMultipleObjects]
 	[CustomEditor(typeof(StreamLines))]
 	public class StreamLinesEditor : Editor
 	{
 		SerializedProperty p0;
+		SerializedProperty drawMode;
+		SerializedProperty ribbonWidth;
 		SerializedProperty UseMagnitude;
+		SerializedProperty lineColor;
+		SerializedProperty sphereColor;
+		SerializedProperty activeSeeds;
+		SerializedProperty lineShader;
+		SerializedProperty sphereShader;
+		SerializedProperty linePrefab;
 
 		private void OnEnable()
 		{
-//			serializedObject.FindProperty("__dummy__"); // for null value
-			p0 = serializedObject.FindProperty("p0");
+			p0           = serializedObject.FindProperty("p0");
+			drawMode     = serializedObject.FindProperty("drawMode");
+			ribbonWidth  = serializedObject.FindProperty("ribbonWidth");
 			UseMagnitude = serializedObject.FindProperty("UseMagnitude");
+			lineColor    = serializedObject.FindProperty("lineColor");
+			sphereColor  = serializedObject.FindProperty("sphereColor");
+			activeSeeds  = serializedObject.FindProperty("activeSeeds");
+			lineShader   = serializedObject.FindProperty("lineShader");
+			sphereShader = serializedObject.FindProperty("sphereShader");
+			linePrefab   = serializedObject.FindProperty("linePrefab");
 		}
 
 		public override void OnInspectorGUI()
 		{
 			var streamlines = target as StreamLines;
 
-			base.DrawDefaultInspector();
+			if (streamlines == null) return;
 
 			serializedObject.Update();
 
-			EditorGUILayout.PropertyField(
-				serializedObject.FindProperty("UIPrefab"), new GUIContent("UI Prefab"));
+			EditorGUI.BeginChangeCheck();
+
+			GUILayout.Space(5f);
 
 			EditorGUI.BeginChangeCheck();
 
-			GUILayout.Space(10f);
-
 			char baseLabel = 'X';
-//			var color = EditorGUILayout.ColorField("Color:", streamlines.color);
-//			GUILayout.Space(10f);
-
-//			GUILayout.BeginVertical(GUI.skin.box);
 
 			for (int i = 0; i < 3; i++)
 			{
 				var label = (char)(Convert.ToUInt16(baseLabel) + i);
+
 				GUILayout.BeginHorizontal();
 				EditorGUILayout.LabelField(label.ToString(), GUILayout.Width(20));
 				p0.GetArrayElementAtIndex(i).floatValue = EditorGUILayout.Slider(p0.GetArrayElementAtIndex(i).floatValue, 0, 1f);
 				GUILayout.EndHorizontal();
-
-				GUILayout.Space(3f);
+				GUILayout.Space(5f);
 			}
-			UseMagnitude.boolValue = EditorGUILayout.Toggle("Use Magnitude Color", UseMagnitude.boolValue);
-/*
-			GUILayout.Space(3f);
-			EditorGUIUtility.labelWidth = 35;
-			EditorGUIUtility.fieldWidth = 50;
-			var _p0x_tmp = EditorGUILayout.Slider("x:", p0x.floatValue, 0, 1f);
-			GUILayout.Space(3f);
-			var _p0y_tmp = EditorGUILayout.Slider("y:", p0y.floatValue, 0, 1f);
-			GUILayout.Space(3f);
-			var _p0z_tmp = EditorGUILayout.Slider("z:", p0z.floatValue, 0, 1f);
-			EditorGUIUtility.labelWidth = 0;
-			EditorGUIUtility.fieldWidth = 0;
-			GUILayout.Space(3f);
-*/
-//			GUILayout.EndVertical();
 
-			GUILayout.Space(5f);
-
-			if (GUILayout.Button("Add New Seed"))
-			{
-				streamlines.AddSeed();
-			}
-/*
 			if (EditorGUI.EndChangeCheck())
 			{
 				Undo.RecordObject(target, "StreamLines");
-				if (EditorApplication.isPlaying)
-				{
-					if (_UseMagnitude_ORG != _UseMagnitude)
-//					streamlines.SetColor(color);
-				}
+				serializedObject.ApplyModifiedProperties();
+				streamlines.RequestGuideLineUpdate();
 				EditorUtility.SetDirty(target);
 			}
-*/
+
+			EditorGUI.BeginChangeCheck();
+			EditorGUILayout.PropertyField(drawMode, new GUIContent("Draw Mode"));
+
+			if (drawMode.enumValueIndex == (int)StreamLines.DrawMode.RIBBON)
+			{
+				GUILayout.Space(5f);
+
+				EditorGUILayout.PropertyField(ribbonWidth, new GUIContent("Ribbon Width"));
+			}
+
+			GUILayout.Space(5f);
+
+			UseMagnitude.boolValue = EditorGUILayout.Toggle("Use Magnitude Color", UseMagnitude.boolValue);
+
+			if (!UseMagnitude.boolValue)
+			{
+				GUILayout.Space(5f);
+				EditorGUILayout.PropertyField(lineColor, new GUIContent("Line/Ribbon Color"));
+
+				if (drawMode.enumValueIndex == (int)StreamLines.DrawMode.LINE)
+				{
+					GUILayout.Space(5f);
+					EditorGUILayout.PropertyField(sphereColor, new GUIContent("Sphere Color"));
+				}
+			}
+
+			if (EditorGUI.EndChangeCheck())
+			{
+				Undo.RecordObject(target, "StreamLines");
+				serializedObject.ApplyModifiedProperties();
+				streamlines.RequestGuideLineUpdate();
+				streamlines.UpdateLineColors();
+				streamlines.RefreshAllLines();
+				EditorUtility.SetDirty(target);
+			}
+
+			GUILayout.Space(10f);
+
+			if (GUILayout.Button("Add New Seed"))
+			{
+				streamlines.AddSeedFromUI();
+			}
+
+			GUILayout.Space(5f);
+
+			EditorGUI.BeginDisabledGroup(true);
+			EditorGUILayout.PropertyField(activeSeeds, new GUIContent("Seeds List (Read Only)"), true);
+			EditorGUI.EndDisabledGroup();
+
+			GUILayout.Space(10f);
+
+			EditorGUI.BeginChangeCheck();
+
+			if (lineShader != null)
+			{
+				EditorGUILayout.PropertyField(lineShader, new GUIContent("Line/Ribbon Shader"));
+			}
+
+			GUILayout.Space(5f);
+
+			if (sphereShader != null)
+			{
+				EditorGUILayout.PropertyField(sphereShader, new GUIContent("Sphere Shader"));
+			}
+
+			if (EditorGUI.EndChangeCheck())
+			{
+				Undo.RecordObject(target, "StreamLines");
+				serializedObject.ApplyModifiedProperties();
+				streamlines.UpdateMaterial();
+				EditorUtility.SetDirty(target);
+			}
+
+			GUILayout.Space(5f);
+
+			EditorGUILayout.PropertyField(linePrefab, new GUIContent("Line Prefab"));
+
+			GUILayout.Space(5f);
+
+			EditorGUILayout.PropertyField(serializedObject.FindProperty("UIPrefab"), new GUIContent("UI Prefab"));
+
+			GUILayout.Space(5f);
+
 			serializedObject.ApplyModifiedProperties();
 		}
 	}
 #endif
 
+	// =========================================================================
+	// Main Class
+	// =========================================================================
+	/// <summary>
+	/// Manager class that centralizes vector field data and manages multiple StreamLine instances.
+	/// Implements object pooling for streamlines and handles UI-driven seed point placement.
+	/// </summary>
+	[DisallowMultipleComponent]
 	public class StreamLines : MapperModuleTemplate
 	{
-		#region variables
-		List<Vector3> vertices;
-		List<Color>   colors;
-		List<int>     indices;
-		Material      material;
-		Mesh          mesh;
-		public float  displayTime = 5f;
-
-		public bool   IsAnimation;
-		public bool   IsRepeat;
-		[SerializeField]
-		public bool   UseMagnitude = false;
-		public int    step;
-		public int    maxStep;
-
-		public GameObject linePrefab;
-		public List<Vector3>    seeds;
-		List<GameObject> lines;
-		[SerializeField]
-		public Color     lineColor;
-		[SerializeField, Range(0, 1f)]
-		public float [] p0 = new float[3];
-
-		[SerializeField, ReadOnly]
-		public DataElement[] elements;
-		public List<int> activeElements;
-		int[] dims;
-//		float[][] coords;
-		float min;
-		float max;
-		float undef;
-		bool  useUndef;
-
-		Vector3 boundMin;
-		Vector3 boundMax;
-
-		float magMin; // minimum magnitude
-		float magMax; // maximum magnitude
-		public Vector3 upstreamReciprocalScale = Vector3.one;
-/*
-		public enum ButtonState
+		public enum DrawMode
 		{
-			RELEASED,
-			PRESSED,
-			KEEP_PRESSING
+			LINE,
+			RIBBON
 		}
 
-		public ButtonState ButtonTrigger = ButtonState.RELEASED;
-*/
+		[SerializeField]
+		public Shader lineShader;
 
-		public Vector3 [] seedsArray;
-		public int line_num;
-		public int max_line_num = 10;
+		[SerializeField]
+		public Shader sphereShader;
 
-		#endregion // variables
+		[SerializeField]
+		public DrawMode drawMode = DrawMode.LINE;
+
+		[SerializeField, Range(0.001f, 0.5f)]
+		public float ribbonWidth = 0.05f;
+
+		[SerializeField]
+		public bool UseMagnitude = false;
+
+		[SerializeField]
+		public Color lineColor = Color.cyan;
+
+		[SerializeField]
+		public Color sphereColor = Color.yellow;
+
+		[SerializeField, Range(0, 1f)]
+		public float[] p0 = new float[3];
+
+		public GameObject linePrefab;
+		public int        maxStep      = 5000;
+		public int        max_line_num = 100;
+		public float      displayTime  = 5f;
+		public Vector3    upstreamReciprocalScale = Vector3.one;
+
+		[SerializeField, ReadOnly]
+		private List<Vector3> activeSeeds = new List<Vector3>();
+
+		private DataElement[] elements       = new DataElement[3];
+		private List<int>     activeElements = new List<int>();
+		private int[]         dims           = new int[3] { -1, -1, -1 };
+		private bool          useUndef;
+		private float         undef;
+		private float         min;
+		private float         max;
+		private Vector3       boundMin;
+		private Vector3       boundMax;
+		private float         magMin;
+		private float         magMax;
+
+		private List<StreamLine> linePool         = new List<StreamLine>();
+		private int              currentLineIndex = 0;
+
+		private Mesh     guideMesh;
+		private Material sharedMaterial;
+		private Material sharedSphereMaterial;
+
+#if UNITY_EDITOR
+		/// <summary>
+		/// Automatically detects the current Render Pipeline and returns the appropriate default shaders.
+		/// </summary>
+		private void EnsureCorrectShader()
+		{
+			bool isURP = UnityEngine.Rendering.GraphicsSettings.renderPipelineAsset != null;
+			string expectedLineShader   = isURP ? "Universal Render Pipeline/Unlit" : "Sprites/Default";
+			string expectedSphereShader = isURP ? "Universal Render Pipeline/Lit" : "Standard";
+
+			if (lineShader == null)
+			{
+				lineShader = Shader.Find(expectedLineShader);
+			}
+
+			if (sphereShader == null)
+			{
+				sphereShader = Shader.Find(expectedSphereShader);
+			}
+		}
+#endif
+
+		protected override void Reset()
+		{
+#if UNITY_EDITOR
+			base.Reset();
+			EnsureCorrectShader();
+#endif
+		}
 
 		public override void InitModule()
 		{
-			line_num = 0;
-			seedsArray = new Vector3[max_line_num];
-
 			for (int i = 0; i < 3; i++)
 			{
 				p0[i] = 0;
 			}
-			vertices = new List<Vector3>();
-			indices  = new List<int>();
-			colors   = new List<Color>();
-			material = new Material(Shader.Find("Sprites/Default"));
 
-			IsAnimation = false;
-			IsRepeat    = false;
-			step = 0;
-			maxStep = 5000;
+#if UNITY_EDITOR
+			EnsureCorrectShader();
+#endif
 
-			magMin = float.MaxValue;
-			magMax = float.MinValue;
+			guideMesh = new Mesh();
+			guideMesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
 
-			elements = new DataElement[3];
-			dims = new int[3] { -1, -1, -1 };
-			useUndef = false;
-
-			mesh = new Mesh();
-			mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
 			var meshFilter = GetComponent<MeshFilter>();
-			if (meshFilter != null)
-			{
-				meshFilter.mesh = mesh;
-				meshFilter.hideFlags = HideFlags.HideInInspector;
-			}
-			var meshRenderer = GetComponent<MeshRenderer>();
-			if (meshRenderer != null)
-			{
-				meshRenderer.material  = material;
-				meshRenderer.hideFlags = HideFlags.HideInInspector;
-			}
+			if (meshFilter != null) meshFilter.sharedMesh = guideMesh;
 
-			colors.Add(Color.red);
-			colors.Add(Color.red);
-			colors.Add(Color.green);
-			colors.Add(Color.green);
-			colors.Add(Color.blue);
-			colors.Add(Color.blue);
-
-			for (int i = 0; i < 6; i++)
-			{
-				indices.Add(i);
-			}
-
-			if (linePrefab == null) return;
-
-			seeds = new List<Vector3>();
-			lines = new List<GameObject>();
-
-			if (linePrefab != null)
-			{
-				for (int i = 0; i < max_line_num; i++)
-				{
-					var line = Instantiate(linePrefab, Vector3.zero, Quaternion.identity);
-					line.transform.localScale = new Vector3(1f, 1f, 1f);
-					line.transform.SetParent(transform, false);
-//					line.GetComponent<StreamLine>().SetSeed(seed);
-					lines.Add(line);
-				}
-			}
-
+			UpdateMaterial();
+			InitializeLinePool();
 		}
 
 		public override int BodyFunc()
 		{
-			if (activeElements.Count > 0)
+			Transform current       = transform;
+			Vector3   upstreamScale = Vector3.one;
+
+			while (current.parent != null)
 			{
-//				RungeKutta();
+				current       = current.parent;
+				upstreamScale = Vector3.Scale(upstreamScale, current.localScale);
 			}
 
-			// get scale to reset child object's scale
-			var root = transform.root; // set transform of root game object
-			var current = transform; // variable for check transform of current game object
-			var upstreamScale = Vector3.one;
-			while (root != current)
-			{
-				current = current.transform.parent;
-				upstreamScale = Vector3.Scale(upstreamScale, current.transform.localScale);
-			}
-			upstreamReciprocalScale = GetReciprocalVector3(upstreamScale);
+			upstreamReciprocalScale = new Vector3(1f / upstreamScale.x, 1f / upstreamScale.y, 1f / upstreamScale.z);
 
 			return 1;
 		}
 
 		public override void IdleFunc()
 		{
-/*
-			if (XRSettings.enable)
+			if (displayTime > 0)
 			{
-				var inputDevices = new List<InputDevice>();
-				InputDevices.GetDevicesAtXRNode(XRNode.RightHand, inputDevices);
-				foreach (var device in inputDevices)
-				{
-					if (device.TryGetFeatureValue(CommonUsages.triggerButton, out inputValue) && inputValue)
-					{
-						if (ButtonTrigger == ButtonState.RELEASED)
-						{
-							var position = tip;
-							ButtonTrigger = ButtonState.PRESSED;
-						}
-						else if (ButtonA == ButtonState.PRESSED)
-						{
-							ButtonTrigger = ButtonState.KEEP_PRESSING;
-						}
-					}
-					else
-					{
-						laserPointer.SetActive(false);
-						ButtonTrigger = ButtonState.RELEASED;
-					}
-				}
-			}
-*/
-			DrawGuideLines();
-/*
-			if (IsAnimation)
-			{
-				step++;
-				if (IsRepeat)
-				{
-					if (step * 2 > indices.Count)
-					{
-						step = 0;
-					}
-				}
-				else
-				{
-					Mathf.Clamp(step, 0, indices.Count / 2);
-				}
-				int[] subIndices = new int[step];
-				System.Array.Copy(indices.ToArray(), subIndices, step);
-				mesh.SetIndices(subIndices, MeshTopology.Lines, 0);
+				displayTime -= Time.deltaTime;
 
-				if (vertices.Count != 0)
+				if (displayTime < 0)
 				{
-					sphere.SetActive(true);
+					displayTime = 0;
 				}
-				else
-				{
-					sphere.SetActive(false);
-				}
-				sphere.transform.localPosition = vertices[subIndices.Last()];
+
+				UpdateGuideLineMesh();
 			}
-*/
+		}
+
+		public override void SetParameters()
+		{
 		}
 
 		public override void GetParameters()
@@ -323,79 +325,164 @@ namespace VisAssets.SciVis.Structured.StreamLines
 
 		public override void ReSetParameters()
 		{
-			if (pdf.elements.Length != 3)
-			{
-				// error
-			}
+			if (pdf == null || pdf.elements == null || pdf.elements.Length < 3) return;
 
-			for (int i = 0; i < pdf.elements.Length; i++)
+			for (int i = 0; i < 3; i++)
 			{
 				elements[i] = pdf.elements[i];
 			}
 
 			CheckActiveElements();
 
-			boundMin = elements[0].boundMin;
-			boundMax = elements[0].boundMax;
-			vertices.Clear();
-			vertices.Add(new Vector3(boundMin[0], boundMin[1], boundMin[2]));
-			vertices.Add(new Vector3(boundMax[0], boundMin[1], boundMin[2]));
-			vertices.Add(new Vector3(boundMin[0], boundMin[1], boundMin[2]));
-			vertices.Add(new Vector3(boundMin[0], boundMax[1], boundMin[2]));
-			vertices.Add(new Vector3(boundMin[0], boundMin[1], boundMin[2]));
-			vertices.Add(new Vector3(boundMin[0], boundMin[1], boundMax[2]));
+			if (activeElements.Count > 0)
+			{
+				boundMin = elements[activeElements[0]].boundMin;
+				boundMax = elements[activeElements[0]].boundMax;
+			}
 
-			mesh.SetVertices(vertices);
-			mesh.SetColors(colors);
-			mesh.SetIndices(indices, MeshTopology.Lines, 0);
+			foreach (var line in linePool)
+			{
+				line.ClearTrace();
+			}
 
-			var meshFilter = GetComponent<MeshFilter>();
-			meshFilter.mesh = mesh;
-
-			step = 0;
-		}
-
-		public override void SetParameters()
-		{
+			currentLineIndex = 0;
+			activeSeeds.Clear();
+			RequestGuideLineUpdate();
 		}
 
 		public override void ResetUI()
 		{
 		}
 
-		void OnValidate()
+		/// <summary>
+		/// Triggers parameter update when inspector values are modified.
+		/// </summary>
+		private void OnValidate()
 		{
+#if UNITY_EDITOR
+			EnsureCorrectShader();
+#endif
 			if (!IsDataLoadedToParent()) return;
-
-			// reset timer for disappear guide lines
-			displayTime = 5f;
-
-//			Calc();
-//			DrawGuideLines();
-
 			activation.SetParameterChanged(ModuleState.PARAMETER_CHANGED);
 		}
 
+		/// <summary>
+		/// Updates the shared materials based on the selected shaders and synchronizes all streamlines.
+		/// </summary>
+		public void UpdateMaterial()
+		{
+			if (lineShader == null || sphereShader == null) return;
+
+			// Line/Ribbon Material
+			if (sharedMaterial == null || sharedMaterial.shader != lineShader)
+			{
+				if (sharedMaterial != null)
+				{
+					if (Application.isPlaying)
+					{
+						Destroy(sharedMaterial);
+					}
+					else
+					{
+						DestroyImmediate(sharedMaterial);
+					}
+				}
+
+				sharedMaterial = new Material(lineShader);
+				sharedMaterial.SetInt("_Cull", (int)UnityEngine.Rendering.CullMode.Off);
+			}
+
+			// Sphere Material (Lit)
+			if (sharedSphereMaterial == null || sharedSphereMaterial.shader != sphereShader)
+			{
+				if (sharedSphereMaterial != null)
+				{
+					if (Application.isPlaying)
+					{
+						Destroy(sharedSphereMaterial);
+					}
+					else
+					{
+						DestroyImmediate(sharedSphereMaterial);
+					}
+				}
+
+				sharedSphereMaterial = new Material(sphereShader);
+			}
+
+			var meshRenderer = GetComponent<MeshRenderer>();
+
+			if (meshRenderer != null)
+			{
+				meshRenderer.sharedMaterial = sharedMaterial;
+			}
+
+			foreach (var line in linePool)
+			{
+				if (line != null)
+				{
+					line.SetMaterial(sharedMaterial, sharedSphereMaterial);
+				}
+			}
+		}
+
+		/// <summary>
+		/// Pre-instantiates a pool of streamlines to avoid runtime performance spikes.
+		/// </summary>
+		private void InitializeLinePool()
+		{
+			if (linePrefab == null) return;
+
+			foreach (var line in linePool)
+			{
+				if (line != null)
+				{
+					Destroy(line.gameObject);
+				}
+			}
+
+			linePool.Clear();
+			activeSeeds.Clear();
+
+			for (int i = 0; i < max_line_num; i++)
+			{
+				var go = Instantiate(linePrefab, Vector3.zero, Quaternion.identity, transform);
+				go.transform.localPosition = Vector3.zero;
+
+				var sl = go.GetComponent<StreamLine>();
+
+				if (sl != null)
+				{
+					sl.SetMaterial(sharedMaterial, sharedSphereMaterial);
+					linePool.Add(sl);
+				}
+			}
+		}
+
+		/// <summary>
+		/// Checks which data elements are currently active and initializes grid dimensions.
+		/// </summary>
 		private void CheckActiveElements()
 		{
-			// create a list of active elements
-			activeElements = new List<int>();
+			activeElements.Clear();
+
 			for (int i = 0; i < 3; i++)
 			{
-				if (elements[i].isActive)
+				if (elements[i] != null && elements[i].isActive)
 				{
 					activeElements.Add(i);
 				}
 			}
 
-			// get variables in the first active element
 			if (activeElements.Count > 0)
 			{
 				int ae0 = activeElements[0];
+
 				for (int n = 0; n < 3; n++)
 				{
 					dims[n] = elements[ae0].dims[n];
 				}
+
 				min      = elements[ae0].min;
 				max      = elements[ae0].max;
 				undef    = elements[ae0].undef;
@@ -405,185 +492,286 @@ namespace VisAssets.SciVis.Structured.StreamLines
 			}
 		}
 
+		/// <summary>
+		/// Scans the active vector field to determine the minimum and maximum velocity magnitudes.
+		/// </summary>
 		private void CheckRange()
 		{
-			magMin = float.MaxValue;
-			magMax = float.MinValue;
-			Vector3 vec3 = new Vector3();
+			magMin   = float.MaxValue;
+			magMax   = float.MinValue;
 			int size = dims[0] * dims[1] * dims[2];
+
 			for (int i = 0; i < size; i++)
 			{
-				bool IsUndef = false;
+				bool    isUndefLoc = false;
+				Vector3 vec3       = Vector3.zero;
+
 				for (int n = 0; n < 3; n++)
 				{
-					vec3[n] = 0; // initialize by zero
-
 					if (elements[n].isActive)
 					{
 						float value = elements[n].values[i];
-						if (useUndef && (value == undef))
+
+						if (useUndef && value == undef)
 						{
-							IsUndef = true;
+							isUndefLoc = true;
 						}
 						else
 						{
-							vec3[n] = elements[n].values[i];
+							vec3[n] = value;
 						}
 					}
 				}
-				if (!IsUndef)
+
+				if (!isUndefLoc)
 				{
-					magMin = Math.Min(magMin, vec3.magnitude);
-					magMax = Math.Max(magMax, vec3.magnitude);
+					float mag = vec3.magnitude;
+					magMin = Mathf.Min(magMin, mag);
+					magMax = Mathf.Max(magMax, mag);
 				}
 			}
 		}
 
-		public void SetAnimationState(bool state)
+		/// <summary>
+		/// Calculates a seed point based on inspector coordinates and starts a trace.
+		/// </summary>
+		public void AddSeedFromUI()
 		{
-			IsAnimation = state;
+			if (activeElements.Count == 0) return;
+
+			var seed = new Vector3(
+				boundMin.x + (boundMax.x - boundMin.x) * p0[0],
+				boundMin.y + (boundMax.y - boundMin.y) * p0[1],
+				boundMin.z + (boundMax.z - boundMin.z) * p0[2]
+			);
+
+			StartNewStreamLine(seed);
 		}
 
+		/// <summary>
+		/// Starts a new streamline trace from the specified world coordinate seed.
+		/// </summary>
 		public void AddSeed(Vector3 seed)
 		{
-			if (activeElements.Count == 0) return;
-
-			seeds.Add(seed);
-
-/*
-			if (linePrefab == null) return;
-
-			var line = Instantiate(linePrefab, Vector3.zero, Quaternion.identity);
-			line.transform.localScale = new Vector3(1f, 1f, 1f);
-			line.transform.SetParent(transform, false);
-			line.GetComponent<StreamLine>().SetSeed(seed);
-			lines.Add(line);
-*/
-			if (line_num >= max_line_num)
-			{
-				line_num = 0;
-			}
-			seedsArray[line_num] = seed;
-			lines[line_num].GetComponent<StreamLine>().SetSeed(seed);
-			line_num++;
+			StartNewStreamLine(seed);
 		}
 
-		public void AddSeed()
+		/// <summary>
+		/// Uses ring-buffer logic to reuse streamlines from the pool and updates the active seed list.
+		/// </summary>
+		private void StartNewStreamLine(Vector3 seed)
 		{
-			if (activeElements.Count == 0) return;
+			if (linePool.Count == 0 || activeElements.Count == 0) return;
+
+			var line = linePool[currentLineIndex];
+			line.StartTrace(seed, this, lineColor);
+
+			if (activeSeeds.Count < max_line_num)
+			{
+				activeSeeds.Add(seed);
+			}
+			else
+			{
+				activeSeeds[currentLineIndex] = seed;
+			}
+
+			currentLineIndex = (currentLineIndex + 1) % max_line_num;
+		}
+
+		/// <summary>
+		/// Calculates interpolated velocity at a given spatial coordinate.
+		/// Centralized method called by all streamline workers.
+		/// </summary>
+		public Vector3 GetVelocityAt(Vector3 position, out bool isValid)
+		{
+			isValid = false;
+
+			if (activeElements.Count == 0) return Vector3.zero;
+
+			var activeElement = elements[activeElements[0]];
+
+			for (int i = 0; i < 3; i++)
+			{
+				if (position[i] < boundMin[i] || position[i] > boundMax[i]) return Vector3.zero;
+			}
+
+			int[] idx = new int[3];
+
+			for (int n = 0; n < 3; n++)
+			{
+				float[] coord       = activeElement.coords[n];
+				int     size        = activeElement.dims[n];
+				bool    isAscending = coord.First() < coord.Last();
+
+				for (int i = 0; i < size - 1; i++)
+				{
+					if ((isAscending && coord[i + 1] >= position[n]) || (!isAscending && coord[i + 1] <= position[n]))
+					{
+						idx[n] = i;
+						break;
+					}
+				}
+			}
+
+			int xa = idx[0], xb = Mathf.Min(xa + 1, dims[0] - 1);
+			int ya = idx[1], yb = Mathf.Min(ya + 1, dims[1] - 1);
+			int za = idx[2], zb = Mathf.Min(za + 1, dims[2] - 1);
+
+			float x0 = activeElement.coords[0][xa], x1 = activeElement.coords[0][xb];
+			float y0 = activeElement.coords[1][ya], y1 = activeElement.coords[1][yb];
+			float z0 = activeElement.coords[2][za], z1 = activeElement.coords[2][zb];
+
+			float p = (x1 != x0) ? (position[0] - x0) / (x1 - x0) : 0f;
+			float q = (y1 != y0) ? (position[1] - y0) / (y1 - y0) : 0f;
+			float r = (z1 != z0) ? (position[2] - z0) / (z1 - z0) : 0f;
+
+			Vector3 result = Vector3.zero;
+
+			for (int n = 0; n < 3; n++)
+			{
+				if (!elements[n].isActive) continue;
+
+				var values = elements[n].values;
+				int sx     = dims[0], sy = dims[1];
+				int sxsy   = sx * sy;
+
+				float v000 = values[(za * sxsy) + (ya * sx) + xa];
+				float v100 = values[(za * sxsy) + (ya * sx) + xb];
+				float v001 = values[(zb * sxsy) + (ya * sx) + xa];
+				float v101 = values[(zb * sxsy) + (ya * sx) + xb];
+				float v010 = values[(za * sxsy) + (yb * sx) + xa];
+				float v110 = values[(za * sxsy) + (yb * sx) + xb];
+				float v011 = values[(zb * sxsy) + (yb * sx) + xa];
+				float v111 = values[(zb * sxsy) + (yb * sx) + xb];
+
+				if (useUndef)
+				{
+					if (v000 == undef || v100 == undef || v001 == undef || v101 == undef ||
+						v010 == undef || v110 == undef || v011 == undef || v111 == undef)
+					{
+						return Vector3.zero;
+					}
+				}
+
+				float ans = v000 * (1 - p) * (1 - q) * (1 - r) +
+							v100 *  p      * (1 - q) * (1 - r) +
+							v001 * (1 - p) * (1 - q) *  r      +
+							v101 *  p      * (1 - q) *  r      +
+							v010 * (1 - p) *  q      * (1 - r) +
+							v110 *  p      *  q      * (1 - r) +
+							v011 * (1 - p) *  q      *  r      +
+							v111 *  p      *  q      *  r;
+
+				result[n] = Mathf.Clamp(ans, min, max);
+			}
+
+			isValid = true;
+			return result;
+		}
+
+		/// <summary>
+		/// Returns an HSV-based color mapped to the vector magnitude.
+		/// </summary>
+		public Color GetMagnitudeColor(float magnitude)
+		{
+			float level = Mathf.Clamp((magnitude - magMin) / (magMax - magMin), 0, 1f);
+			Color c     = Color.HSVToRGB(level, 1f, 1f);
+
+			return new Color(c.r, c.g, c.b, 1f);
+		}
+
+		/// <summary>
+		/// Resets the fade timer and triggers guide line visualization.
+		/// </summary>
+		public void RequestGuideLineUpdate()
+		{
+			displayTime = 5f;
+
+			UpdateGuideLineMesh();
+		}
+
+		/// <summary>
+		/// Draws the X, Y, Z axis guides crossing at the current seed point.
+		/// </summary>
+		private void UpdateGuideLineMesh()
+		{
+			if (guideMesh == null) return;
+
+			if (activeElements.Count == 0)
+			{
+				guideMesh.Clear();
+				return;
+			}
+
+			float alpha = displayTime / 5f;
+
+			if (alpha <= 0f)
+			{
+				guideMesh.Clear();
+				return;
+			}
 
 			var p = new float[3];
+
 			for (int i = 0; i < 3; i++)
 			{
 				p[i] = boundMin[i] + (boundMax[i] - boundMin[i]) * p0[i];
 			}
 
-			AddSeed(new Vector3(p[0], p[1], p[2]));
+			Vector3[] verts = new Vector3[]
+			{
+				new Vector3(boundMin[0], p[1], p[2]),
+				new Vector3(boundMax[0], p[1], p[2]),
+				new Vector3(p[0], boundMin[1], p[2]),
+				new Vector3(p[0], boundMax[1], p[2]),
+				new Vector3(p[0], p[1], boundMin[2]),
+				new Vector3(p[0], p[1], boundMax[2])
+			};
+
+			Color[] cols = new Color[]
+			{
+				new Color(1f, 0f, 0f, alpha),
+				new Color(1f, 0f, 0f, alpha),
+				new Color(0f, 1f, 0f, alpha),
+				new Color(0f, 1f, 0f, alpha),
+				new Color(0f, 0f, 1f, alpha),
+				new Color(0f, 0f, 1f, alpha)
+			};
+
+			int[] inds = new int[] { 0, 1, 2, 3, 4, 5 };
+
+			guideMesh.Clear();
+			guideMesh.SetVertices(verts);
+			guideMesh.SetColors(cols);
+			guideMesh.SetIndices(inds, MeshTopology.Lines, 0);
 		}
 
-		public void AddSeed(float x, float y, float z)
+		/// <summary>
+		/// Dynamically updates the color of all currently active streamlines in the pool.
+		/// </summary>
+		public void UpdateLineColors()
 		{
-			// UI用。DataField.CoordinateSystemを使った処理が必要か
-			if (activeElements.Count == 0) return;
-
-			var p = new float[3];
-/*
-			for (int i = 0; i < 3; i++)
+			foreach (var line in linePool)
 			{
-				p[i] = boundMin[i] + (boundMax[i] - boundMin[i]);
+				if (line != null)
+				{
+					line.UpdateSolidColor(lineColor);
+				}
 			}
-
-			AddSeed(new Vector3(p[0] * x + pdf.offset[0], p[1] * y + pdf.offset[1], p[2] * z + pdf.offset[2]));
-*/
-			p[0] = boundMin[0] + (boundMax[0] - boundMin[0]) * x;
-			p[1] = boundMin[1] + (boundMax[1] - boundMin[1]) * y;
-			p[2] = boundMin[2] + (boundMax[2] - boundMin[2]) * z;
-
-			AddSeed(new Vector3(p[0], p[1], p[2]));
-
 		}
 
-		// for vr controllers
-		public void AddSeed2(Vector3 seed)
+		/// <summary>
+		/// Forces all active lines to refresh their meshes.
+		/// </summary>
+		public void RefreshAllLines()
 		{
-			if (activeElements.Count == 0) return;
-
-			var scale = new Vector3(1f / pdf.scale.x, 1f / pdf.scale.y, 1f / pdf.scale.z);
-			if (pdf.coordinateSystem == DataField.CoordinateSystem.RIGHT_HANDED)
+			foreach (var line in linePool)
 			{
-				scale = new Vector3(1f / pdf.scale.x, 1f / pdf.scale.y, 1f / -pdf.scale.z);
+				if (line != null)
+				{
+					line.ForceMeshUpdate();
+				}
 			}
-			var position = Vector3.Scale(seed, scale);
-			if (pdf.upAxis == DataField.UpAxis.Z)
-			{
-				position = Quaternion.Euler(90, 0, 0) * position;
-			}
-
-			seed = position;
-			seeds.Add(seed);
-
-/*
-			if (linePrefab == null) return;
-			var line = Instantiate(linePrefab, Vector3.zero, Quaternion.identity);
-			line.transform.localScale = new Vector3(1f, 1f, 1f);
-			line.transform.SetParent(transform, false);
-			line.GetComponent<StreamLine>().SetSeed(seed);
-			lines.Add(line);
-*/
-			if (line_num >= max_line_num)
-			{
-				line_num = 0;
-			}
-			seedsArray[line_num] = seed;
-			lines[line_num].GetComponent<StreamLine>().SetSeed(seed);
-			line_num++;
-		}
-
-		public void DrawGuideLines()
-		{
-			if (!IsDataLoadedToParent()) return;
-
-			// fade out guide line
-			displayTime -= Time.deltaTime;
-			if (displayTime <= 0)
-			{
-				displayTime = 0f;
-			}
-			var alpha = displayTime / 5f;
-			colors.Clear();
-			colors.Add(new Color(1f, 0, 0, alpha));
-			colors.Add(new Color(1f, 0, 0, alpha));
-			colors.Add(new Color(0, 1f, 0, alpha));
-			colors.Add(new Color(0, 1f, 0, alpha));
-			colors.Add(new Color(0, 0, 1f, alpha));
-			colors.Add(new Color(0, 0, 1f, alpha));
-
-			var p = new float[3];
-			for (int i = 0; i < 3; i++)
-			{
-				p[i] = boundMin[i] + (boundMax[i] - boundMin[i]) * p0[i];
-			}
-
-			vertices[0] = new Vector3(boundMin[0], p[1], p[2]);
-			vertices[1] = new Vector3(boundMax[0], p[1], p[2]);
-			vertices[2] = new Vector3(p[0], boundMin[1], p[2]);
-			vertices[3] = new Vector3(p[0], boundMax[1], p[2]);
-			vertices[4] = new Vector3(p[0], p[1], boundMin[2]);
-			vertices[5] = new Vector3(p[0], p[1], boundMax[2]);
-
-			mesh.SetVertices(vertices);
-			mesh.SetColors(colors);
-
-			var filter = GetComponent<MeshFilter>();
-			// Warningが出ているので要調査
-			// SendMessage cannot be called during Awake, CheckConsistency, or OnValidate (StreamLines: OnMeshFilterChanged)
-			filter.mesh = mesh;
-		}
-
-		Vector3 GetReciprocalVector3(Vector3 vec3)
-		{
-			var ret = new Vector3(1f / vec3.x, 1f / vec3.y, 1f / vec3.z);
-			return ret;
 		}
 	}
 }

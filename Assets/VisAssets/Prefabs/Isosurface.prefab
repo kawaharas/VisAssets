@@ -11,8 +11,8 @@ GameObject:
   - component: {fileID: 781005704448709791}
   - component: {fileID: 781005704448709763}
   - component: {fileID: 781005704448709762}
-  - component: {fileID: 781005704448709789}
-  - component: {fileID: 781005704448709788}
+  - component: {fileID: 7842401942236200900}
+  - component: {fileID: 8037035963191501993}
   m_Layer: 0
   m_Name: Isosurface
   m_TagString: VisModule
@@ -73,11 +73,12 @@ MonoBehaviour:
   min: 0
   max: 1
   triCount: 0
-  renderShader: {fileID: 4800000, guid: 2a0b09d4c7444a44e927e714ef791dde, type: 3}
+  builtinCustomShader: {fileID: 4800000, guid: 2a0b09d4c7444a44e927e714ef791dde, type: 3}
+  renderShader: {fileID: 0}
   forceChunkModeOnPC: 0
   chunkSize: 96
   shader: {fileID: 7200000, guid: 7535bba997a251e498d15765f51d7467, type: 3}
---- !u!33 &781005704448709789
+--- !u!33 &7842401942236200900
 MeshFilter:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -85,7 +86,7 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 781005704448709790}
   m_Mesh: {fileID: 0}
---- !u!23 &781005704448709788
+--- !u!23 &8037035963191501993
 MeshRenderer:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -94,7 +95,7 @@ MeshRenderer:
   m_GameObject: {fileID: 781005704448709790}
   m_Enabled: 1
   m_CastShadows: 1
-  m_ReceiveShadows: 1
+  m_ReceiveShadows: 0
   m_DynamicOccludee: 1
   m_StaticShadowCaster: 0
   m_MotionVectors: 1

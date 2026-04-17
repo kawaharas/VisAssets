@@ -56,10 +56,23 @@ namespace VisAssets.SciVis.Structured.Volume
 
 			GUILayout.Space(5f);
 
-			// ==========================================================
-			// Volume Clipping Settings
-			// ==========================================================
-			EditorGUILayout.LabelField("--- Volume Clipping ---", EditorStyles.boldLabel);
+			EditorGUILayout.PropertyField(transferFunction, new GUIContent("Transfer Function (Color Map)"));
+
+			GUILayout.Space(5f);
+
+			EditorGUILayout.Slider(density, 0f, 50f, new GUIContent("Density (Opacity)"));
+
+			GUILayout.Space(5f);
+
+			EditorGUILayout.IntSlider(numSteps, 32, 256, new GUIContent("Ray Steps (Quality)"));
+
+			GUILayout.Space(5f);
+
+			EditorGUILayout.Slider(threshold, 0f, 1f, new GUIContent("Threshold (Skip Empty)"));
+
+			GUILayout.Space(5f);
+
+			EditorGUILayout.PropertyField(undefMapping, new GUIContent("UNDEF Mapping Mode"));
 
 			GUILayout.Space(5f);
 
@@ -70,6 +83,7 @@ namespace VisAssets.SciVis.Structured.Volume
 			if (enableClipping.boolValue)
 			{
 				EditorGUI.indentLevel++;
+
 				EditorGUILayout.PropertyField(clipAxis, new GUIContent("Clip Axis"));
 
 				GUILayout.Space(5f);
@@ -87,19 +101,16 @@ namespace VisAssets.SciVis.Structured.Volume
 				GUILayout.Space(5f);
 
 				EditorGUILayout.PropertyField(invertClip, new GUIContent("Invert Cut Direction"));
+
+				GUILayout.Space(5f);
+
 				EditorGUI.indentLevel--;
 			}
 
-			GUILayout.Space(5f);
-
-			// ==========================================================
-			// Volume Shading Settings
-			// ==========================================================
-			EditorGUILayout.LabelField("--- Volume Shading ---", EditorStyles.boldLabel);
-
-			GUILayout.Space(5f);
-
 			EditorGUILayout.PropertyField(enableLighting, new GUIContent("Enable Shading"));
+
+			GUILayout.Space(5f);
+
 			if (enableLighting.boolValue)
 			{
 				EditorGUI.indentLevel++;
@@ -108,39 +119,13 @@ namespace VisAssets.SciVis.Structured.Volume
 				GUILayout.Space(5f);
 
 				EditorGUILayout.Slider(diffuse, 0f, 2f, new GUIContent("Diffuse Light"));
+
+				GUILayout.Space(5f);
+
 				EditorGUI.indentLevel--;
 			}
 
-			GUILayout.Space(5f);
-
-			// ==========================================================
-			// Core Rendering Settings
-			// ==========================================================
-			EditorGUILayout.LabelField("--- Volume Rendering Settings ---", EditorStyles.boldLabel);
-
-			GUILayout.Space(5f);
-
 			EditorGUILayout.PropertyField(volumeShader, new GUIContent("Volume Shader"));
-
-			GUILayout.Space(5f);
-
-			EditorGUILayout.PropertyField(undefMapping, new GUIContent("UNDEF Mapping Mode"));
-
-			GUILayout.Space(5f);
-
-			EditorGUILayout.PropertyField(transferFunction, new GUIContent("Transfer Function (Color Map)"));
-
-			GUILayout.Space(5f);
-
-			EditorGUILayout.Slider(density, 0f, 50f, new GUIContent("Density (Opacity)"));
-
-			GUILayout.Space(5f);
-
-			EditorGUILayout.IntSlider(numSteps, 32, 256, new GUIContent("Ray Steps (Quality)"));
-
-			GUILayout.Space(5f);
-
-			EditorGUILayout.Slider(threshold, 0f, 1f, new GUIContent("Threshold (Skip Empty)"));
 
 			GUILayout.Space(5f);
 

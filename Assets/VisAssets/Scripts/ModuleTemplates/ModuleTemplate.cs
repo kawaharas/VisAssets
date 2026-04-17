@@ -33,7 +33,7 @@ namespace VisAssets
 			{
 				EditorGUI.indentLevel += indent;
 			}
-			
+
 			if (string.IsNullOrEmpty(label))
 			{
 				EditorGUILayout.PropertyField(prop);
@@ -42,7 +42,7 @@ namespace VisAssets
 			{
 				EditorGUILayout.PropertyField(prop, new GUIContent(label));
 			}
-			
+
 			if (indent > 0)
 			{
 				EditorGUI.indentLevel -= indent;
@@ -142,7 +142,6 @@ namespace VisAssets
 				return;
 			}
 
-			// 🌟 変更点1：Enum（ID）による検索を廃止し、アタッチされているC#スクリプトのクラス名（例: "ReadDICOM"）をそのまま取得
 			string moduleName = this.GetType().Name;
 			FixedModuleName = moduleName;
 			int moduleNum = 0;
@@ -150,7 +149,6 @@ namespace VisAssets
 			var UIManagerComponent = UIManager.GetComponent<UIManager>();
 			if (UIManagerComponent != null)
 			{
-				// 🌟 変更点2：UIManagerのカウント管理をDictionaryで行う
 				if (!UIManagerComponent.moduleCounter.ContainsKey(moduleName))
 				{
 					UIManagerComponent.moduleCounter[moduleName] = 0;
@@ -162,8 +160,7 @@ namespace VisAssets
 				{
 					FixedModuleName += " #" + moduleNum.ToString();
 				}
-				
-				// カウントをインクリメント
+
 				UIManagerComponent.moduleCounter[moduleName] = moduleNum + 1;
 			}
 

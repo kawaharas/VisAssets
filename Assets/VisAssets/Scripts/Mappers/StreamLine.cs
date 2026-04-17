@@ -1,551 +1,374 @@
-using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
 using UnityEngine;
 
 namespace VisAssets.SciVis.Structured.StreamLines
 {
+	/// <summary>
+	/// Agent (Worker) class responsible for drawing a single streamline.
+	/// It delegates 3D vector field calculations to the manager (StreamLines)
+	/// and handles its own movement (integration) and mesh updating.
+	/// Supports both Line and Ribbon rendering modes.
+	/// </summary>
+	[RequireComponent(typeof(MeshFilter), typeof(MeshRenderer))]
 	public class StreamLine : MonoBehaviour
 	{
-		DataField     pdf; // refer DataField of parent ("StreamLines" module)
-		StreamLines   streamLines; // "StreamLines" script attached to "StreamLines" module
-		public bool   dataLoaded;
+		private StreamLines   manager;
+		private bool          isTracing = false;
 
-		#region variables
+		private Mesh          mesh;
+		private MeshFilter    meshFilter;
+		private List<Vector3> vertices  = new List<Vector3>();
+		private List<Color>   colors    = new List<Color>();
+		private List<Color>   magColors = new List<Color>();
+		private List<int>     indices   = new List<int>();
 
-		Mesh mesh;
-		List<Vector3> vertices;
-		List<Color>   colors;
-		List<Color>   magColors; // colors based on magnitude
-		List<int>     indices;
-		public Color  color;
-		Material      material;
-		MeshFilter    meshFilter;
+		private Color   lineColor = Color.white;
+		private Vector3 currentPosition;
+		private int     calculatedSteps = 0;
+		private float   h               = 0.005f;
 
-		Vector3 seed = new Vector3();
+		private GameObject            headSphere;
+		private MaterialPropertyBlock propBlock;
 
-		public bool   IsAnimation;
-		public bool   IsRepeat;
-		public bool   IsCalc;
-		public int    calculatedSteps;
-		public int    currentStep;
-		GameObject    sphere;
-//		public float  sphereScale;
-
-		[SerializeField, ReadOnly]
-		DataElement[] elements;
-		List<int> activeElements;
-		int[] dims;
-		float[][] coords;
-		float min;
-		float max;
-		float undef;
-		bool  useUndef;
-
-		float h = 0.005f;
-		float magMin;
-		float magMax;
-
-		Vector3 position;
-
-		#endregion // variables
-
-		// Start is called before the first frame update
-		void Start()
+		/// <summary>
+		/// Initializes the mesh and head sphere components.
+		/// </summary>
+		private void Awake()
 		{
-			dataLoaded = false;
-			var parent = transform.parent.gameObject;
-			streamLines = parent.GetComponent<StreamLines>();
-
-			vertices  = new List<Vector3>();
-			colors    = new List<Color>();
-			magColors = new List<Color>();
-			indices   = new List<int>();
-			color     = new Color(1f, 1f, 1f);
-			material  = new Material(Shader.Find("Sprites/Default"));
-
-			IsAnimation = false;
-			IsRepeat    = false;
-			currentStep = 0;
-			calculatedSteps = 0;
-
-			elements = new DataElement[3];
-			dims = new int[3] { -1, -1, -1 };
-			useUndef = false;
-
-			sphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-			sphere.transform.localScale = new Vector3(0.02f, 0.02f, 0.02f);
-			sphere.transform.SetParent(transform, false);
-			sphere.hideFlags = HideFlags.HideInHierarchy;
-			sphere.SetActive(false);
-
 			mesh = new Mesh();
 			mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
+			mesh.MarkDynamic();
+
 			meshFilter = GetComponent<MeshFilter>();
+
 			if (meshFilter != null)
 			{
-				meshFilter.mesh = mesh;
+				meshFilter.mesh      = mesh;
 				meshFilter.hideFlags = HideFlags.HideInInspector;
 			}
+
 			var meshRenderer = GetComponent<MeshRenderer>();
+
 			if (meshRenderer != null)
 			{
-				meshRenderer.material  = material;
 				meshRenderer.hideFlags = HideFlags.HideInInspector;
 			}
+
+			headSphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+			Destroy(headSphere.GetComponent<Collider>());
+			headSphere.transform.SetParent(transform, false);
+			headSphere.SetActive(false);
+
+			propBlock = new MaterialPropertyBlock();
 		}
 
-		void FixedUpdate()
+		/// <summary>
+		/// Integrates the streamline continuously based on physics steps.
+		/// </summary>
+		private void FixedUpdate()
 		{
-//			if (!IsCalc) return;
+			if (!isTracing || manager == null) return;
 
-			if (dataLoaded)
+			for (int i = 0; i < 3; i++)
 			{
-				// test for speed control
-				for (int i = 0; i < 3; i++)
+				if (isTracing)
 				{
 					RungeKutta();
 				}
-
-				if (indices.Count > 1)
-				{
-					sphere.SetActive(true);
-					sphere.transform.localPosition = vertices[vertices.Count - 1];
-//					sphere.transform.localPosition = vertices[indices[indices.Count - 1]];
-//					sphere.transform.localScale = Vector3.Scale(sphere.transform.localScale, streamLines.upstreamReciprocalScale);
-					sphere.transform.localScale = Vector3.Scale(Vector3.one / 20f, streamLines.upstreamReciprocalScale);
-
-					mesh.Clear();
-					mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
-					mesh.SetVertices(vertices);
-
-					if (streamLines.UseMagnitude)
-					{
-						mesh.SetColors(magColors);
-					}
-					else
-					{
-						mesh.SetColors(colors);
-					}
-					mesh.SetIndices(indices.ToArray(), MeshTopology.LineStrip, 0);
-					mesh.RecalculateBounds();
-
-					meshFilter.mesh = mesh;
-				}
-
-				return;
 			}
 
-			// set DataField of StreamLine module
-			pdf = streamLines.pdf;
-
-			if (pdf.dataLoaded)
-			{
-				for (int i = 0; i < pdf.elements.Length; i++)
-				{
-					elements[i] = pdf.elements[i];
-				}
-
-				CheckActiveElements();
-
-				if (activeElements.Count > 0)
-				{
-					position = seed;
-
-					dataLoaded = true;
-				}
-			}
-
-/*
-			if (streamLines.IsAnimation)
-			{
-				currentStep++;
-				if (streamLines.IsRepeat)
-				{
-					if (currentStep >= indices.Count)
-					{
-						currentStep = 0;
-					}
-				}
-				else
-				{
-					Mathf.Clamp(currentStep, 0, indices.Count - 1);
-				}
-				int[] subIndices = new int[currentStep];
-				System.Array.Copy(indices.ToArray(), subIndices, currentStep);
-				mesh.SetIndices(subIndices, MeshTopology.LineStrip, 0);
-
-				if (vertices.Count != 0)
-				{
-					sphere.SetActive(true);
-				}
-				else
-				{
-					sphere.SetActive(false);
-				}
-				sphere.transform.localPosition = vertices[subIndices.Last()];
-			}
-*/
+			UpdateMeshAndSphere();
 		}
 
-		public void Reset()
+		/// <summary>
+		/// Assigns the materials provided by the manager to the line and head sphere.
+		/// </summary>
+		public void SetMaterial(Material lineMat, Material sphereMat)
 		{
+			var meshRenderer = GetComponent<MeshRenderer>();
+
+			if (meshRenderer != null)
+			{
+				meshRenderer.sharedMaterial = lineMat;
+			}
+
+			if (headSphere != null && sphereMat != null)
+			{
+				var sphereRenderer = headSphere.GetComponent<MeshRenderer>();
+
+				if (sphereRenderer != null)
+				{
+					sphereRenderer.sharedMaterial = sphereMat;
+				}
+			}
+		}
+
+		/// <summary>
+		/// Initializes and starts the streamline calculation from a seed position.
+		/// </summary>
+		public void StartTrace(Vector3 seedPos, StreamLines mgr, Color color)
+		{
+			manager         = mgr;
+			lineColor       = color;
+			currentPosition = seedPos;
+
 			vertices.Clear();
 			colors.Clear();
 			magColors.Clear();
 			indices.Clear();
-			sphere.SetActive(false);
-			IsCalc = false;
-			dataLoaded = false;
+
 			calculatedSteps = 0;
+			isTracing       = true;
+			headSphere.SetActive(false);
+
+			mesh.Clear();
 		}
 
-		private void CheckActiveElements()
-		{
-			// create a list of active elements
-			activeElements = new List<int>();
-			for (int i = 0; i < 3; i++)
-			{
-				if (elements[i].isActive)
-				{
-					activeElements.Add(i);
-				}
-			}
-
-			// get variables in the first active element
-			if (activeElements.Count > 0)
-			{
-				int ae0 = activeElements[0];
-				for (int n = 0; n < 3; n++)
-				{
-					dims[n] = elements[ae0].dims[n];
-				}
-				min      = elements[ae0].min;
-				max      = elements[ae0].max;
-				undef    = elements[ae0].undef;
-				useUndef = elements[ae0].useUndef;
-
-				CheckRange();
-			}
-		}
-
-		private void CheckRange()
-		{
-			magMin = float.MaxValue;
-			magMax = float.MinValue;
-			Vector3 vec3 = new Vector3();
-			int size = dims[0] * dims[1] * dims[2];
-			for (int i = 0; i < size; i++)
-			{
-				bool IsUndef = false;
-				for (int n = 0; n < 3; n++)
-				{
-					vec3[n] = 0; // initialize by zero
-
-					if (elements[n].isActive)
-					{
-						float value = elements[n].values[i];
-						if (useUndef && (value == undef))
-						{
-							IsUndef = true;
-						}
-						else
-						{
-							vec3[n] = elements[n].values[i];
-						}
-					}
-				}
-				if (!IsUndef)
-				{
-					magMin = Math.Min(magMin, vec3.magnitude);
-					magMax = Math.Max(magMax, vec3.magnitude);
-				}
-			}
-		}
-
-		private Vector3 GetVector(Vector3 position)
-		{
-			// for uniform and rectilinear
-			var activeElement = pdf.elements[activeElements[0]];
-
-			// find indices
-			int[] idx = new int[3];
-			for (int n = 0; n < 3; n++)
-			{
-
-				float[] coord = activeElement.coords[n];
-				int size = activeElement.dims[n];
-				if (coord.First() < coord.Last())
-				{
-					for (int i = 0; i < size - 1; i++)
-					{
-						if (coord[i + 1] >= position[n])
-						{
-							idx[n] = i;
-							break;
-						}
-					}
-				}
-				else
-				{
-					for (int i = 0; i < size - 1; i++)
-					{
-						if (coord[i + 1] <= position[n])
-						{
-							idx[n] = i;
-							break;
-						}
-					}
-				}
-			}
-
-			int   xa, xb, ya, yb, za, zb;
-			float x0, x1, y0, y1, z0, z1;
-			float v0, v1, v2, v3, v4, v5, v6, v7;
-			float p, q, r;
-
-			xa = idx[0];
-			if (xa == dims[0] - 1)
-			{
-				xb = xa;
-			}
-			else
-			{
-				xb = xa + 1;
-			}
-			ya = idx[1];
-			if (ya == dims[1] - 1)
-			{
-				yb = ya;
-			}
-			else
-			{
-				yb = ya + 1;
-			}
-			if (dims[2] == 1)
-			{
-				za = idx[2];
-				zb = za;
-			}
-			else
-			{
-				za = idx[2];
-				if (za == dims[2] - 1)
-				{
-					zb = za;
-				}
-				else
-				{
-					zb = za + 1;
-				}
-			}
-
-			x0 = activeElement.coords[0][xa];
-			x1 = activeElement.coords[0][xb];
-			y0 = activeElement.coords[1][ya];
-			y1 = activeElement.coords[1][yb];
-			z0 = activeElement.coords[2][za];
-			z1 = activeElement.coords[2][zb];
-
-			float[] vec = new float[3];
-			for (int n = 0; n < 3; n++)
-			{
-				vec[n] = 0; // initialization by zero
-
-				if (elements[n].isActive)
-				{
-					int sx = dims[0];
-					int sy = dims[1];
-					int sz = dims[2];
-
-					var values = elements[n].values;
-					v0 = values[(za * sx * sy) + (ya * sx) + xa];
-					v1 = values[(za * sx * sy) + (ya * sx) + xb];
-					v2 = values[(zb * sx * sy) + (ya * sx) + xa];
-					v3 = values[(zb * sx * sy) + (ya * sx) + xb];
-					v4 = values[(za * sx * sy) + (yb * sx) + xa];
-					v5 = values[(za * sx * sy) + (yb * sx) + xb];
-					v6 = values[(zb * sx * sy) + (yb * sx) + xa];
-					v7 = values[(zb * sx * sy) + (yb * sx) + xb];
-
-					float ansf = 0f;
-
-					bool isUndef = false;
-					if (useUndef)
-					{
-						if ((v0 == undef) || (v1 == undef) || (v2 == undef) || (v3 == undef) ||
-							(v4 == undef) || (v5 == undef) || (v6 == undef) || (v7 == undef))
-						{
-							isUndef = true;
-						}
-					}
-
-					if (isUndef)
-					{
-						ansf = undef;
-					}
-					else
-					{
-						p = q = r = 0f;
-						if (x0 != x1)
-						{
-							p = (position[0] - x0) / (x1 - x0);
-						}
-						if (y0 != y1)
-						{
-							q = (position[1] - y0) / (y1 - y0);
-						}
-						if (z0 != z1)
-						{
-							r = (position[2] - z0) / (z1 - z0);
-						}
-						double ans = 0.0;
-						ans += v0 * (1 - p) * (1 - q) * (1 - r);
-						ans += v1 * p * (1 - q) * (1 - r);
-						ans += v2 * (1 - p) * (1 - q) * r;
-						ans += v3 * p * (1 - q) * r;
-						ans += v4 * (1 - p) * q * (1 - r);
-						ans += v5 * p * q * (1 - r);
-						ans += v6 * (1 - p) * q * r;
-						ans += v7 * p * q * r;
-						ansf = (float)ans;
-					}
-
-					if (ansf == undef)
-					{
-						vec[n] = undef;
-					}
-					else
-					{
-						vec[n] = Mathf.Clamp(ansf, min, max);
-					}
-				}
-			}
-
-			return new Vector3(vec[0], vec[1], vec[2]);
-		}
-
+		/// <summary>
+		/// 4th-order Runge-Kutta integration to calculate the next position.
+		/// Retrieves velocity vectors from the manager's centralized field data.
+		/// </summary>
 		private void RungeKutta()
 		{
-			if (calculatedSteps >= streamLines.maxStep)
+			if (calculatedSteps >= manager.maxStep)
 			{
-				IsCalc = false; // stop calculation
+				isTracing = false;
 				return;
 			}
 
-			if (!JudgeInsideOrOutside(position)) return;
+			bool isValid;
 
-			var v0 = GetVector(position);
-			if (useUndef == true & v0[0] == undef)
-			{
-				IsCalc = false; // stop calculation
-				return;
-			}
-			var k1 = h * v0.normalized;
-			var v1 = GetVector(position + k1 / 2f);
-			if (useUndef == true & v1[0] == undef)
-			{
-				IsCalc = false; // stop calculation
-				return;
-			}
-			var k2 = h * v1.normalized;
-			var v2 = GetVector(position + k2 / 2f);
-			if (useUndef == true & v2[0] == undef)
-			{
-				IsCalc = false; // stop calculation
-				return;
-			}
-			var k3 = h * v2.normalized;
-			var v3 = GetVector(position + k3);
-			if (useUndef == true & v3[0] == undef)
-			{
-				IsCalc = false; // stop calculation
-				return;
-			}
-			var k4 = h * v3.normalized;
+			Vector3 v0 = manager.GetVelocityAt(currentPosition, out isValid);
 
-			var deltaPosition = (k1 + 2f * k2 + 2f * k3 + k4) / 6f;
-
-			if (deltaPosition.magnitude == 0)
+			if (!isValid)
 			{
-				IsCalc = false; // stop calculation
+				isTracing = false;
 				return;
 			}
 
-			position += deltaPosition;
+			Vector3 k1 = h * v0.normalized;
 
-			// set magnitude color
-			var magnitude = GetVector(position).magnitude;
-			var level = Mathf.Clamp((magnitude - magMin) / (magMax - magMin), 0, 1f);
-			magColors.Add(GetColor(level));
+			Vector3 v1 = manager.GetVelocityAt(currentPosition + k1 / 2f, out isValid);
 
-			vertices.Add(position);
-			colors.Add(color);
+			if (!isValid)
+			{
+				isTracing = false;
+				return;
+			}
+
+			Vector3 k2 = h * v1.normalized;
+
+			Vector3 v2 = manager.GetVelocityAt(currentPosition + k2 / 2f, out isValid);
+
+			if (!isValid)
+			{
+				isTracing = false;
+				return;
+			}
+
+			Vector3 k3 = h * v2.normalized;
+
+			Vector3 v3 = manager.GetVelocityAt(currentPosition + k3, out isValid);
+
+			if (!isValid)
+			{
+				isTracing = false;
+				return;
+			}
+
+			Vector3 k4 = h * v3.normalized;
+
+			Vector3 deltaPosition = (k1 + 2f * k2 + 2f * k3 + k4) / 6f;
+
+			if (deltaPosition.sqrMagnitude < 1e-8f)
+			{
+				isTracing = false;
+				return;
+			}
+
+			currentPosition += deltaPosition;
+
+			vertices.Add(currentPosition);
+			colors.Add(lineColor);
+			magColors.Add(manager.GetMagnitudeColor(v0.magnitude));
 			indices.Add(calculatedSteps);
 
 			calculatedSteps++;
 		}
 
-		Color GetColor(float level)
+		/// <summary>
+		/// Stops calculation and clears the current trace data.
+		/// </summary>
+		public void ClearTrace()
 		{
-			Color c = Color.HSVToRGB(level, 1f, 1f);
-			return new Color(c.r, c.g, c.b, 1f);
+			isTracing = false;
+			vertices.Clear();
+			mesh.Clear();
+			headSphere.SetActive(false);
 		}
 
-		public void SetColor(Color _color)
+		/// <summary>
+		/// Updates the solid color of the streamline dynamically, altering already drawn segments.
+		/// </summary>
+		public void UpdateSolidColor(Color newColor)
 		{
-			color = _color;
-		}
+			lineColor = newColor;
 
-		private bool JudgeInsideOrOutside(Vector3 position)
-		{
-			// for uniform and rectilinear
-			var activeElement = pdf.elements[activeElements[0]];
-
-			var judge = new bool[3];
-//			float[] coord;
-
-var min = activeElement.boundMin;
-var max = activeElement.boundMax;
-
-			for (int i = 0; i < 3; i++)
+			for (int i = 0; i < colors.Count; i++)
 			{
-				judge[i] = false;
-				if ((min[i] <= position[i]) && (max[i] >= position[i]))
-				{
-					judge[i] = true;
-				}
-/*
-				judge[i] = false;
-//				coord = activeElement.coords[i];
-
-				float min = activeElement.coords[i][0];
-				float max = activeElement.coords[i][dims[i] - 1];
-				if (min > max)
-				{
-					float _max = min;
-					min = max;
-					max = _max;
-				}
-				if ((min <= position[i]) && (max >= position[i]))
-				{
-					judge[i] = true;
-				}
-*/
+				colors[i] = newColor;
 			}
 
-			bool final_judge = judge[0] & judge[1] & judge[2];
-
-			return final_judge;
+			UpdateMeshAndSphere();
 		}
 
-		public void SetSeed(Vector3 _seed)
+		/// <summary>
+		/// Forces a mesh update. Useful when switching between Magnitude and Solid color modes.
+		/// </summary>
+		public void ForceMeshUpdate()
 		{
-			Reset();
+			UpdateMeshAndSphere();
+		}
 
-			seed = _seed;
-			IsCalc = true;
+		/// <summary>
+		/// Updates the visual representation of the streamline based on the selected DrawMode.
+		/// </summary>
+		private void UpdateMeshAndSphere()
+		{
+			if (vertices.Count < 2) return;
+
+			if (manager.drawMode == StreamLines.DrawMode.LINE)
+			{
+				UpdateAsLine();
+			}
+			else
+			{
+				UpdateAsRibbon();
+			}
+		}
+
+		/// <summary>
+		/// Renders the trace as a 1D LineStrip with a leading sphere.
+		/// </summary>
+		private void UpdateAsLine()
+		{
+			headSphere.SetActive(true);
+			headSphere.transform.localPosition = vertices[vertices.Count - 1];
+			headSphere.transform.localScale    = Vector3.Scale(Vector3.one / 20f, manager.upstreamReciprocalScale);
+
+			var sphereRenderer = headSphere.GetComponent<MeshRenderer>();
+
+			if (sphereRenderer != null)
+			{
+				Color tipColor = manager.UseMagnitude ? magColors[magColors.Count - 1] : manager.sphereColor;
+
+				sphereRenderer.GetPropertyBlock(propBlock);
+				propBlock.SetColor("_Color", tipColor);
+				propBlock.SetColor("_BaseColor", tipColor);
+				sphereRenderer.SetPropertyBlock(propBlock);
+			}
+
+			mesh.Clear();
+			mesh.SetVertices(vertices);
+			mesh.SetColors(manager.UseMagnitude ? magColors : colors);
+			mesh.SetIndices(indices, MeshTopology.LineStrip, 0);
+			mesh.RecalculateBounds();
+		}
+
+		/// <summary>
+		/// Renders the trace as a 3D Ribbon using Parallel Transport to calculate consistent twist/normals.
+		/// </summary>
+		private void UpdateAsRibbon()
+		{
+			headSphere.SetActive(false);
+
+			int count = vertices.Count;
+			Vector3[] newVerts = new Vector3[count * 2];
+			Color[]   newCols  = new Color[count * 2];
+			int[]     newInds  = new int[(count - 1) * 6];
+
+			Vector3 currentNormal = Vector3.up;
+			float halfWidth = manager.ribbonWidth * 0.5f;
+
+			for (int i = 0; i < count; i++)
+			{
+				Vector3 tangent;
+
+				if (i == 0)
+				{
+					tangent = (vertices[1] - vertices[0]).normalized;
+
+					Vector3 up = Vector3.up;
+
+					if (Mathf.Abs(Vector3.Dot(tangent, up)) > 0.99f)
+					{
+						up = Vector3.right;
+					}
+
+					currentNormal = Vector3.Cross(tangent, up).normalized;
+				}
+				else if (i == count - 1)
+				{
+					tangent = (vertices[count - 1] - vertices[count - 2]).normalized;
+					Vector3 prevTangent = (vertices[i - 1] - vertices[i - 2]).normalized;
+					currentNormal = CalculateParallelTransport(prevTangent, tangent, currentNormal);
+				}
+				else
+				{
+					tangent = (vertices[i + 1] - vertices[i - 1]).normalized;
+					Vector3 prevTangent = (vertices[i] - vertices[i - 1]).normalized;
+					currentNormal = CalculateParallelTransport(prevTangent, tangent, currentNormal);
+				}
+
+				Vector3 p = vertices[i];
+				Vector3 offset = currentNormal * halfWidth;
+
+				newVerts[i * 2]     = p + offset;
+				newVerts[i * 2 + 1] = p - offset;
+
+				Color c = manager.UseMagnitude ? magColors[i] : colors[i];
+				newCols[i * 2]     = c;
+				newCols[i * 2 + 1] = c;
+
+				if (i < count - 1)
+				{
+					int vIdx = i * 2;
+					int iIdx = i * 6;
+
+					newInds[iIdx]     = vIdx;
+					newInds[iIdx + 1] = vIdx + 1;
+					newInds[iIdx + 2] = vIdx + 2;
+
+					newInds[iIdx + 3] = vIdx + 2;
+					newInds[iIdx + 4] = vIdx + 1;
+					newInds[iIdx + 5] = vIdx + 3;
+				}
+			}
+
+			mesh.Clear();
+			mesh.SetVertices(newVerts);
+			mesh.SetColors(newCols);
+			mesh.SetIndices(newInds, MeshTopology.Triangles, 0);
+			mesh.RecalculateBounds();
+			mesh.RecalculateNormals();
+		}
+
+		/// <summary>
+		/// Calculates the rotation axis and angle to keep the ribbon flat while following the path's curvature.
+		/// </summary>
+		private Vector3 CalculateParallelTransport(Vector3 prevTangent, Vector3 currentTangent, Vector3 currentNormal)
+		{
+			Vector3 axis = Vector3.Cross(prevTangent, currentTangent);
+
+			if (axis.sqrMagnitude > 1e-8f)
+			{
+				float dot = Mathf.Clamp(Vector3.Dot(prevTangent, currentTangent), -1f, 1f);
+				float angle = Mathf.Acos(dot) * Mathf.Rad2Deg;
+
+				return Quaternion.AngleAxis(angle, axis) * currentNormal;
+			}
+
+			return currentNormal;
 		}
 	}
 }

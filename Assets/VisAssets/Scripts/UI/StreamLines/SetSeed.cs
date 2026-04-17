@@ -28,10 +28,13 @@ namespace VisAssets.SciVis.Structured.StreamLines.UI
 			if (target != null)
 			{
 				target.GetComponent<StreamLines>().displayTime = 5f;
+/*
 				var x = sliderX.GetComponent<Slider>().value;
 				var y = sliderY.GetComponent<Slider>().value;
 				var z = sliderZ.GetComponent<Slider>().value;
 				target.GetComponent<StreamLines>().AddSeed(x, y, z);
+*/
+				target.GetComponent<StreamLines>().AddSeedFromUI();
 			}
 		}
 

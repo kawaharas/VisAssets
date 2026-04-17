@@ -2,13 +2,15 @@
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using UnityEngine.Rendering;
+using VisAssets.SciVis.Structured.Common;
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
 
 namespace VisAssets.SciVis.Structured.Slicer
 {
-	using FieldType = DataElement.FieldType;
+	using FieldType   = DataElement.FieldType;
 	using ModuleState = Activation.ModuleState;
 
 	// =========================================================================
@@ -23,29 +25,20 @@ namespace VisAssets.SciVis.Structured.Slicer
 		SerializedProperty slice;
 		SerializedProperty shift;
 		SerializedProperty alphaCutoff;
-		SerializedProperty sliceShader;
-		SerializedProperty uiPrefab;
-		int   previousAxis  = 0;
-		float previousSlice = 0;
-		float previousCutoff = 0.01f;
+		SerializedProperty builtinCustomShaderProp;
+		SerializedProperty sliceShaderProp;
 
-		/// <summary>
-		/// Initializes serialized properties when the object is selected in the Inspector.
-		/// </summary>
 		private void OnEnable()
 		{
 			mode        = serializedObject.FindProperty("filterMode");
-			axis        = serializedObject.FindProperty("axis");
-			slice       = serializedObject.FindProperty("slice");
+			axis        = serializedObject.FindProperty("sliceHelper.axis");
+			slice       = serializedObject.FindProperty("sliceHelper.slice");
 			shift       = serializedObject.FindProperty("shift");
 			alphaCutoff = serializedObject.FindProperty("alphaCutoff");
-			sliceShader = serializedObject.FindProperty("sliceShader");
-			uiPrefab    = serializedObject.FindProperty("UIPrefab");
+			builtinCustomShaderProp = serializedObject.FindProperty("builtinCustomShader");
+			sliceShaderProp         = serializedObject.FindProperty("sliceShader");
 		}
 
-		/// <summary>
-		/// Renders the custom Inspector GUI for the Slicer module.
-		/// </summary>
 		public override void OnInspectorGUI()
 		{
 			var slicer = target as Slicer;
@@ -53,92 +46,106 @@ namespace VisAssets.SciVis.Structured.Slicer
 			if (slicer == null) return;
 
 			serializedObject.Update();
-/*
-			if (sliceShader != null)
-			{
-				EditorGUILayout.PropertyField(sliceShader, new GUIContent("Shader"));
-			}
 
-			if (uiPrefab != null)
-			{
-				EditorGUILayout.PropertyField(uiPrefab, new GUIContent("UI Prefab"));
-			}
-*/
+			GUILayout.Space(5f);
+
 			EditorGUI.BeginChangeCheck();
 
-			GUILayout.Space(5f);
+			if (mode != null) EditorGUILayout.PropertyField(mode, new GUIContent("Filter Mode"), true);
 
-			if (mode != null)
+			if (EditorGUI.EndChangeCheck())
 			{
-				EditorGUILayout.PropertyField(mode, new GUIContent("Filter Mode"), true);
+				Undo.RecordObject(target, "Slicer");
+				serializedObject.ApplyModifiedProperties();
+				slicer.SetMode(mode.enumValueIndex);
+				EditorUtility.SetDirty(target);
 			}
 
 			GUILayout.Space(5f);
 
-			var currentAxis  = axis  != null ? EditorGUILayout.IntSlider("Axis", axis.intValue, 0, 2) : 0;
+			EditorGUI.BeginChangeCheck();
+
+			if (axis != null) EditorGUILayout.IntSlider(axis, 0, 2, new GUIContent("Axis: "));
+
+			if (EditorGUI.EndChangeCheck())
+			{
+				Undo.RecordObject(target, "Slicer");
+				serializedObject.ApplyModifiedProperties();
+				slicer.SetAxis(axis.intValue);
+				EditorUtility.SetDirty(target);
+			}
 
 			GUILayout.Space(5f);
 
-			var currentSlice = slice != null ? EditorGUILayout.Slider("Slice", slice.floatValue, 0, 1f) : 0f;
+			EditorGUI.BeginChangeCheck();
+
+			if (slice != null) EditorGUILayout.Slider(slice, 0f, 1f, new GUIContent("Slice: "));
+
+			if (EditorGUI.EndChangeCheck())
+			{
+				Undo.RecordObject(target, "Slicer");
+				serializedObject.ApplyModifiedProperties();
+				slicer.SetSlice(slice.floatValue);
+				EditorUtility.SetDirty(target);
+			}
 
 			GUILayout.Space(5f);
 
-			var currentShift = shift != null ? EditorGUILayout.Slider("Color Shift", shift.floatValue, 0, 1f) : 0f;
+			EditorGUI.BeginChangeCheck();
+
+			if (shift != null) EditorGUILayout.Slider(shift, 0f, 1f, new GUIContent("Color Shift: "));
+
+			if (EditorGUI.EndChangeCheck())
+			{
+				Undo.RecordObject(target, "Slicer");
+				serializedObject.ApplyModifiedProperties();
+				slicer.SetColorShift(shift.floatValue);
+				EditorUtility.SetDirty(target);
+			}
 
 			GUILayout.Space(5f);
+
+			EditorGUI.BeginChangeCheck();
 
 			if (alphaCutoff != null)
 			{
 				EditorGUILayout.PropertyField(alphaCutoff, new GUIContent("Alpha Cutoff"));
 			}
 
-			GUILayout.Space(5f);
-
-			if (sliceShader != null)
+			if (EditorGUI.EndChangeCheck())
 			{
-				EditorGUILayout.PropertyField(sliceShader, new GUIContent("Shader"));
+				Undo.RecordObject(target, "Slicer");
+				serializedObject.ApplyModifiedProperties();
+				slicer.UpdateMaterialShader();
+				EditorUtility.SetDirty(target);
 			}
 
 			GUILayout.Space(5f);
 
-			if (uiPrefab != null)
-			{
-				EditorGUILayout.PropertyField(uiPrefab, new GUIContent("UI Prefab"));
-			}
+			EditorGUI.BeginChangeCheck();
+
+			// Built-in environment shader registration slot
+			EditorGUILayout.PropertyField(builtinCustomShaderProp, new GUIContent("Built-in Custom Shader"));
 
 			GUILayout.Space(5f);
+
+			EditorGUI.BeginDisabledGroup(true);
+			EditorGUILayout.PropertyField(sliceShaderProp, new GUIContent("Current Render Shader"));
+			EditorGUI.EndDisabledGroup();
 
 			if (EditorGUI.EndChangeCheck())
 			{
 				Undo.RecordObject(target, "Slicer");
-				if (currentAxis != previousAxis)
-				{
-					slicer.SetAxis(currentAxis);
-					previousAxis = currentAxis;
-				}
-				else if (currentSlice != previousSlice)
-				{
-					slicer.SetSlice(currentSlice);
-					previousSlice = currentSlice;
-				}
-				else
-				{
-					slicer.SetColorShift(currentShift);
-				}
-
-				if (alphaCutoff != null && alphaCutoff.floatValue != previousCutoff)
-				{
-					slicer.UpdateMaterialShader();
-					previousCutoff = alphaCutoff.floatValue;
-				}
-
-				if (EditorApplication.isPlaying)
-				{
-					slicer.UpdateMaterialShader();
-				}
-
+				serializedObject.ApplyModifiedProperties();
+				slicer.UpdateMaterialShader();
 				EditorUtility.SetDirty(target);
 			}
+
+			GUILayout.Space(5f);
+
+			EditorGUILayout.PropertyField(serializedObject.FindProperty("UIPrefab"), new GUIContent("UI Prefab"));
+
+			GUILayout.Space(5f);
 
 			serializedObject.ApplyModifiedProperties();
 		}
@@ -148,17 +155,13 @@ namespace VisAssets.SciVis.Structured.Slicer
 	// =========================================================================
 	// Main Class
 	// =========================================================================
+	/// <summary>
+	/// Mapper module that extracts a 2D cross-section from a 3D scalar field, mapping the data
+	/// onto a dynamically generated texture and an intersecting plane mesh.
+	/// Accurately maintains non-uniform physical distances (RECTILINEAR grid structure).
+	/// </summary>
 	public class Slicer : MapperModuleTemplate
 	{
-		[Serializable]
-		public class Slice
-		{
-			public float slider = 0;
-			public float value  = 0;
-			public float min    = 0;
-			public float max    = 1f;
-		}
-
 		public enum FILTER_MODE
 		{
 			TRILINEAR,
@@ -166,43 +169,23 @@ namespace VisAssets.SciVis.Structured.Slicer
 			POINT
 		};
 
-//		[Header("Rendering Settings")]
 		[SerializeField]
+		public SliceHelper sliceHelper = new SliceHelper();
+
+		[SerializeField] public Shader builtinCustomShader;
 		public Shader sliceShader;
 
 		[Range(0f, 1f)]
 		public float alphaCutoff = 0.01f;
-
-		[SerializeField, Range(0, 2)]
-		public int axis;
-
-		[SerializeField, Range(0, 1f)]
-		public float slice;
-
-		[SerializeField]
-		public float value;
-
-		[SerializeField]
-		public float min, max;
-
 		[SerializeField]
 		public FILTER_MODE filterMode;
-
 		[SerializeField, Range(0, 1f)]
-		public float shift; // Shift hue value to calculate RGB color
+		public float shift;
 
 		[SerializeField]
 		public int[] dims;
-
 		[SerializeField]
 		public DataElement element;
-
-		[SerializeField]
-		public Slice[] slices;
-
-		int   prev_axis;
-		float prev_slice;
-		float prev_value;
 
 		List<Vector3> vertices;
 		List<Vector3> normals;
@@ -214,30 +197,44 @@ namespace VisAssets.SciVis.Structured.Slicer
 		Texture2D texture;
 		Color[]   texcolor;
 		public int tri_idx = 0;
-		public float ratio, ratio2;
-
-		// ==========================================================
-		// Core Module Logic
-		// ==========================================================
 
 		/// <summary>
-		/// Ensures that the slices array is initialized to avoid NullReferenceExceptions.
+		/// Automatically determines the current render pipeline (Built-in or URP) and assigns the appropriate shader.
+		/// Prevents compilation errors by using Unity's standard unlit shader for URP,
+		/// and a custom pre-assigned shader for the Built-in Render Pipeline to avoid build stripping.
 		/// </summary>
-		private void EnsureSlices()
+#if UNITY_EDITOR
+		private void EnsureCorrectShader()
 		{
-			if (slices == null || slices.Length < 3)
+			bool isURP = GraphicsSettings.renderPipelineAsset != null;
+
+			if (isURP)
 			{
-				slices = new Slice[3];
-				for (int i = 0; i < 3; i++)
+				string expectedShaderName = "Universal Render Pipeline/Unlit";
+				if (sliceShader == null || sliceShader.name != expectedShaderName)
 				{
-					slices[i] = new Slice();
+					sliceShader = Shader.Find(expectedShaderName);
+				}
+			}
+			else
+			{
+				if (sliceShader == null || sliceShader != builtinCustomShader)
+				{
+					sliceShader = builtinCustomShader;
 				}
 			}
 		}
+#endif
 
-		/// <summary>
-		/// Initializes internal lists, default parameters, and renderer configurations.
-		/// </summary>
+		protected override void Reset()
+		{
+#if UNITY_EDITOR
+			base.Reset();
+
+			EnsureCorrectShader();
+#endif
+		}
+
 		public override void InitModule()
 		{
 			vertices   = new List<Vector3>();
@@ -247,297 +244,180 @@ namespace VisAssets.SciVis.Structured.Slicer
 			texture_uv = new List<Vector2>();
 
 			filterMode = FILTER_MODE.TRILINEAR;
-			axis  = prev_axis  = 0;
-			slice = prev_slice = 0;
-			value = prev_value = 0;
-			min = 0;
-			max = 1f;
 
-			EnsureSlices();
+			if (sliceHelper == null) sliceHelper = new SliceHelper();
+			sliceHelper.Init();
 
 			var meshFilter = GetComponent<MeshFilter>();
-			if (meshFilter != null)
-			{
-				meshFilter.hideFlags = HideFlags.HideInInspector;
-			}
+			if (meshFilter != null) meshFilter.hideFlags = HideFlags.HideInInspector;
 
 			var meshRenderer = GetComponent<MeshRenderer>();
-			if (meshRenderer != null)
-			{
-				meshRenderer.hideFlags = HideFlags.HideInInspector;
-			}
+			if (meshRenderer != null) meshRenderer.hideFlags = HideFlags.HideInInspector;
 
-			// Delegate material generation and application to the integrated method.
 			UpdateMaterialShader();
 		}
 
-		/// <summary>
-		/// The main execution function of the module that triggers the slice calculation.
-		/// </summary>
 		public override int BodyFunc()
 		{
 			Calc();
 			return 1;
 		}
 
-		/// <summary>
-		/// Resets and prepares the slice parameters based on the parent data field elements.
-		/// </summary>
-		public override void ReSetParameters()
+		public override void IdleFunc()
 		{
-			EnsureSlices();
-
-			if (pdf == null || pdf.elements == null || pdf.elements.Length == 0) return;
-
-			element = pdf.elements[0];
-			dims = element.dims;
-
-			for (int i = 0; i < 3; i++)
-			{
-				slices[i].slider = 0;
-				if (element.fieldType == FieldType.RECTILINEAR)
-				{
-					float first = element.coords[i].First();
-					float last  = element.coords[i].Last();
-					slices[i].min = Mathf.Min(first, last);
-					slices[i].max = Mathf.Max(first, last);
-				}
-				else if ((element.fieldType == FieldType.UNIFORM) ||
-						 (element.fieldType == FieldType.IRREGULAR))
-				{
-					slices[i].min = 0;
-					slices[i].max = (float)element.dims[i] - 1;
-				}
-				slices[i].value = slices[i].min;
-			}
-
-			min   = slices[axis].min;
-			max   = slices[axis].max;
-			value = prev_value = min + (max - min) * slice;
 		}
 
-		/// <summary>
-		/// Applies parameter changes triggered by external UI.
-		/// </summary>
 		public override void SetParameters()
 		{
 		}
 
-		/// <summary>
-		/// Retrieves current parameters to update external UI states.
-		/// </summary>
 		public override void GetParameters()
 		{
 		}
 
-		/// <summary>
-		/// Validates parameters modified in the Inspector, ensuring values remain within valid limits.
-		/// </summary>
-		void OnValidate()
+		public override void ReSetParameters()
 		{
-			EnsureSlices();
+			if (pdf == null || pdf.elements == null || pdf.elements.Length == 0) return;
 
-			if (!IsDataLoadedToParent()) return;
+			element = pdf.elements[0];
+			dims    = element.dims;
 
-			if (axis != prev_axis)
-			{
-				// Backup current variables
-				slices[prev_axis].slider = slice;
-				slices[prev_axis].value  = value;
-				slices[prev_axis].min    = min;
-				slices[prev_axis].max    = max;
-
-				// Load variables to restore updated axis information
-				slice = slices[axis].slider;
-				value = slices[axis].value;
-				min   = slices[axis].min;
-				max   = slices[axis].max;
-				prev_slice = slice;
-				prev_value = value;
-				prev_axis  = axis;
-			}
-			else
-			{
-				if (value != prev_value)
-				{
-					var _value = Mathf.Clamp(value, min, max);
-					slice = (_value - min) / (max - min);
-					prev_value = _value;
-				}
-
-				if (slice != prev_slice)
-				{
-					value = min + (max - min) * slice;
-					prev_slice = slice;
-				}
-			}
-
-			UpdateMaterialShader();
-
-			if (activation != null)
-			{
-				activation.SetParameterChanged(ModuleState.PARAMETER_CHANGED);
-			}
+			if (sliceHelper == null) sliceHelper = new SliceHelper();
+			sliceHelper.Reset(element);
 		}
 
-		/// <summary>
-		/// Resets the associated UI components to their default states.
-		/// </summary>
 		public override void ResetUI()
 		{
 		}
 
+		private void OnDestroy()
+		{
+			if (material != null) Destroy(material);
+			if (texture != null) Destroy(texture);
+		}
+
+		void OnValidate()
+		{
+#if UNITY_EDITOR
+			EnsureCorrectShader();
+#endif
+			if (!IsDataLoadedToParent()) return;
+
+			if (sliceHelper != null) sliceHelper.Validate();
+
+			UpdateMaterialShader();
+
+			if (activation != null) activation.SetParameterChanged(ModuleState.PARAMETER_CHANGED);
+		}
+
 		/// <summary>
-		/// Converts a normalized scalar value into an HSV-based RGB color applying the current hue shift.
+		/// Updates or creates the shared material used by the Slicer.
+		/// Dynamically configures material properties (Cutout, Culling) for URP compatibility.
 		/// </summary>
+		public void UpdateMaterialShader()
+		{
+			var meshRenderer = GetComponent<MeshRenderer>();
+			if (meshRenderer == null) return;
+
+#if UNITY_EDITOR
+			EnsureCorrectShader();
+#endif
+
+			if (sliceShader == null) return;
+
+			if (material == null || material.shader != sliceShader)
+			{
+				if (material != null)
+				{
+					if (Application.isPlaying) Destroy(material);
+					else DestroyImmediate(material);
+				}
+
+				material = new Material(sliceShader);
+
+				bool isURP = GraphicsSettings.renderPipelineAsset != null;
+				if (isURP)
+				{
+					// Configure URP Unlit shader to act like a cutout double-sided shader
+					if (material.HasProperty("_Cull")) material.SetFloat("_Cull", 0); // Double-sided
+					if (material.HasProperty("_AlphaClip")) material.SetFloat("_AlphaClip", 1); // Enable Cutout
+				}
+
+				meshRenderer.sharedMaterial = material;
+				AssignTextureToMaterial();
+			}
+
+			if (material != null)
+			{
+				if (material.HasProperty("_Cutoff")) material.SetFloat("_Cutoff", alphaCutoff);
+			}
+		}
+
+		/// <summary>
+		/// Assigns the generated dynamic texture to the material, handling URP's _BaseMap difference.
+		/// </summary>
+		private void AssignTextureToMaterial()
+		{
+			if (material == null || texture == null) return;
+
+			material.mainTexture = texture;
+			material.mainTexture.wrapMode = TextureWrapMode.Clamp;
+
+			// URP shaders use _BaseMap instead of _MainTex
+			if (material.HasProperty("_BaseMap"))
+			{
+				material.SetTexture("_BaseMap", texture);
+			}
+		}
+
 		Color GetColor(float level)
 		{
 			level += shift;
-
-			if (level > 1f)
-			{
-				level -= 1f;
-			}
+			if (level > 1f) level -= 1f;
 
 			Color c = Color.HSVToRGB(level, 1f, 1f);
-
 			return new Color(c.r, c.g, c.b, 1f);
 		}
 
-		/// <summary>
-		/// Sets the texture filtering mode (Point, Bilinear, or Trilinear).
-		/// </summary>
 		public void SetMode(int mode)
 		{
 			filterMode = (FILTER_MODE)mode;
-			ParameterChanged();
+			if (IsDataLoadedToParent()) ParameterChanged();
 		}
 
-		/// <summary>
-		/// Updates the target axis (X=0, Y=1, Z=2) for the slice plane.
-		/// </summary>
 		public void SetAxis(int _axis)
 		{
-			EnsureSlices();
-
-			if (_axis != prev_axis)
+			if (sliceHelper == null) sliceHelper = new SliceHelper();
+			if (sliceHelper.SetAxis(_axis))
 			{
-				// Backup current variables
-				slices[prev_axis].slider = slice;
-				slices[prev_axis].value  = value;
-				slices[prev_axis].min    = min;
-				slices[prev_axis].max    = max;
-
-				// Load variables to restore updated axis information
-				slice = slices[_axis].slider;
-				value = slices[_axis].value;
-				min   = slices[_axis].min;
-				max   = slices[_axis].max;
-
-				prev_slice = slice;
-				prev_value = value;
-				prev_axis  = _axis;
-				axis       = _axis;
+				if (IsDataLoadedToParent()) ParameterChanged();
 			}
-
-			ParameterChanged();
 		}
 
-		/// <summary>
-		/// Sets the normalized slice position along the current axis.
-		/// </summary>
 		public void SetSlice(float _slice)
 		{
-			EnsureSlices();
-
-			if (_slice != prev_slice)
+			if (sliceHelper == null) sliceHelper = new SliceHelper();
+			if (sliceHelper.SetSlice(_slice))
 			{
-				value = min + (max - min) * _slice;
-				prev_slice = _slice;
-				slice      = _slice;
+				if (IsDataLoadedToParent()) ParameterChanged();
 			}
-
-			ParameterChanged();
 		}
 
-		/// <summary>
-		/// Sets the color shift (hue offset) used for data mapping.
-		/// </summary>
 		public void SetColorShift(float _shift)
 		{
 			shift = _shift;
-			ParameterChanged();
+			if (IsDataLoadedToParent()) ParameterChanged();
 		}
 
-		/// <summary>
-		/// Calculates the exact cell index and interpolation ratio where the slicing plane intersects the volume grid.
-		/// </summary>
-		int GetIndexOfCuttingEdge()
-		{
-			int idx = 0;
-			ratio = 0;
-
-			if (element.fieldType == FieldType.RECTILINEAR)
-			{
-				float[] coord = element.coords[axis];
-				int size = element.dims[axis];
-
-				if (coord.First() < coord.Last())
-				{
-					for (int i = 0; i < size - 1; i++)
-					{
-						if (coord[i + 1] >= value)
-						{
-							idx = i;
-							ratio = (value - coord[i]) / (coord[i + 1] - coord[i]);
-
-							if (ratio < 0) ratio += 1f;
-							if (value == max) ratio = 1f;
-
-							break;
-						}
-					}
-				}
-				else
-				{
-					for (int i = 0; i < size - 1; i++)
-					{
-						if (coord[i + 1] <= value)
-						{
-							idx = i;
-							ratio = (value - coord[i]) / (coord[i + 1] - coord[i]);
-
-							if (ratio < 0) ratio += 1f;
-							if (value == max) ratio = 0;
-
-							break;
-						}
-					}
-				}
-			}
-			else if ((element.fieldType == FieldType.UNIFORM) ||
-					 (element.fieldType == FieldType.IRREGULAR))
-			{
-				idx = (int)Mathf.Clamp(value, min, max - 1f);
-				ratio = (value % 1);
-
-				if (value == max) ratio = 1f;
-			}
-
-			return idx;
-		}
-
-		/// <summary>
-		/// Core calculation method. Generates the slicing plane mesh and interpolates the scalar field onto a 2D texture.
-		/// </summary>
 		public void Calc()
 		{
-			int idx = GetIndexOfCuttingEdge();
+			if (element == null || element.values == null) return;
 
-			if (vertices == null)
-			{
-				InitModule();
-			}
+			if (vertices == null) InitModule();
+			if (sliceHelper == null) sliceHelper = new SliceHelper();
+
+			float ratio;
+			int   idx = sliceHelper.GetIndexOfCuttingEdge(element, out ratio);
 
 			vertices.Clear();
 			normals.Clear();
@@ -545,63 +425,24 @@ namespace VisAssets.SciVis.Structured.Slicer
 			triangles.Clear();
 			texture_uv.Clear();
 
-			int slice_w = 0; // width
-			int slice_h = 0; // height
-			int slice_d = 0; // depth
+			int slice_w, slice_h, slice_d;
+			sliceHelper.GetSliceDimensions(element, out slice_w, out slice_h, out slice_d);
 
-			if (axis == 0)
-			{
-				slice_w = element.dims[1];
-				slice_h = element.dims[2];
-				slice_d = element.dims[0];
-			}
-			else if (axis == 1)
-			{
-				slice_w = element.dims[0];
-				slice_h = element.dims[2];
-				slice_d = element.dims[1];
-			}
-			else
-			{
-				slice_w = element.dims[0];
-				slice_h = element.dims[1];
-				slice_d = element.dims[2];
-			}
-
-			if (texture != null)
-			{
-				Destroy(texture);
-			}
+			if (texture != null) Destroy(texture);
 
 			texture  = new Texture2D(slice_w, slice_h, TextureFormat.RGBA32, true);
 			texcolor = new Color[slice_w * slice_h];
+
 			float[] values      = element.values;
 			float   values_min  = element.min;
-			float   values_max  = element.max;
-			float   values_diff = values_max - values_min;
+			float   values_diff = element.max - values_min;
 
 			for (int j = 0; j < slice_h; j++)
 			{
 				for (int i = 0; i < slice_w; i++)
 				{
-					int idx0 = 0;
-					int idx1 = 0;
-
-					if (axis == 0)
-					{
-						idx0 = slice_d * (slice_w * j + i) + idx;
-						idx1 = idx0 + 1;
-					}
-					else if (axis == 1)
-					{
-						idx0 = slice_w * slice_d * j + i + slice_w * idx;
-						idx1 = idx0 + slice_w;
-					}
-					else
-					{
-						idx0 = slice_w * slice_h * idx + slice_w * j + i;
-						idx1 = idx0 + slice_w * slice_h;
-					}
+					int idx0, idx1;
+					sliceHelper.GetIndices(i, j, slice_w, slice_h, slice_d, idx, out idx0, out idx1);
 
 					float ansf = 0;
 
@@ -612,29 +453,29 @@ namespace VisAssets.SciVis.Structured.Slicer
 					else
 					{
 						bool is_undef = false;
+
 						if (element.useUndef)
 						{
-							if ((values[idx0] == element.undef) ||
-								(values[idx1] == element.undef))
+							if (values[idx0] == element.undef || values[idx1] == element.undef)
 							{
-								ansf = element.undef;
+								ansf     = element.undef;
 								is_undef = true;
 							}
 						}
+
 						if (!is_undef)
 						{
 							if (element.fieldType == FieldType.RECTILINEAR)
 							{
 								ansf = values[idx0] * (1f - ratio) + values[idx1] * ratio;
 							}
-							else if ((element.fieldType == FieldType.UNIFORM) ||
-									 (element.fieldType == FieldType.IRREGULAR))
+							else if (element.fieldType == FieldType.UNIFORM || element.fieldType == FieldType.IRREGULAR)
 							{
-								if (value == min)
+								if (sliceHelper.value == sliceHelper.value_min)
 								{
 									ansf = values[idx0];
 								}
-								else if (value == max)
+								else if (sliceHelper.value == sliceHelper.value_max)
 								{
 									ansf = values[idx1];
 								}
@@ -646,7 +487,7 @@ namespace VisAssets.SciVis.Structured.Slicer
 						}
 					}
 
-					if ((element.useUndef) && (ansf == element.undef))
+					if (element.useUndef && ansf == element.undef)
 					{
 						texcolor[slice_w * j + i] = new Color(1f, 1f, 1f, 0);
 					}
@@ -656,93 +497,74 @@ namespace VisAssets.SciVis.Structured.Slicer
 						texcolor[slice_w * j + i] = GetColor(color);
 					}
 
-					float v0, v1, v2;
 					float[] coord3 = element.coords[3];
+					float   v0, v1, v2;
 
 					if (slice_d == 1)
 					{
 						v0 = coord3[idx0 * 3 + 0];
 						v1 = coord3[idx0 * 3 + 1];
 						v2 = coord3[idx0 * 3 + 2];
-						vertices.Add(new Vector3(v0, v1, v2));
 					}
 					else
 					{
 						v0 = coord3[idx0 * 3 + 0] + (coord3[idx1 * 3 + 0] - coord3[idx0 * 3 + 0]) * ratio;
 						v1 = coord3[idx0 * 3 + 1] + (coord3[idx1 * 3 + 1] - coord3[idx0 * 3 + 1]) * ratio;
 						v2 = coord3[idx0 * 3 + 2] + (coord3[idx1 * 3 + 2] - coord3[idx0 * 3 + 2]) * ratio;
-						vertices.Add(new Vector3(v0, v1, v2));
 					}
+
+					vertices.Add(new Vector3(v0, v1, v2));
 				}
 			}
+
 			texture.SetPixels(texcolor, 0);
 			texture.Apply();
 
-			if (filterMode == FILTER_MODE.POINT)
-			{
-				texture.filterMode = FilterMode.Point;
-			}
-			else if (filterMode == FILTER_MODE.BILINEAR)
-			{
-				texture.filterMode = FilterMode.Bilinear;
-			}
-			else
-			{
-				texture.filterMode = FilterMode.Trilinear;
-			}
-			texture.wrapMode = TextureWrapMode.Clamp;
+			if (filterMode == FILTER_MODE.POINT) texture.filterMode = FilterMode.Point;
+			else if (filterMode == FILTER_MODE.BILINEAR) texture.filterMode = FilterMode.Bilinear;
+			else texture.filterMode = FilterMode.Trilinear;
 
-			// Set triangle indices
 			tri_idx = 0;
+
 			for (int j = 0; j < slice_h - 1; j++)
 			{
 				for (int i = 0; i < slice_w - 1; i++)
 				{
 					int v0 = slice_w * j + i;
-					int v1 = slice_w * (j + 1) +  i;
-					int v2 = slice_w * j +      (i + 1);
+					int v1 = slice_w * (j + 1) + i;
+					int v2 = slice_w * j + (i + 1);
 					int v3 = slice_w * (j + 1) + (i + 1);
+
 					triangles.Add(v0);
 					triangles.Add(v1);
 					triangles.Add(v3);
 					triangles.Add(v0);
 					triangles.Add(v3);
 					triangles.Add(v2);
+
 					tri_idx += 2;
 				}
 			}
 
-			// Set texture UVs
 			float du = 1f / (float)(slice_w - 1);
 			float dv = 1f / (float)(slice_h - 1);
+
 			for (int j = 0; j < slice_h; j++)
 			{
 				float v = dv * (float)j;
-				for (int i = 0; i < slice_w; i++)
-				{
-					texture_uv.Add(new Vector2(du * (float)i, v));
-				}
+				for (int i = 0; i < slice_w; i++) texture_uv.Add(new Vector2(du * (float)i, v));
 			}
 
 			var meshFilter = GetComponent<MeshFilter>();
-			if (meshFilter != null)
-			{
-				meshFilter.sharedMesh = CreatePlane();
-			}
+			if (meshFilter != null) meshFilter.sharedMesh = CreatePlane();
 
-			if (material != null)
-			{
-				material.mainTexture = texture;
-				material.mainTexture.wrapMode = TextureWrapMode.Clamp;
-			}
+			AssignTextureToMaterial(); // ★ URP対応のテクスチャ割り当てメソッドを使用
 		}
 
-		/// <summary>
-		/// Constructs the plane mesh using the calculated vertices and UVs.
-		/// </summary>
 		Mesh CreatePlane()
 		{
 			var mesh = new Mesh();
+
 			mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
 			mesh.SetVertices(vertices);
 			mesh.SetUVs(0, texture_uv);
@@ -751,74 +573,6 @@ namespace VisAssets.SciVis.Structured.Slicer
 			mesh.RecalculateBounds();
 
 			return mesh;
-		}
-
-		/// <summary>
-		/// Dynamically generates or updates the slice material, ensuring robust memory management.
-		/// </summary>
-		public void UpdateMaterialShader()
-		{
-			var meshRenderer = GetComponent<MeshRenderer>();
-			if (meshRenderer == null) return;
-
-			// Regenerate material if it's missing or the shader assignment has changed in the Inspector
-			if (material == null || (sliceShader != null && material.shader != sliceShader))
-			{
-				// Destroy the old material to prevent memory leaks in the Editor and at runtime
-				if (material != null)
-				{
-					if (Application.isPlaying)
-					{
-						Destroy(material);
-					}
-					else
-					{
-						DestroyImmediate(material);
-					}
-				}
-
-				// Create the new material with the specified shader or fallback to Standard
-				if (sliceShader != null)
-				{
-					material = new Material(sliceShader);
-				}
-				else
-				{
-					material = new Material(Shader.Find("Standard"));
-				}
-
-				// Apply to Renderer (always use sharedMaterial to prevent unintended instantiation in the Editor)
-				meshRenderer.sharedMaterial = material;
-
-				// Reassign existing texture if available
-				if (texture != null)
-				{
-					material.mainTexture = texture;
-					material.mainTexture.wrapMode = TextureWrapMode.Clamp;
-				}
-			}
-
-			// Update shader properties
-			if (material != null && material.HasProperty("_Cutoff"))
-			{
-				material.SetFloat("_Cutoff", alphaCutoff);
-			}
-		}
-
-		/// <summary>
-		/// Cleans up dynamically generated materials and textures to release memory upon destruction.
-		/// </summary>
-		private void OnDestroy()
-		{
-			if (material != null)
-			{
-				Destroy(material);
-			}
-
-			if (texture != null)
-			{
-				Destroy(texture);
-			}
 		}
 	}
 }

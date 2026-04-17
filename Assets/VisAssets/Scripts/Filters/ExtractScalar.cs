@@ -4,11 +4,13 @@ using UnityEngine;
 using UnityEngine.UI;
 #if UNITY_EDITOR
 using UnityEditor;
-using UnityEditor.Compilation;
 #endif
 
 namespace VisAssets.SciVis.Structured.ExtracterScalar
 {
+	// =========================================================================
+	// Editor Extension
+	// =========================================================================
 #if UNITY_EDITOR
 	[CustomEditor(typeof(ExtractScalar))]
 	public class ExtractScalarEditor : Editor
@@ -19,11 +21,9 @@ namespace VisAssets.SciVis.Structured.ExtracterScalar
 
 			serializedObject.Update();
 
-			EditorGUILayout.PropertyField(
-				serializedObject.FindProperty("UIPrefab"), new GUIContent("UI Prefab"));
-
 			EditorGUI.BeginChangeCheck();
-			EditorGUILayout.Space();
+
+			GUILayout.Space(5f);
 
 			var label = new GUIContent("Channel");
 			GUILayout.BeginHorizontal();
@@ -32,28 +32,42 @@ namespace VisAssets.SciVis.Structured.ExtracterScalar
 			GUILayout.EndHorizontal();
 			selectedChannel = Mathf.Clamp(selectedChannel, 0, extractScalar.varNames.Length);
 
-			EditorGUILayout.Space();
+			GUILayout.Space(5f);
+
+			EditorGUILayout.PropertyField(serializedObject.FindProperty("UIPrefab"), new GUIContent("UI Prefab"));
+
+			GUILayout.Space(5f);
 
 			if (EditorGUI.EndChangeCheck())
 			{
 				extractScalar.SetChannel(selectedChannel);
 			}
+
 			serializedObject.ApplyModifiedProperties();
 		}
 	}
 #endif
 
+	// =========================================================================
+	// Main Class
+	// =========================================================================
 	[DisallowMultipleComponent]
 	public class ExtractScalar : FilterModuleTemplate
 	{
 		public int      channel  = 0;
 		public string[] varNames = { };
 
+		/// <summary>
+		/// Initializes the module by creating a single element container for the scalar field.
+		/// </summary>
 		public override void InitModule()
 		{
 			df.CreateElements(1);
 		}
 
+		/// <summary>
+		/// Extracts the selected scalar channel from the parent DataField and copies metadata.
+		/// </summary>
 		public override int BodyFunc()
 		{
 			df.elements[0] = pdf.elements[channel].Clone();
@@ -65,14 +79,14 @@ namespace VisAssets.SciVis.Structured.ExtracterScalar
 			return 1;
 		}
 
+		/// <summary>
+		/// Reinitializes variable names when the parent dataset structure changes.
+		/// </summary>
 		public override void ReSetParameters() // runs when parent was updated
 		{
-			// データセットが変更になった場合: channnelの初期が必要
-			// タイムステップが変更になった場合: channnelの初期は不要
-//			channel = 0;
-
 			int varNum = pdf.elements.Length;
 			varNames = new string[varNum];
+
 			for (int i = 0; i < varNum; i++)
 			{
 				var varName = pdf.elements[i].varName;
@@ -87,11 +101,20 @@ namespace VisAssets.SciVis.Structured.ExtracterScalar
 			}
 		}
 
+		/// <summary>
+		/// Ensures the selected channel remains within valid bounds when parameters are updated.
+		/// </summary>
 		public override void SetParameters() // runs when parameters were updated
 		{
-			channel = Mathf.Clamp(channel, 0, pdf.elements.Length - 1);
+			if (pdf != null && pdf.elements != null)
+			{
+				channel = Mathf.Clamp(channel, 0, pdf.elements.Length - 1);
+			}
 		}
 
+		/// <summary>
+		/// Sets the target extraction channel and triggers a module update.
+		/// </summary>
 		public void SetChannel(int element_id)
 		{
 			if (!IsDataLoadedToParent()) return;
@@ -101,10 +124,17 @@ namespace VisAssets.SciVis.Structured.ExtracterScalar
 			ParameterChanged();
 		}
 
+		/// <summary>
+		/// Resets the associated uGUI dropdown options based on the available data channels.
+		/// </summary>
 		public override void ResetUI()
 		{
-			var dropdown = UIPanel.transform.Find("ChannelSelector/Dropdown").GetComponent<Dropdown>();
+			var dropdownObj = UIPanel.transform.Find("ChannelSelector/Dropdown");
+			if (dropdownObj == null) return;
+
+			var dropdown = dropdownObj.GetComponent<Dropdown>();
 			dropdown.ClearOptions();
+
 			for (int i = 0; i < pdf.elements.Length; i++)
 			{
 				if (pdf.elements[i].varName == "")
@@ -116,6 +146,7 @@ namespace VisAssets.SciVis.Structured.ExtracterScalar
 					dropdown.options.Add(new Dropdown.OptionData { text = pdf.elements[i].varName });
 				}
 			}
+
 			dropdown.interactable = true;
 			dropdown.RefreshShownValue();
 		}

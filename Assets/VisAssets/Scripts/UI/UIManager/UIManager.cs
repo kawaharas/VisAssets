@@ -215,7 +215,8 @@ namespace VisAssets
 									{
 										if (tip != null)
 										{
-											streamLines.AddSeed2(tip);
+//											streamLines.AddSeed2(tip);
+											streamLines.AddSeed(tip);
 										}
 									}
 								}

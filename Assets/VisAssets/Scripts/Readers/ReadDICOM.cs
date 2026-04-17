@@ -408,7 +408,6 @@ namespace VisAssets.SciVis.Structured.DataLoader
 	public class ReadDICOM : ReadModuleTemplate
 	{
 		public string fallbackEncoding = "shift_jis";
-		public DataField.UpAxis upAxis = DataField.UpAxis.Z;
 
 		public List<DicomMetaEntry> metaDataList = new List<DicomMetaEntry>();
 

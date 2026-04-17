@@ -241,6 +241,8 @@ namespace VisAssets
 
 	public class ReadModuleTemplate : ModuleTemplate
 	{
+		public DataField.UpAxis upAxis = DataField.UpAxis.Z;
+
 		public enum Precision
 		{
 			SINGLE,
@@ -482,7 +484,7 @@ namespace VisAssets
 				SetStep(step);
 			}
 		}
-
+/*
 		/// <summary>
 		/// Calculates offsets and scale to center and optionally normalize the loaded data within the scene.
 		/// </summary>
@@ -539,6 +541,100 @@ namespace VisAssets
 			}
 
 			if (normalize)
+			{
+				float scale = 1f / maxDist * 10f;
+				transform.localScale = new Vector3(scale, scale, scale);
+			}
+			else
+			{
+				transform.localScale = Vector3.one;
+			}
+		}
+*/
+		/// <summary>
+		/// Calculates offsets and scale to center and optionally normalize the loaded data within the scene.
+		/// </summary>
+		public void Centering(bool normalize = false)
+		{
+			if (!df.dataLoaded) return;
+
+			float[] offset = new float[3];
+			float[] min = new float[3];
+			float[] max = new float[3];
+			float maxDist = float.MinValue;
+
+			for (int i = 0; i < 3; i++)
+			{
+				min[i] = float.MaxValue;
+				max[i] = float.MinValue;
+			}
+
+			for (int n = 0; n < df.elements.Length; n++)
+			{
+				DataElement element = df.elements[n];
+
+				if (element.fieldType == DataElement.FieldType.IRREGULAR)
+				{
+					if (element.coords.Length > 3 && element.coords[3] != null && element.coords[3].Length > 0)
+					{
+						int numVerts = element.coords[3].Length / 3;
+
+						for (int m = 0; m < numVerts; m++)
+						{
+							for (int i = 0; i < 3; i++)
+							{
+								float v = element.coords[3][m * 3 + i];
+
+								min[i] = Mathf.Min(min[i], v);
+								max[i] = Mathf.Max(max[i], v);
+							}
+						}
+					}
+				}
+				else
+				{
+					for (int i = 0; i < 3; i++)
+					{
+						if (element.coords[i] != null && element.coords[i].Length > 0)
+						{
+							float startVal = element.coords[i][0];
+							float endVal = element.coords[i][element.coords[i].Length - 1];
+
+							min[i] = Mathf.Min(min[i], Mathf.Min(startVal, endVal));
+							max[i] = Mathf.Max(max[i], Mathf.Max(startVal, endVal));
+						}
+						else if (element.fieldType == DataElement.FieldType.UNIFORM)
+						{
+							min[i] = Mathf.Min(min[i], 0);
+							max[i] = Mathf.Max(max[i], element.dims[i] - 1);
+						}
+					}
+				}
+			}
+
+			for (int i = 0; i < 3; i++)
+			{
+				maxDist = Mathf.Max(maxDist, max[i] - min[i]);
+				offset[i] = min[i] + (max[i] - min[i]) / 2f;
+				df.offset[i] = offset[i];
+			}
+
+			if (centering)
+			{
+				foreach (Transform child in transform)
+				{
+					child.gameObject.transform.localPosition = new Vector3(-offset[0], -offset[1], -offset[2]);
+				}
+			}
+			else
+			{
+				foreach (Transform child in transform)
+				{
+					child.gameObject.transform.localPosition = Vector3.zero;
+				}
+			}
+
+			if (normalize && maxDist > 0)
 			{
 				float scale = 1f / maxDist * 10f;
 				transform.localScale = new Vector3(scale, scale, scale);

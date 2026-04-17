@@ -67,8 +67,8 @@ MonoBehaviour:
   activation: {fileID: 0}
   df: {fileID: 0}
   pdf: {fileID: 0}
-  dims: {x: 0, y: 0, z: 0}
-  idims: {x: 0, y: 0, z: 0}
+  targetDims: {x: 50, y: 50, z: 50}
+  androidMaxDim: 100
   activeElements: 
 --- !u!114 &7823653957748791832
 MonoBehaviour:

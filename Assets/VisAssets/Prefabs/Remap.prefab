@@ -1,6 +1,6 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!1 &5047386637850097902
+--- !u!1 &5334670991872036122
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -8,23 +8,24 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 4700924616770843553}
-  - component: {fileID: 6001742793500948234}
-  - component: {fileID: 1055606706239549498}
+  - component: {fileID: 2632307904462547433}
+  - component: {fileID: 4507963008909721454}
+  - component: {fileID: 8360787307724466826}
+  - component: {fileID: 994221579097481434}
   m_Layer: 0
-  m_Name: StreamLines
+  m_Name: Remap
   m_TagString: VisModule
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &4700924616770843553
+--- !u!4 &2632307904462547433
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5047386637850097902}
+  m_GameObject: {fileID: 5334670991872036122}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
@@ -33,13 +34,13 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &6001742793500948234
+--- !u!114 &4507963008909721454
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5047386637850097902}
+  m_GameObject: {fileID: 5334670991872036122}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: ddeb0049803ed404ba907c4860b87946, type: 3}
@@ -48,38 +49,43 @@ MonoBehaviour:
   moduleType: 3
   parent_changed: 0
   parameter_changed: 0
---- !u!114 &1055606706239549498
+--- !u!114 &8360787307724466826
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5047386637850097902}
+  m_GameObject: {fileID: 5334670991872036122}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 33c21da0a31d5d34ea2d239d11bf5c69, type: 3}
+  m_Script: {fileID: 11500000, guid: a48bb59cb1bf60742b482dfdc9008cdb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  dataType: 0
+  coordinateSystem: 0
+  upAxis: 0
+  scale: {x: 1, y: 1, z: 1}
+  offset: {x: 0, y: 0, z: 0}
+  dataLoaded: 0
+  elements: []
+--- !u!114 &994221579097481434
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5334670991872036122}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e0faa2459b9a06c41a81e12f25903c04, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   UIPanel: {fileID: 0}
   FixedModuleName: 
-  UIPrefab: {fileID: 6388945722156695275, guid: bc58e025d23c7454ea62d950922f8d3d, type: 3}
-  moduleType: 2
+  UIPrefab: {fileID: 0}
   activation: {fileID: 0}
+  df: {fileID: 0}
   pdf: {fileID: 0}
-  lineShader: {fileID: 10753, guid: 0000000000000000f000000000000000, type: 0}
-  sphereShader: {fileID: 46, guid: 0000000000000000f000000000000000, type: 0}
-  drawMode: 0
-  ribbonWidth: 0.05
-  UseMagnitude: 0
-  lineColor: {r: 0, g: 1, b: 1, a: 1}
-  sphereColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
-  p0:
-  - 0
-  - 0
-  - 0
-  linePrefab: {fileID: 1886520451042925390, guid: d7bcea3e1c36b844385962879f76a49e, type: 3}
-  maxStep: 5000
-  max_line_num: 100
-  displayTime: 5
-  upstreamReciprocalScale: {x: 1, y: 1, z: 1}
-  activeSeeds: []
+  targetDims: {x: 64, y: 64, z: 64}
+  splatRadius: 1
+  activeElements: 

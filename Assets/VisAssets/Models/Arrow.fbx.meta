@@ -3,7 +3,17 @@ guid: 510fc7f3e2e947f46a8468754bf760a7
 ModelImporter:
   serializedVersion: 22200
   internalIDToNameTable: []
-  externalObjects: {}
+  externalObjects:
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Default_Material_Cone
+    second: {fileID: 2100000, guid: 48af994723f6e594c94de2fc6d00c20b, type: 2}
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Default_Material_Cylinder
+    second: {fileID: 2100000, guid: 9bb113a79bd7a164f89a97618d890443, type: 2}
   materials:
     materialImportMode: 2
     materialName: 0

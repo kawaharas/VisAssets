@@ -105,8 +105,6 @@ namespace VisAssets.SciVis.Structured.DataLoader
 	// =========================================================================
 	public class ReadGrADS : ReadModuleTemplate
 	{
-		public DataField.UpAxis upAxis = DataField.UpAxis.Z;
-
 		[SerializeField]
 		public float[] offsets;
 		

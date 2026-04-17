@@ -40,13 +40,7 @@ namespace VisAssets.SciVis.Structured.Downsize
 
 			serializedObject.Update();
 
-			EditorGUILayout.PropertyField(serializedObject.FindProperty("UIPrefab"), new GUIContent("UI Prefab"));
-
 			EditorGUI.BeginChangeCheck();
-
-			GUILayout.Space(5f);
-
-			EditorGUILayout.LabelField("--- Target Resolution ---", EditorStyles.boldLabel);
 
 			int maxX = 100; int maxY = 100; int maxZ = 100;
 
@@ -72,19 +66,29 @@ namespace VisAssets.SciVis.Structured.Downsize
 			}
 
 			Vector3Int currentDims = targetDims.vector3IntValue;
-			currentDims.x = EditorGUILayout.IntSlider("Target X", currentDims.x, 1, maxX);
-			currentDims.y = EditorGUILayout.IntSlider("Target Y", currentDims.y, 1, maxY);
-			currentDims.z = EditorGUILayout.IntSlider("Target Z", currentDims.z, 1, maxZ);
-			targetDims.vector3IntValue = currentDims;
 
-			GUILayout.Space(6f);
+			GUILayout.Space(5f);
+
+			currentDims.x = EditorGUILayout.IntSlider("New Grid Size X", currentDims.x, 1, maxX);
+
+			GUILayout.Space(5f);
+
+			currentDims.y = EditorGUILayout.IntSlider("New Grid Size Y", currentDims.y, 1, maxY);
+
+			GUILayout.Space(5f);
+
+			currentDims.z = EditorGUILayout.IntSlider("New Grid Size Z", currentDims.z, 1, maxZ);
+
+			GUILayout.Space(5f);
+
+			targetDims.vector3IntValue = currentDims;
 
 			// Disable modification of the Android Max Size Cap during runtime to prevent inconsistencies
 			EditorGUI.BeginDisabledGroup(Application.isPlaying);
 			EditorGUILayout.PropertyField(androidMaxDim, new GUIContent("Android Max Size Cap"));
 			EditorGUI.EndDisabledGroup();
 
-			GUILayout.Space(6f);
+			GUILayout.Space(5f);
 
 			if (EditorGUI.EndChangeCheck())
 			{
@@ -97,11 +101,16 @@ namespace VisAssets.SciVis.Structured.Downsize
 				}
 			}
 
+			EditorGUILayout.PropertyField(serializedObject.FindProperty("UIPrefab"), new GUIContent("UI Prefab"));
+
+			GUILayout.Space(5f);
+
 			serializedObject.ApplyModifiedProperties();
 
 			if (pendingUpdate && GUIUtility.hotControl == 0)
 			{
 				pendingUpdate = false;
+
 				if (downsize.activation != null)
 				{
 					downsize.activation.SetParameterChanged(ModuleState.PARAMETER_CHANGED);
@@ -120,7 +129,6 @@ namespace VisAssets.SciVis.Structured.Downsize
 		[SerializeField]
 		public Vector3Int targetDims = new Vector3Int(50, 50, 50);
 
-		[Header("Mobile Optimization")]
 		[Tooltip("Maximum grid size per axis for Android builds (prevents memory exhaustion).")]
 		public int androidMaxDim = 100;
 

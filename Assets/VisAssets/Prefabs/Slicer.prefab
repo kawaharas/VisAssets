@@ -68,14 +68,20 @@ MonoBehaviour:
   moduleType: 2
   activation: {fileID: 0}
   pdf: {fileID: 0}
+  sliceHelper:
+    axis: 0
+    slice: 0
+    value: 0
+    value_min: 0
+    value_max: 0
+    slices: []
+    prev_axis: 0
+    prev_slice: 0
+    prev_value: 0
+  builtinCustomShader: {fileID: 4800000, guid: 0a384ccd55ac083488ee37646d97e837, type: 3}
   sliceShader: {fileID: 4800000, guid: 0a384ccd55ac083488ee37646d97e837, type: 3}
   alphaCutoff: 0.01
-  axis: 0
-  slice: 0
-  value: 0
-  min: 0
-  max: 0
-  filterMode: 2
+  filterMode: 0
   shift: 0
   dims: 
   element:
@@ -95,22 +101,7 @@ MonoBehaviour:
     isActive: 0
     boundMin: {x: 0, y: 0, z: 0}
     boundMax: {x: 0, y: 0, z: 0}
-  slices:
-  - slider: 0
-    value: 0
-    min: 0
-    max: 1
-  - slider: 0
-    value: 0
-    min: 0
-    max: 1
-  - slider: 0
-    value: 0
-    min: 0
-    max: 1
   tri_idx: 0
-  ratio: 0
-  ratio2: 0
 --- !u!33 &6076052855385624970
 MeshFilter:
   m_ObjectHideFlags: 0
@@ -128,7 +119,7 @@ MeshRenderer:
   m_GameObject: {fileID: 9184860028360360910}
   m_Enabled: 1
   m_CastShadows: 1
-  m_ReceiveShadows: 1
+  m_ReceiveShadows: 0
   m_DynamicOccludee: 1
   m_StaticShadowCaster: 0
   m_MotionVectors: 1

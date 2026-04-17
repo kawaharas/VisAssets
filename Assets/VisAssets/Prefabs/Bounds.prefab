@@ -64,11 +64,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   UIPanel: {fileID: 0}
   FixedModuleName: 
-  UIPrefab: {fileID: 5041007953014720868, guid: 342b4ba7db05ab04487dbf5987814f3f, type: 3}
+  UIPrefab: {fileID: 0}
   moduleType: 2
   activation: {fileID: 0}
   pdf: {fileID: 0}
   color: {r: 1, g: 1, b: 1, a: 1}
+  lineShader: {fileID: 10753, guid: 0000000000000000f000000000000000, type: 0}
 --- !u!33 &2076989066879425104
 MeshFilter:
   m_ObjectHideFlags: 0
