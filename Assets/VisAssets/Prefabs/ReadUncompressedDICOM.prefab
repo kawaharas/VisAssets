@@ -10,8 +10,8 @@ GameObject:
   m_Component:
   - component: {fileID: 8053143839385147439}
   - component: {fileID: 1001102248110258018}
-  - component: {fileID: 3553492048329424917}
   - component: {fileID: 8979076629514826121}
+  - component: {fileID: 3553492048329424917}
   - component: {fileID: 2632979143650286968}
   m_Layer: 0
   m_Name: ReadUncompressedDICOM
@@ -50,25 +50,6 @@ MonoBehaviour:
   moduleType: 3
   parent_changed: 0
   parameter_changed: 0
---- !u!114 &3553492048329424917
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 941792499701407870}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: a48bb59cb1bf60742b482dfdc9008cdb, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  dataType: 0
-  coordinateSystem: 0
-  upAxis: 0
-  scale: {x: 1, y: 1, z: 1}
-  offset: {x: 0, y: 0, z: 0}
-  dataLoaded: 0
-  elements: []
 --- !u!114 &8979076629514826121
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -84,6 +65,7 @@ MonoBehaviour:
   UIPanel: {fileID: 0}
   FixedModuleName: 
   UIPrefab: {fileID: 0}
+  upAxis: 1
   activation: {fileID: 0}
   df: {fileID: 0}
   animator: {fileID: 0}
@@ -105,8 +87,26 @@ MonoBehaviour:
   useHeaderSkipMenu: 0
   currentStep: 0
   fallbackEncoding: shift_jis
-  upAxis: 1
   metaDataList: []
+--- !u!114 &3553492048329424917
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 941792499701407870}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a48bb59cb1bf60742b482dfdc9008cdb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  dataType: 0
+  coordinateSystem: 0
+  upAxis: 0
+  scale: {x: 1, y: 1, z: 1}
+  offset: {x: 0, y: 0, z: 0}
+  dataLoaded: 0
+  elements: []
 --- !u!114 &2632979143650286968
 MonoBehaviour:
   m_ObjectHideFlags: 0

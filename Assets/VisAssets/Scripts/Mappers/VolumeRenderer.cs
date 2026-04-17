@@ -152,7 +152,7 @@ namespace VisAssets.SciVis.Structured.Volume
 	// =========================================================================
 	// Main Class
 	// =========================================================================
-	public class VolumeRenderer : MapperModuleTemplate
+	public class VolumeRenderer : MapperModuleTemplate, IColormapReceiver
 	{
 		public enum UndefMappingMode { MapTo0_Min, MapTo255_Max }
 		public enum ClipAxis { X, Y, Z }
@@ -205,6 +205,11 @@ namespace VisAssets.SciVis.Structured.Volume
 
 		private GameObject volumeObject;
 		private Material volumeMaterial;
+
+		[HideInInspector]
+		public bool useExternalColormap = false;
+		[HideInInspector]
+		public Color[] externalTransferColors = new Color[256];
 
 		// Properties for downstream access
 		public DataElement Element => element;
@@ -595,7 +600,23 @@ namespace VisAssets.SciVis.Structured.Volume
 				transferTexture.wrapMode = TextureWrapMode.Clamp;
 			}
 
-			if (transferFunction != null)
+			if (useExternalColormap)
+			{
+				System.Array.Copy(externalTransferColors, transferColors, 256);
+
+				if (undefMapping == UndefMappingMode.MapTo0_Min)
+				{
+					transferColors[0] = new Color(0f, 0f, 0f, 0f);
+				}
+				else
+				{
+					transferColors[255] = new Color(0f, 0f, 0f, 0f);
+				}
+
+				transferTexture.SetPixels(transferColors);
+				transferTexture.Apply();
+			}
+			else if (transferFunction != null)
 			{
 				if (undefMapping == UndefMappingMode.MapTo0_Min)
 				{
@@ -642,6 +663,35 @@ namespace VisAssets.SciVis.Structured.Volume
 			volumeMaterial.SetFloat("_EnableLighting", enableLighting ? 1.0f : 0.0f);
 			volumeMaterial.SetFloat("_Ambient", ambient);
 			volumeMaterial.SetFloat("_Diffuse", diffuse);
+		}
+
+		public void ApplyColormap(Texture2D colormapTexture)
+		{
+			if (colormapTexture != null)
+			{
+				Color[] incoming = colormapTexture.GetPixels();
+				if (incoming.Length == 256)
+				{
+					System.Array.Copy(incoming, externalTransferColors, 256);
+					useExternalColormap = true;
+				}
+			}
+			else
+			{
+				useExternalColormap = false;
+			}
+
+			UpdateMaterialProperties();
+
+			if (activation != null)
+			{
+				activation.SetParameterChanged(ModuleState.PARAMETER_CHANGED);
+			}
+		}
+
+		public Gradient GetGradient()
+		{
+			return transferFunction;
 		}
 	}
 }

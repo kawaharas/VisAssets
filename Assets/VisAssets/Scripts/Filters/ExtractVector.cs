@@ -70,27 +70,9 @@ namespace VisAssets.SciVis.Structured.ExtractVector
 				GUILayout.Space(10f);
 			}
 
-			var message = new GUIContent("All input elements must have the same number of grids.");
-			EditorGUILayout.BeginHorizontal(GUI.skin.box);
-			GUILayout.Space(5f);
-			GUIStyle style = new GUIStyle(GUI.skin.label);
-			style.alignment = TextAnchor.MiddleLeft;
-			style.wordWrap = true;
-			style.CalcSize(message);
-			if (activeChannelNum.intValue > 0)
-			{
-				EditorGUILayout.LabelField("", style);
-			}
-			else
-			{
-				EditorGUILayout.LabelField(message, style);
-			}
+			EditorGUILayout.HelpBox("Grid dimensions and coordinate topologies must match across all input elements.", MessageType.Info);
 
-			GUILayout.Space(5f);
-
-			EditorGUILayout.EndHorizontal();
-
-			GUILayout.Space(5f);
+			GUILayout.Space(10f);
 
 			EditorGUILayout.PropertyField(serializedObject.FindProperty("UIPrefab"), new GUIContent("UI Prefab"));
 

@@ -21,6 +21,58 @@ namespace VisAssets
 		[HideInInspector]
 		public DataField  pdf;
 
+#if UNITY_EDITOR
+		/// <summary>
+		/// Called when the component is attached or reset in the Inspector.
+		/// Sets up required components and reorders them: Activation -> Script -> DataField
+		/// </summary>
+		protected override void Reset()
+		{
+			base.Reset();
+
+			if (this.GetComponent<Activation>() == null)
+			{
+				this.gameObject.AddComponent<Activation>();
+			}
+
+			if (this.GetComponent<DataField>() == null)
+			{
+				this.gameObject.AddComponent<DataField>();
+			}
+
+			Component[] targetOrder = new Component[]
+			{
+				this.GetComponent<Activation>(),
+				this, // FilterModuleTemplate
+				this.GetComponent<DataField>()
+			};
+
+			int targetIndex = 1; // targetIndex = 0 is Transform
+
+			foreach (Component comp in targetOrder)
+			{
+				if (comp == null) continue;
+
+				Component[] currentComps = GetComponents<Component>();
+				int currentIndex = System.Array.IndexOf(currentComps, comp);
+
+				while (currentIndex > targetIndex)
+				{
+					UnityEditorInternal.ComponentUtility.MoveComponentUp(comp);
+					currentIndex--;
+				}
+
+				while (currentIndex < targetIndex)
+				{
+					UnityEditorInternal.ComponentUtility.MoveComponentDown(comp);
+					currentIndex++;
+				}
+
+				targetIndex++;
+			}
+		}
+#endif
+
 		void Awake()
 		{
 			activation = this.GetComponent<Activation>();

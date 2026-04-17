@@ -36,6 +36,11 @@ namespace VisAssets
 		{
 			base.Reset();
 
+			if (this.GetComponent<Activation>() == null)
+			{
+				this.gameObject.AddComponent<Activation>();
+			}
+
 			if (this.GetComponent<MeshFilter>() == null)
 			{
 				this.gameObject.AddComponent<MeshFilter>();
@@ -52,6 +57,38 @@ namespace VisAssets
 			meshRenderer.receiveShadows = false;
 			// 2. Enable ShadowCastingMode so the ShadowCaster pass runs, which is necessary for VolumeRenderer's depth texture calculations.
 			meshRenderer.shadowCastingMode = ShadowCastingMode.On;
+
+			Component[] targetOrder = new Component[]
+			{
+				this.GetComponent<Activation>(),
+				this, // MapperModuleTemplate
+				this.GetComponent<MeshFilter>(),
+				meshRenderer
+			};
+
+			int targetIndex = 1; // targetIndex = 0 is Transform
+
+			foreach (Component comp in targetOrder)
+			{
+				if (comp == null) continue;
+
+				Component[] currentComps = GetComponents<Component>();
+				int currentIndex = System.Array.IndexOf(currentComps, comp);
+
+				while (currentIndex > targetIndex)
+				{
+					UnityEditorInternal.ComponentUtility.MoveComponentUp(comp);
+					currentIndex--;
+				}
+
+				while (currentIndex < targetIndex)
+				{
+					UnityEditorInternal.ComponentUtility.MoveComponentDown(comp);
+					currentIndex++;
+				}
+
+				targetIndex++;
+			}
 		}
 #endif
 
@@ -283,7 +320,20 @@ namespace VisAssets
 		/// </summary>
 		public void ParameterChanged()
 		{
-			activation.SetParameterChanged(ModuleState.PARAMETER_CHANGED);
+			if (activation != null)
+			{
+				activation.SetParameterChanged(ModuleState.PARAMETER_CHANGED);
+			}
 		}
+	}
+
+	/// <summary>
+	/// Interface for receiving a colormap texture (Look-Up Table) from the Colormap Editor.
+	/// </summary>
+	public interface IColormapReceiver
+	{
+		void ApplyColormap(Texture2D colormapTexture);
+
+		Gradient GetGradient();
 	}
 }
