@@ -92,10 +92,10 @@ public class CurveHandle : MonoBehaviour, IDragHandler, IPointerClickHandler
 
 			if (lockX)
 			{
-				x = rectTransform.anchoredPosition.x;
+				x = rectTransform.localPosition.x;
 			}
 
-			rectTransform.anchoredPosition = new Vector2(x, y);
+			rectTransform.localPosition = new Vector3(x, y, rectTransform.localPosition.z);
 			OnHandleDragged?.Invoke(this);
 		}
 	}
@@ -110,8 +110,8 @@ public class CurveHandle : MonoBehaviour, IDragHandler, IPointerClickHandler
 
 	public Vector2 GetNormalizedPosition()
 	{
-		float x = Mathf.InverseLerp(parentRect.rect.min.x, parentRect.rect.max.x, rectTransform.anchoredPosition.x);
-		float y = Mathf.InverseLerp(parentRect.rect.min.y, parentRect.rect.max.y, rectTransform.anchoredPosition.y);
+		float x = Mathf.InverseLerp(parentRect.rect.min.x, parentRect.rect.max.x, rectTransform.localPosition.x);
+		float y = Mathf.InverseLerp(parentRect.rect.min.y, parentRect.rect.max.y, rectTransform.localPosition.y);
 		return new Vector2(x, y);
 	}
 
@@ -124,6 +124,7 @@ public class CurveHandle : MonoBehaviour, IDragHandler, IPointerClickHandler
 
 		float x = Mathf.Lerp(minX, maxX, normPos.x);
 		float y = Mathf.Lerp(minY, maxY, normPos.y);
-		rectTransform.anchoredPosition = new Vector2(x, y);
+		
+		rectTransform.localPosition = new Vector3(x, y, rectTransform.localPosition.z);
 	}
 }

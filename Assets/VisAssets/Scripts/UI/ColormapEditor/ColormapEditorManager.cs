@@ -68,6 +68,9 @@ public class ColormapEditorManager : MonoBehaviour
 			alphaEditor.Initialize(this, OnChannelUpdated);
 		}
 
+		EnforceAspectRatios();
+		Canvas.ForceUpdateCanvases();
+
 		UIPanel uiPanel = GetComponentInParent<UIPanel>();
 		if (uiPanel != null && uiPanel.TargetModule != null)
 		{
@@ -92,14 +95,10 @@ public class ColormapEditorManager : MonoBehaviour
 
 		SyncWithTargetOrDefault();
 
-		EnforceAspectRatios();
-
 		if (mainPanel != null)
 		{
 			lastPanelWidth = mainPanel.rect.width;
 		}
-
-		Canvas.ForceUpdateCanvases();
 
 		SetupDropdown();
 
@@ -113,12 +112,7 @@ public class ColormapEditorManager : MonoBehaviour
 		SyncDropdownItemHeight();
 
 		lastShowAlphaState = showAlphaOnPresetButtons;
-/*
-		if (presets.Count > 0)
-		{
-			ApplyPreset(presets[0]);
-		}
-*/
+
 		isInitialized = true;
 	}
 
@@ -699,7 +693,6 @@ public class ColormapEditorManager : MonoBehaviour
 			alphaEditor.LoadHandles(aPts);
 		}
 
-		// 表示の更新
 		Canvas.ForceUpdateCanvases();
 		redEditor.RefreshHandlePositions();
 		greenEditor.RefreshHandlePositions();

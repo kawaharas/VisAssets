@@ -129,6 +129,9 @@ public class ChannelEditor : MonoBehaviour
 
 		if (rt != null)
 		{
+			rt.anchorMin = new Vector2(0.5f, 0.5f);
+			rt.anchorMax = new Vector2(0.5f, 0.5f);
+			rt.pivot     = new Vector2(0.5f, 0.5f);
 			rt.sizeDelta = new Vector2(8f, 8f);
 		}
 
