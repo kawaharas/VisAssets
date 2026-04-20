@@ -24,6 +24,125 @@ namespace VisAssets.SciVis.Structured.Isosurface
 	using ModuleState = Activation.ModuleState;
 
 	// =========================================================================
+	// Editor Extension
+	// =========================================================================
+#if UNITY_EDITOR
+	[CustomEditor(typeof(Isosurface))]
+	public class IsosurfaceEditor : Editor
+	{
+		SerializedProperty slider;
+		SerializedProperty threshold;
+		SerializedProperty min;
+		SerializedProperty max;
+		SerializedProperty triCount;
+		SerializedProperty chunkSize;
+		SerializedProperty forceChunkModeOnPC;
+		SerializedProperty shader;
+		SerializedProperty builtinCustomshader;
+		SerializedProperty rendershader;
+
+		/// <summary>
+		/// Initializes serialized properties when the object is selected in the Inspector.
+		/// </summary>
+		private void OnEnable()
+		{
+			slider      = serializedObject.FindProperty("slider");
+			threshold   = serializedObject.FindProperty("threshold");
+			min         = serializedObject.FindProperty("min");
+			max         = serializedObject.FindProperty("max");
+			triCount    = serializedObject.FindProperty("triCount");
+			chunkSize   = serializedObject.FindProperty("chunkSize");
+			forceChunkModeOnPC = serializedObject.FindProperty("forceChunkModeOnPC");
+			shader      = serializedObject.FindProperty("shader");
+			builtinCustomshader = serializedObject.FindProperty("builtinCustomShader");
+			rendershader = serializedObject.FindProperty("renderShader");
+		}
+
+		/// <summary>
+		/// Renders the custom Inspector GUI for the Isosurface module.
+		/// </summary>
+		public override void OnInspectorGUI()
+		{
+			var isosurface = target as Isosurface;
+
+			serializedObject.Update();
+
+			EditorGUI.BeginChangeCheck();
+
+			GUILayout.Space(5f);
+
+			var _threshold = EditorGUILayout.Slider("Threshold: ", threshold.floatValue, min.floatValue, max.floatValue);
+
+			GUILayout.Space(5f);
+
+			EditorGUILayout.LabelField("Total Triangles : " + (triCount.intValue).ToString());
+
+			GUILayout.Space(5f);
+
+			EditorGUI.BeginDisabledGroup(EditorApplication.isPlaying);
+
+			forceChunkModeOnPC.boolValue = EditorGUILayout.ToggleLeft("Force Chunk Mode on PC (Test for Mobile)", forceChunkModeOnPC.boolValue);
+
+			GUILayout.Space(5f);
+
+			if (forceChunkModeOnPC.boolValue)
+			{
+				EditorGUI.indentLevel++;
+
+				EditorGUILayout.PropertyField(chunkSize, new GUIContent("Chunk Size (Mobile safe: 64-96)"));
+
+				EditorGUI.indentLevel--;
+			}
+
+			EditorGUI.EndDisabledGroup();
+
+			GUILayout.Space(5f);
+
+			EditorGUILayout.PropertyField(builtinCustomshader, new GUIContent("Built-in Custom Shader"));
+
+			GUILayout.Space(5f);
+
+			EditorGUI.BeginDisabledGroup(true);
+			EditorGUILayout.PropertyField(rendershader, new GUIContent("Current Render Shader"));
+			EditorGUI.EndDisabledGroup();
+
+			GUILayout.Space(5f);
+
+			EditorGUI.BeginDisabledGroup(EditorApplication.isPlaying);
+
+			EditorGUILayout.PropertyField(shader, new GUIContent("Compute Shader"));
+
+			EditorGUI.EndDisabledGroup();
+
+			GUILayout.Space(5f);
+
+			EditorGUILayout.PropertyField(serializedObject.FindProperty("UIPrefab"), new GUIContent("UI Prefab"));
+
+			GUILayout.Space(5f);
+
+			if (EditorGUI.EndChangeCheck())
+			{
+				Undo.RecordObject(target, "Isosurface");
+
+				if (isosurface != null)
+				{
+					if (_threshold != threshold.floatValue)
+					{
+						isosurface.SetValue(_threshold);
+					}
+
+					isosurface.UpdateMaterialShader();
+				}
+
+				EditorUtility.SetDirty(target);
+			}
+
+			serializedObject.ApplyModifiedProperties();
+		}
+	}
+#endif
+
+	// =========================================================================
 	// Main Class
 	// =========================================================================
 	public class Isosurface : MapperModuleTemplate
@@ -712,123 +831,4 @@ namespace VisAssets.SciVis.Structured.Isosurface
 			}
 		}
 	}
-
-	// =========================================================================
-	// Editor Extension
-	// =========================================================================
-#if UNITY_EDITOR
-	[CustomEditor(typeof(Isosurface))]
-	public class IsosurfaceEditor : Editor
-	{
-		SerializedProperty slider;
-		SerializedProperty threshold;
-		SerializedProperty min;
-		SerializedProperty max;
-		SerializedProperty triCount;
-		SerializedProperty chunkSize;
-		SerializedProperty forceChunkModeOnPC;
-		SerializedProperty shader;
-		SerializedProperty builtinCustomshader;
-		SerializedProperty rendershader;
-
-		/// <summary>
-		/// Initializes serialized properties when the object is selected in the Inspector.
-		/// </summary>
-		private void OnEnable()
-		{
-			slider      = serializedObject.FindProperty("slider");
-			threshold   = serializedObject.FindProperty("threshold");
-			min         = serializedObject.FindProperty("min");
-			max         = serializedObject.FindProperty("max");
-			triCount    = serializedObject.FindProperty("triCount");
-			chunkSize   = serializedObject.FindProperty("chunkSize");
-			forceChunkModeOnPC = serializedObject.FindProperty("forceChunkModeOnPC");
-			shader      = serializedObject.FindProperty("shader");
-			builtinCustomshader = serializedObject.FindProperty("builtinCustomShader");
-			rendershader = serializedObject.FindProperty("renderShader");
-		}
-
-		/// <summary>
-		/// Renders the custom Inspector GUI for the Isosurface module.
-		/// </summary>
-		public override void OnInspectorGUI()
-		{
-			var isosurface = target as Isosurface;
-
-			serializedObject.Update();
-
-			EditorGUI.BeginChangeCheck();
-
-			GUILayout.Space(5f);
-
-			var _threshold = EditorGUILayout.Slider("Threshold: ", threshold.floatValue, min.floatValue, max.floatValue);
-
-			GUILayout.Space(5f);
-
-			EditorGUILayout.LabelField("Total Triangles : " + (triCount.intValue).ToString());
-
-			GUILayout.Space(5f);
-
-			EditorGUI.BeginDisabledGroup(EditorApplication.isPlaying);
-
-			forceChunkModeOnPC.boolValue = EditorGUILayout.ToggleLeft("Force Chunk Mode on PC (Test for Mobile)", forceChunkModeOnPC.boolValue);
-
-			GUILayout.Space(5f);
-
-			if (forceChunkModeOnPC.boolValue)
-			{
-				EditorGUI.indentLevel++;
-
-				EditorGUILayout.PropertyField(chunkSize, new GUIContent("Chunk Size (Mobile safe: 64-96)"));
-
-				EditorGUI.indentLevel--;
-			}
-
-			EditorGUI.EndDisabledGroup();
-
-			GUILayout.Space(5f);
-
-			EditorGUILayout.PropertyField(builtinCustomshader, new GUIContent("Built-in Custom Shader"));
-
-			GUILayout.Space(5f);
-
-			EditorGUI.BeginDisabledGroup(true);
-			EditorGUILayout.PropertyField(rendershader, new GUIContent("Current Render Shader"));
-			EditorGUI.EndDisabledGroup();
-
-			GUILayout.Space(5f);
-
-			EditorGUI.BeginDisabledGroup(EditorApplication.isPlaying);
-
-			EditorGUILayout.PropertyField(shader, new GUIContent("Compute Shader"));
-
-			EditorGUI.EndDisabledGroup();
-
-			GUILayout.Space(5f);
-
-			EditorGUILayout.PropertyField(serializedObject.FindProperty("UIPrefab"), new GUIContent("UI Prefab"));
-
-			GUILayout.Space(5f);
-
-			if (EditorGUI.EndChangeCheck())
-			{
-				Undo.RecordObject(target, "Isosurface");
-
-				if (isosurface != null)
-				{
-					if (_threshold != threshold.floatValue)
-					{
-						isosurface.SetValue(_threshold);
-					}
-
-					isosurface.UpdateMaterialShader();
-				}
-
-				EditorUtility.SetDirty(target);
-			}
-
-			serializedObject.ApplyModifiedProperties();
-		}
-	}
-#endif
 }
