@@ -346,7 +346,7 @@ MonoBehaviour:
   handleContainer: {fileID: 3639393580954985628}
   backgroundGradient: {fileID: 5358275344201954494}
   lineRenderer: {fileID: 7914056127153970916}
-  interpolationMode: 3
+  interpolationMode: 0
   curve:
     serializedVersion: 2
     m_Curve: []
@@ -698,7 +698,7 @@ MonoBehaviour:
   handleContainer: {fileID: 4166720106362511619}
   backgroundGradient: {fileID: 8381768293528963796}
   lineRenderer: {fileID: 1544815083168769701}
-  interpolationMode: 3
+  interpolationMode: 0
   curve:
     serializedVersion: 2
     m_Curve: []
@@ -2578,7 +2578,7 @@ MonoBehaviour:
   handleContainer: {fileID: 241351838970673658}
   backgroundGradient: {fileID: 1357195202491917679}
   lineRenderer: {fileID: 1883271615943793364}
-  interpolationMode: 3
+  interpolationMode: 0
   curve:
     serializedVersion: 2
     m_Curve: []
@@ -2876,6 +2876,7 @@ GameObject:
   m_Component:
   - component: {fileID: 5141630716154228143}
   - component: {fileID: 5302242831530497331}
+  - component: {fileID: 9053298200613007429}
   m_Layer: 5
   m_Name: PresetContainer
   m_TagString: Untagged
@@ -2897,10 +2898,10 @@ RectTransform:
   m_Children: []
   m_Father: {fileID: 8111794681361753841}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 0, y: 100}
+  m_AnchorMin: {x: 0, y: 1}
+  m_AnchorMax: {x: 0, y: 1}
+  m_AnchoredPosition: {x: 50, y: -550}
+  m_SizeDelta: {x: 100, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &5302242831530497331
 MonoBehaviour:
@@ -2926,6 +2927,20 @@ MonoBehaviour:
   m_Spacing: {x: 0, y: 0}
   m_Constraint: 0
   m_ConstraintCount: 2
+--- !u!114 &9053298200613007429
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8047167856951038216}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3245ec927659c4140ac4f8d17403cc18, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_HorizontalFit: 0
+  m_VerticalFit: 2
 --- !u!1 &8061678963224738300
 GameObject:
   m_ObjectHideFlags: 0
@@ -3159,7 +3174,7 @@ MonoBehaviour:
   handleContainer: {fileID: 8914922235703180326}
   backgroundGradient: {fileID: 2010835677099108922}
   lineRenderer: {fileID: 5042447798346735750}
-  interpolationMode: 3
+  interpolationMode: 0
   curve:
     serializedVersion: 2
     m_Curve: []
