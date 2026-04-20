@@ -83,7 +83,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f52ccde91136ce544885692aff294c29, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  moduleCounter: 
   debugString: 
   cardboardButton: {fileID: 8613419606643331662}
   supportedDevices: []
@@ -96,8 +95,6 @@ MonoBehaviour:
   paramChanger: {fileID: 1869723329094511922}
   laserPointer: {fileID: 4304255218635611419}
   tip: {x: 0, y: 0, z: 0}
-  origin: {x: 0, y: 0, z: 0}
-  originController: {x: 0, y: 0, z: 0}
   currentModule: {fileID: 0}
 --- !u!1 &1717589135672969518
 GameObject:
@@ -186,7 +183,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   m_IgnoreLayout: 0
   m_MinWidth: 200
-  m_MinHeight: 300
+  m_MinHeight: 400
   m_PreferredWidth: -1
   m_PreferredHeight: -1
   m_FlexibleWidth: -1
@@ -450,7 +447,7 @@ Canvas:
   m_GameObject: {fileID: 2379466012665539532}
   m_Enabled: 1
   serializedVersion: 3
-  m_RenderMode: 0
+  m_RenderMode: 1
   m_Camera: {fileID: 0}
   m_PlaneDistance: 100
   m_PixelPerfect: 0
@@ -1930,6 +1927,7 @@ MonoBehaviour:
   m_DeselectOnBackgroundClick: 1
   m_PointerBehavior: 0
   m_CursorLockBehavior: 0
+  m_ScrollDeltaPerTick: 6
 --- !u!114 &6545438537848696225
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1949,6 +1947,7 @@ MonoBehaviour:
   m_RepeatRate: 0.1
   m_TrackedDeviceDragThresholdMultiplier: 1.4
   m_TrackedScrollDeltaMultiplier: 5
+  m_BypassUIToolkitEvents: 0
   m_ActiveInputMode: 0
   m_MaxTrackedDeviceRaycastDistance: 1000
   m_EnableXRInput: 1

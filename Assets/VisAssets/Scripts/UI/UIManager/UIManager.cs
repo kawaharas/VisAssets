@@ -124,6 +124,10 @@ namespace VisAssets
 
 				SetupPointer();
 			}
+			else
+			{
+				SetupDesktopCanvas();
+			}
 /*
 			supportedDevices = XRSettings.supportedDevices;
 			Debug.Log("XRSettings.supportedDevices = " + supportedDevices.Length);
@@ -291,6 +295,28 @@ namespace VisAssets
 			}
 		}
 
+		private void SetupDesktopCanvas()
+		{
+			var canvasTransform = transform.Find("Canvas");
+			if (canvasTransform != null)
+			{
+				var canvas = canvasTransform.GetComponent<Canvas>();
+				if (canvas != null)
+				{
+					canvasTransform.gameObject.SetActive(true);
+
+					canvas.renderMode = RenderMode.ScreenSpaceCamera;
+
+					Camera mainCam = Camera.main;
+					if (mainCam != null)
+					{
+						canvas.worldCamera = mainCam;
+						canvas.planeDistance = mainCam.nearClipPlane * 1.01f;
+					}
+				}
+			}
+		}
+
 		IEnumerator LoadDevice(string device)
 		{
 			if (String.Compare(XRSettings.loadedDeviceName, device, true) != 0)
@@ -302,6 +328,7 @@ namespace VisAssets
 				{
 					XRSettings.enabled = false;
 					XRState = XRSettings.enabled;
+					SetupDesktopCanvas();
 				}
 				else
 				{
@@ -331,6 +358,7 @@ namespace VisAssets
 		{
 			XRSettings.enabled = false;
 			XRState = XRSettings.enabled;
+			SetupDesktopCanvas();
 		}
 
 		public void ShowUIManager()
