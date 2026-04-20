@@ -270,8 +270,8 @@ namespace VisAssets.SciVis.Structured.StreamLines
 			{
 				sphereShader = Shader.Find(expectedSphereShader);
 			}
-		}
 */
+		}
 #endif
 
 		protected override void Reset()
