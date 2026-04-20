@@ -412,10 +412,6 @@ namespace VisAssets.SciVis.Structured.Isosurface
 
 			threshold = min + (max - min) * slider;
 
-			UpdateMaterialShader();
-
-			Calc();
-
 			if(activation != null)
 			{
 				activation.SetParameterChanged(ModuleState.PARAMETER_CHANGED);
