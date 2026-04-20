@@ -1,6 +1,11 @@
 {
   "name": "jp.go.jamstec.visassets",
   "displayName": "VisAssets",
+  "author": {
+    "name": "Shintaro Kawahara",
+    "email": "kawahara@jamstec.go.jp",
+    "url": "https://github.com/kawaharas/VisAssets"
+  },
   "version": "0.4.0-pre",
   "unity": "2022.3",
   "description": "Visualization Framework for Unity",
