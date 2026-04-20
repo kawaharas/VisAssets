@@ -24,6 +24,7 @@ namespace VisAssets.SciVis.Structured.Arrows
 		SerializedProperty arrowscale;
 		SerializedProperty normalize;
 		SerializedProperty arrowPrefab;
+		SerializedProperty arrowShader;
 
 		private void OnEnable()
 		{
@@ -33,6 +34,7 @@ namespace VisAssets.SciVis.Structured.Arrows
 			arrowscale      = serializedObject.FindProperty("arrowscale");
 			normalize       = serializedObject.FindProperty("normalize");
 			arrowPrefab     = serializedObject.FindProperty("arrowPrefab");
+			arrowShader     = serializedObject.FindProperty("arrowShader");
 		}
 
 		public override void OnInspectorGUI()
@@ -135,6 +137,10 @@ namespace VisAssets.SciVis.Structured.Arrows
 
 			GUILayout.Space(5f);
 
+			EditorGUILayout.PropertyField(arrowShader, new GUIContent("Arrow Shader"));
+
+			GUILayout.Space(5f);
+
 			EditorGUILayout.PropertyField(serializedObject.FindProperty("UIPrefab"), new GUIContent("UI Prefab"));
 
 			GUILayout.Space(5f);
@@ -175,6 +181,9 @@ namespace VisAssets.SciVis.Structured.Arrows
 		public float variance;
 
 		public GameObject arrowPrefab;
+		[SerializeField]
+		public Shader arrowShader;
+
 		[SerializeField]
 		public float arrowscale;
 		public float scale_weight = 5.0f;
@@ -756,11 +765,11 @@ namespace VisAssets.SciVis.Structured.Arrows
 					    instancedMaterial.shader.name == "Hidden/InternalErrorShader" ||
 					    instancedMaterial.shader.name.StartsWith("Legacy Shaders/"))
 					{
-						Shader urpShader = Shader.Find("Universal Render Pipeline/Lit");
+						arrowShader = Shader.Find("Universal Render Pipeline/Lit");
 
-						if (urpShader != null)
+						if (arrowShader != null)
 						{
-							instancedMaterial.shader = urpShader;
+							instancedMaterial.shader = arrowShader;
 						}
 					}
 				}
@@ -769,11 +778,11 @@ namespace VisAssets.SciVis.Structured.Arrows
 					// ビルトイン環境なのにURPシェーダが設定されている場合、Standardに変換
 					if (instancedMaterial.shader.name.StartsWith("Universal Render Pipeline/"))
 					{
-						Shader standardShader = Shader.Find("Standard");
+						arrowShader = Shader.Find("Standard");
 
-						if (standardShader != null)
+						if (arrowShader != null)
 						{
-							instancedMaterial.shader = standardShader;
+							instancedMaterial.shader = arrowShader;
 						}
 					}
 				}
