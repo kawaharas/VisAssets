@@ -239,6 +239,7 @@ namespace VisAssets.SciVis.Structured.StreamLines
 		/// </summary>
 		private void EnsureCorrectShader()
 		{
+			var pipelineAsset = UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline ?? UnityEngine.QualitySettings.renderPipeline;
 			bool isURP = pipelineAsset != null;
 
 			string expectedLineShader   = isURP ? "Universal Render Pipeline/Unlit" : "Sprites/Default";
