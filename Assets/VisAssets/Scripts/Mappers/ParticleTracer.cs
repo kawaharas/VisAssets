@@ -260,7 +260,7 @@ namespace VisAssets.SciVis.Structured.ParticleTracer
 		private void EnsureCorrectShader()
 		{
 			bool isURP = GraphicsSettings.renderPipelineAsset != null;
-			string expectedShaderName = isURP ? "Universal Render Pipeline/Unlit" : "Sprites/Default";
+			string expectedShaderName = isURP ? "Universal Render Pipeline/Particles/Unlit" : "Sprites/Default";
 			string otherShaderName    = isURP ? "Sprites/Default" : "Universal Render Pipeline/Particles/Unlit";
 
 			if (flowShader == null || flowShader.name == otherShaderName || flowShader.name == "Standard")

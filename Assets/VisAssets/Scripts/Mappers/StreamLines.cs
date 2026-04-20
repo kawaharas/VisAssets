@@ -242,18 +242,23 @@ namespace VisAssets.SciVis.Structured.StreamLines
 			var pipelineAsset = UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline ?? UnityEngine.QualitySettings.renderPipeline;
 			bool isURP = pipelineAsset != null;
 
-			string expectedLineShader   = isURP ? "Universal Render Pipeline/Unlit" : "Sprites/Default";
+			string expectedLineShader   = isURP ? "Universal Render Pipeline/Particles/Unlit" : "Sprites/Default";
 			string expectedSphereShader = isURP ? "Universal Render Pipeline/Lit" : "Standard";
 
-			string wrongLineShader   = isURP ? "Sprites/Default" : "Universal Render Pipeline/Unlit";
+			string wrongLineShader   = isURP ? "Sprites/Default" : "Universal Render Pipeline/Particles/Unlit";
 			string wrongSphereShader = isURP ? "Standard" : "Universal Render Pipeline/Lit";
 
-			if (lineShader == null || lineShader.name == wrongLineShader || lineShader.name == "Hidden/InternalErrorShader")
+			if (lineShader == null || 
+			    lineShader.name == wrongLineShader || 
+			    lineShader.name == "Universal Render Pipeline/Unlit" || 
+			    lineShader.name == "Hidden/InternalErrorShader")
 			{
 				lineShader = Shader.Find(expectedLineShader);
 			}
 
-			if (sphereShader == null || sphereShader.name == wrongSphereShader || sphereShader.name == "Hidden/InternalErrorShader")
+			if (sphereShader == null || 
+			    sphereShader.name == wrongSphereShader || 
+			    sphereShader.name == "Hidden/InternalErrorShader")
 			{
 				sphereShader = Shader.Find(expectedSphereShader);
 			}

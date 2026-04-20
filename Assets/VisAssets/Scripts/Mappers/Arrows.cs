@@ -697,7 +697,7 @@ namespace VisAssets.SciVis.Structured.Arrows
 
 			TraversePrefab(arrowPrefab.transform, Matrix4x4.identity);
 		}
-
+/*
 		/// <summary>
 		/// Recursively traverses the prefab hierarchy to collect all MeshFilters and MeshRenderers.
 		/// Bakes their relative transforms into a combined local matrix to maintain the correct internal offset during instancing.
@@ -716,6 +716,73 @@ namespace VisAssets.SciVis.Structured.Arrows
 				{
 					mesh        = mf.sharedMesh,
 					material    = new Material(mr.sharedMaterial) { enableInstancing = true },
+					localMatrix = combinedMatrix
+				});
+			}
+
+			foreach (Transform child in current)
+			{
+				TraversePrefab(child, combinedMatrix);
+			}
+		}
+*/
+
+		/// <summary>
+		/// Recursively traverses the prefab hierarchy to collect all MeshFilters and MeshRenderers.
+		/// Bakes their relative transforms into a combined local matrix to maintain the correct internal offset during instancing.
+		/// Automatically upgrades/downgrades materials based on the active Render Pipeline.
+		/// </summary>
+		private void TraversePrefab(Transform current, Matrix4x4 parentMatrix)
+		{
+			Matrix4x4 localTRS       = Matrix4x4.TRS(current.localPosition, current.localRotation, current.localScale);
+			Matrix4x4 combinedMatrix = parentMatrix * localTRS;
+
+			var mf = current.GetComponent<MeshFilter>();
+			var mr = current.GetComponent<MeshRenderer>();
+
+			if (mf != null && mr != null && mf.sharedMesh != null)
+			{
+				// マテリアルを複製し、GPUインスタンシングを有効化
+				Material instancedMaterial = new Material(mr.sharedMaterial) { enableInstancing = true };
+
+				// --- レンダリングパイプラインに合わせたシェーダの自動変換ロジック ---
+				var pipelineAsset = UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline ?? UnityEngine.QualitySettings.renderPipeline;
+				bool isURP = pipelineAsset != null;
+
+				if (isURP)
+				{
+					// URP環境なのにビルトインシェーダ（またはエラー）が設定されている場合、URPのLitに変換
+					if (instancedMaterial.shader.name == "Standard" ||
+					    instancedMaterial.shader.name == "Hidden/InternalErrorShader" ||
+					    instancedMaterial.shader.name.StartsWith("Legacy Shaders/"))
+					{
+						Shader urpShader = Shader.Find("Universal Render Pipeline/Lit");
+
+						if (urpShader != null)
+						{
+							instancedMaterial.shader = urpShader;
+						}
+					}
+				}
+				else
+				{
+					// ビルトイン環境なのにURPシェーダが設定されている場合、Standardに変換
+					if (instancedMaterial.shader.name.StartsWith("Universal Render Pipeline/"))
+					{
+						Shader standardShader = Shader.Find("Standard");
+
+						if (standardShader != null)
+						{
+							instancedMaterial.shader = standardShader;
+						}
+					}
+				}
+				// -------------------------------------------------------------------
+
+				subMeshes.Add(new SubMeshInfo
+				{
+					mesh        = mf.sharedMesh,
+					material    = instancedMaterial,
 					localMatrix = combinedMatrix
 				});
 			}
