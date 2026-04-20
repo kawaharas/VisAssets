@@ -114,7 +114,7 @@ MonoBehaviour:
     m_NumAlphaKeys: 2
   flowColor: {r: 1, g: 1, b: 1, a: 0.6}
   integrationMethod: 0
-  particleCount: 50000
+  particleCount: 10000
   speedScale: 20
   trailLength: 1
 --- !u!33 &1207682893321264301

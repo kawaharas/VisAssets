@@ -211,7 +211,7 @@ namespace VisAssets.SciVis.Structured.ParticleTracer
 		public Color    flowColor         = new Color(1f, 1f, 1f, 0.6f);
 
 		public IntegrationMethod integrationMethod = IntegrationMethod.EULER;
-		public int   particleCount = 50000;
+		public int   particleCount = 10000;
 		public float speedScale    = 20f;
 		public float trailLength   = 1.0f;
 
@@ -261,7 +261,7 @@ namespace VisAssets.SciVis.Structured.ParticleTracer
 		{
 			bool isURP = GraphicsSettings.renderPipelineAsset != null;
 			string expectedShaderName = isURP ? "Universal Render Pipeline/Unlit" : "Sprites/Default";
-			string otherShaderName    = isURP ? "Sprites/Default" : "Universal Render Pipeline/Unlit";
+			string otherShaderName    = isURP ? "Sprites/Default" : "Universal Render Pipeline/Particles/Unlit";
 
 			if (flowShader == null || flowShader.name == otherShaderName || flowShader.name == "Standard")
 			{
