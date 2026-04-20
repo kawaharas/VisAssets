@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using VisAssets.SciVis.Structured.Common;
+
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
@@ -23,18 +24,18 @@ namespace VisAssets.SciVis.Structured.Arrows
 		SerializedProperty restrictToSlice;
 		SerializedProperty arrowscale;
 		SerializedProperty normalize;
+		SerializedProperty useMagnitudeColor;
 		SerializedProperty arrowPrefab;
-		SerializedProperty arrowShader;
 
 		private void OnEnable()
 		{
-			axis            = serializedObject.FindProperty("sliceHelper.axis");
-			slice           = serializedObject.FindProperty("sliceHelper.slice");
-			restrictToSlice = serializedObject.FindProperty("restrictToSlice");
-			arrowscale      = serializedObject.FindProperty("arrowscale");
-			normalize       = serializedObject.FindProperty("normalize");
-			arrowPrefab     = serializedObject.FindProperty("arrowPrefab");
-			arrowShader     = serializedObject.FindProperty("arrowShader");
+			axis              = serializedObject.FindProperty("sliceHelper.axis");
+			slice             = serializedObject.FindProperty("sliceHelper.slice");
+			restrictToSlice   = serializedObject.FindProperty("restrictToSlice");
+			arrowscale        = serializedObject.FindProperty("arrowscale");
+			normalize         = serializedObject.FindProperty("normalize");
+			useMagnitudeColor = serializedObject.FindProperty("useMagnitudeColor");
+			arrowPrefab       = serializedObject.FindProperty("arrowPrefab");
 		}
 
 		public override void OnInspectorGUI()
@@ -112,10 +113,15 @@ namespace VisAssets.SciVis.Structured.Arrows
 			{
 				EditorGUILayout.PropertyField(normalize, new GUIContent("Normalize"));
 			}
+			if (useMagnitudeColor != null)
+			{
+				EditorGUILayout.PropertyField(useMagnitudeColor, new GUIContent("Use Magnitude Color"));
+			}
 			if (EditorGUI.EndChangeCheck())
 			{
 				Undo.RecordObject(target, "Arrows");
 				serializedObject.ApplyModifiedProperties();
+				// Normalizing or changing color mode triggers visual update
 				arrows.Normalize();
 				EditorUtility.SetDirty(target);
 			}
@@ -137,10 +143,6 @@ namespace VisAssets.SciVis.Structured.Arrows
 
 			GUILayout.Space(5f);
 
-			EditorGUILayout.PropertyField(arrowShader, new GUIContent("Arrow Shader"));
-
-			GUILayout.Space(5f);
-
 			EditorGUILayout.PropertyField(serializedObject.FindProperty("UIPrefab"), new GUIContent("UI Prefab"));
 
 			GUILayout.Space(5f);
@@ -153,6 +155,13 @@ namespace VisAssets.SciVis.Structured.Arrows
 	// =========================================================================
 	// Main Class
 	// =========================================================================
+	/// <summary>
+	/// Renders a vector field as a dense set of arrows on a specified slice plane.
+	/// Utilizes Graphics.DrawMeshInstanced for high-performance rendering.
+	/// Implements a "Color Binning" approach (quantizing magnitudes into 64 color groups)
+	/// to efficiently apply gradient colors across thousands of instances
+	/// without requiring customized shaders for per-instance color properties.
+	/// </summary>
 	[DisallowMultipleComponent]
 	public class Arrows : MapperModuleTemplate
 	{
@@ -164,14 +173,16 @@ namespace VisAssets.SciVis.Structured.Arrows
 			public Mesh      mesh;
 			public Material  material;
 			public Matrix4x4 localMatrix;
+			public Color     defaultColor;
 		}
 
 		[SerializeField, Range(0, 10f)]
 		public float scale;
 		public float maxScale;
 
-		public bool restrictToSlice = false;
-		public bool normalize       = false;
+		public bool restrictToSlice   = false;
+		public bool normalize         = false;
+		public bool useMagnitudeColor = false;
 
 		[SerializeField, ReadOnly]
 		public DataElement[] elements;
@@ -181,9 +192,6 @@ namespace VisAssets.SciVis.Structured.Arrows
 		public float variance;
 
 		public GameObject arrowPrefab;
-		[SerializeField]
-		public Shader arrowShader;
-
 		[SerializeField]
 		public float arrowscale;
 		public float scale_weight = 5.0f;
@@ -197,19 +205,28 @@ namespace VisAssets.SciVis.Structured.Arrows
 		public bool      useUndef;
 		public float     undef;
 
-		private List<SubMeshInfo> subMeshes        = new List<SubMeshInfo>();
-		private List<Matrix4x4[]> instancedBatches = new List<Matrix4x4[]>();
+		private List<SubMeshInfo> subMeshes = new List<SubMeshInfo>();
 
 		private List<Vector3> cachedLocalPositions  = new List<Vector3>();
 		private List<Vector3> cachedLocalDirections = new List<Vector3>();
 		private List<float>   cachedScales          = new List<float>();
 
+		// --- Color Binning (for 64-step smooth gradient) ---
+		private const int COLOR_BINS = 64;
+		private List<int>[] colorBins    = new List<int>[COLOR_BINS];
+		private Matrix4x4[] matrixBuffer = new Matrix4x4[1023]; // Reusable buffer for DrawMeshInstanced
+
 		public override void InitModule()
 		{
-			dims = new int[3] { -1, -1, -1 };
+			dims     = new int[3] { -1, -1, -1 };
 			useUndef = false;
-			scale = maxScale = 1f;
+			scale    = maxScale = 1f;
 			elements = new DataElement[3];
+
+			for (int i = 0; i < COLOR_BINS; i++)
+			{
+				colorBins[i] = new List<int>();
+			}
 
 			if (sliceHelper == null)
 			{
@@ -253,89 +270,109 @@ namespace VisAssets.SciVis.Structured.Arrows
 		{
 			if (cachedLocalPositions.Count == 0 || subMeshes.Count == 0) return;
 
-			int totalInstances  = cachedLocalPositions.Count;
-			int requiredBatches = Mathf.CeilToInt(totalInstances / 1023f);
-
-			while (instancedBatches.Count < requiredBatches)
-			{
-				instancedBatches.Add(new Matrix4x4[1023]);
-			}
-
 			Matrix4x4 localToWorld = transform.localToWorldMatrix;
-
 			float parentScale = Mathf.Max(transform.lossyScale.x, Mathf.Max(transform.lossyScale.y, transform.lossyScale.z));
+			MaterialPropertyBlock propertyBlock = new MaterialPropertyBlock();
 
 			foreach (var sub in subMeshes)
 			{
-				int currentInstance = 0;
-
-				for (int i = 0; i < totalInstances; i++)
+				if (!useMagnitudeColor)
 				{
-					int batchIndex = currentInstance / 1023;
-					int arrayIndex = currentInstance % 1023;
+					// Solid color mode: Set the default color to the property block and draw all elements.
+					propertyBlock.SetColor("_BaseColor", sub.defaultColor);
+					propertyBlock.SetColor("_Color", sub.defaultColor);
 
-					Vector3 worldPos = localToWorld.MultiplyPoint3x4(cachedLocalPositions[i]);
-					Vector3 localDir = cachedLocalDirections[i];
-					Vector3 worldDir = localToWorld.MultiplyVector(localDir);
+					int remaining = cachedLocalPositions.Count;
+					int currentIndex = 0;
 
-					Quaternion worldRot = Quaternion.identity;
-					float baseScale     = normalize ? (maxMagnitude * arrowscale) : cachedScales[i];
-
-					// Prevent drawing weird default up-arrows for perfectly zero vectors (or vectors flattened to 0)
-					if (worldDir.sqrMagnitude > 1e-8f)
+					while (remaining > 0)
 					{
-						worldRot = Quaternion.FromToRotation(Vector3.up, worldDir);
+						int count = Mathf.Min(1023, remaining);
+						for (int i = 0; i < count; i++)
+						{
+							matrixBuffer[i] = ComputeArrowMatrix(currentIndex++, localToWorld, parentScale) * sub.localMatrix;
+						}
+
+						Graphics.DrawMeshInstanced(
+							sub.mesh, 0, sub.material, matrixBuffer, count, propertyBlock,
+							UnityEngine.Rendering.ShadowCastingMode.On, true, gameObject.layer, null,
+							UnityEngine.Rendering.LightProbeUsage.BlendProbes
+						);
+
+						remaining -= count;
 					}
-					else
-					{
-						baseScale = 0f;
-					}
-
-					float s           = baseScale * parentScale;
-					Vector3 safeScale = new Vector3(s, s, s);
-
-					Matrix4x4 arrowWorldMatrix = Matrix4x4.TRS(worldPos, worldRot, safeScale);
-					instancedBatches[batchIndex][arrayIndex] = arrowWorldMatrix * sub.localMatrix;
-
-					currentInstance++;
 				}
-
-				int remaining = totalInstances;
-
-				for (int b = 0; b < requiredBatches && remaining > 0; b++)
+				else
 				{
-					int count = Mathf.Min(1023, remaining);
+					// Magnitude gradient mode: Group by color bins and draw them in batches.
+					// This approach bypasses the limitations of standard shaders which do not
+					// support per-instance color properties by default.
+					for (int b = 0; b < COLOR_BINS; b++)
+					{
+						int binCount = colorBins[b].Count;
+						if (binCount == 0) continue;
 
-					Graphics.DrawMeshInstanced(
-						sub.mesh,
-						0,
-						sub.material,
-						instancedBatches[b],
-						count,
-						null,
-						UnityEngine.Rendering.ShadowCastingMode.On,
-						true,
-						gameObject.layer,
-						null,
-						UnityEngine.Rendering.LightProbeUsage.BlendProbes
-					);
+						float level = b / (float)(COLOR_BINS - 1);
+						// Gradient from Blue (0.66) to Red (0.0)
+						Color binColor = Color.HSVToRGB(Mathf.Lerp(0.66f, 0f, level), 1f, 1f);
 
-					remaining -= count;
+						propertyBlock.SetColor("_BaseColor", binColor);
+						propertyBlock.SetColor("_Color", binColor);
+
+						int remaining = binCount;
+						int currentInBin = 0;
+
+						while (remaining > 0)
+						{
+							int count = Mathf.Min(1023, remaining);
+							for (int i = 0; i < count; i++)
+							{
+								int arrowIndex = colorBins[b][currentInBin++];
+								matrixBuffer[i] = ComputeArrowMatrix(arrowIndex, localToWorld, parentScale) * sub.localMatrix;
+							}
+
+							Graphics.DrawMeshInstanced(
+								sub.mesh, 0, sub.material, matrixBuffer, count, propertyBlock,
+								UnityEngine.Rendering.ShadowCastingMode.On, true, gameObject.layer, null,
+								UnityEngine.Rendering.LightProbeUsage.BlendProbes
+							);
+
+							remaining -= count;
+						}
+					}
 				}
 			}
 		}
 
-		public override void IdleFunc()
+		private Matrix4x4 ComputeArrowMatrix(int index, Matrix4x4 localToWorld, float parentScale)
 		{
+			Vector3 worldPos = localToWorld.MultiplyPoint3x4(cachedLocalPositions[index]);
+			Vector3 localDir = cachedLocalDirections[index];
+			Vector3 worldDir = localToWorld.MultiplyVector(localDir);
+
+			Quaternion worldRot = Quaternion.identity;
+			float baseScale     = normalize ? (maxMagnitude * arrowscale) : cachedScales[index];
+
+			if (worldDir.sqrMagnitude > 1e-8f)
+			{
+				worldRot = Quaternion.FromToRotation(Vector3.up, worldDir);
+			}
+			else
+			{
+				baseScale = 0f;
+			}
+
+			float s = baseScale * parentScale;
+			Vector3 safeScale = new Vector3(s, s, s);
+
+			return Matrix4x4.TRS(worldPos, worldRot, safeScale);
 		}
 
-		public override void SetParameters()
-		{
-		}
+		public override void IdleFunc() { }
 
-		public override void GetParameters()
-		{
-		}
+		public override void SetParameters() { }
+
+		public override void GetParameters() { }
 
 		public override void ReSetParameters()
 		{
@@ -504,17 +541,11 @@ namespace VisAssets.SciVis.Structured.Arrows
 		/// </summary>
 		public void SetAxis(int _axis)
 		{
-			if (sliceHelper == null)
-			{
-				sliceHelper = new SliceHelper();
-			}
+			if (sliceHelper == null) sliceHelper = new SliceHelper();
 
 			if (sliceHelper.SetAxis(_axis))
 			{
-				if (IsDataLoadedToParent())
-				{
-					ParameterChanged();
-				}
+				if (IsDataLoadedToParent()) ParameterChanged();
 			}
 		}
 
@@ -523,47 +554,33 @@ namespace VisAssets.SciVis.Structured.Arrows
 		/// </summary>
 		public void SetSlice(float _slice)
 		{
-			if (sliceHelper == null)
-			{
-				sliceHelper = new SliceHelper();
-			}
+			if (sliceHelper == null) sliceHelper = new SliceHelper();
 
 			if (sliceHelper.SetSlice(_slice))
 			{
-				if (IsDataLoadedToParent())
-				{
-					ParameterChanged();
-				}
+				if (IsDataLoadedToParent()) ParameterChanged();
 			}
 		}
 
 		public void SetRestrictToSlice()
 		{
-			if (IsDataLoadedToParent())
-			{
-				ParameterChanged();
-			}
+			if (IsDataLoadedToParent()) ParameterChanged();
 		}
 
 		public void SetScale()
 		{
-			if (IsDataLoadedToParent())
-			{
-				ParameterChanged();
-			}
+			if (IsDataLoadedToParent()) ParameterChanged();
 		}
 
 		public void Normalize()
 		{
-			if (IsDataLoadedToParent())
-			{
-				ParameterChanged();
-			}
+			if (IsDataLoadedToParent()) ParameterChanged();
 		}
 
 		/// <summary>
 		/// Core calculation routine. Computes the position and direction of all valid arrows
 		/// on the active slice plane, storing them in cached lists for GPU instancing.
+		/// Registers each arrow into a specific color bin if magnitude coloring is enabled.
 		/// </summary>
 		public void CalcSlice()
 		{
@@ -572,10 +589,7 @@ namespace VisAssets.SciVis.Structured.Arrows
 			DataElement element = pdf.elements[activeElements[0]];
 			if (element == null || element.values == null) return;
 
-			if (sliceHelper == null)
-			{
-				sliceHelper = new SliceHelper();
-			}
+			if (sliceHelper == null) sliceHelper = new SliceHelper();
 
 			float ratio;
 			int   idx = sliceHelper.GetIndexOfCuttingEdge(element, out ratio);
@@ -586,6 +600,12 @@ namespace VisAssets.SciVis.Structured.Arrows
 			cachedLocalPositions.Clear();
 			cachedLocalDirections.Clear();
 			cachedScales.Clear();
+
+			for (int i = 0; i < COLOR_BINS; i++)
+			{
+				if (colorBins[i] == null) colorBins[i] = new List<int>();
+				colorBins[i].Clear();
+			}
 
 			float[] slicedata = new float[slice_w * slice_h * 3];
 
@@ -666,7 +686,6 @@ namespace VisAssets.SciVis.Structured.Arrows
 				float uy = slicedata[i * 3 + 1];
 				float uz = slicedata[i * 3 + 2];
 
-				// Zero out orthogonal component if restrictToSlice is true
 				if (restrictToSlice)
 				{
 					if (sliceHelper.axis == 0)      ux = 0f;
@@ -675,9 +694,15 @@ namespace VisAssets.SciVis.Structured.Arrows
 				}
 
 				float sumSq = ux * ux + uy * uy + uz * uz;
+				float mag   = Mathf.Sqrt(sumSq);
 
-				cachedScales.Add(Mathf.Sqrt(sumSq) * arrowscale);
+				cachedScales.Add(mag * arrowscale);
 				cachedLocalDirections.Add(new Vector3(ux, uy, uz));
+
+				// Register the instance to the appropriate color bin (0 to 63) based on its magnitude level
+				float level = maxMagnitude > 0f ? Mathf.Clamp01(mag / maxMagnitude) : 0f;
+				int bin = Mathf.Clamp(Mathf.FloorToInt(level * (COLOR_BINS - 1)), 0, COLOR_BINS - 1);
+				colorBins[bin].Add(i);
 			}
 		}
 
@@ -706,35 +731,6 @@ namespace VisAssets.SciVis.Structured.Arrows
 
 			TraversePrefab(arrowPrefab.transform, Matrix4x4.identity);
 		}
-/*
-		/// <summary>
-		/// Recursively traverses the prefab hierarchy to collect all MeshFilters and MeshRenderers.
-		/// Bakes their relative transforms into a combined local matrix to maintain the correct internal offset during instancing.
-		/// </summary>
-		private void TraversePrefab(Transform current, Matrix4x4 parentMatrix)
-		{
-			Matrix4x4 localTRS       = Matrix4x4.TRS(current.localPosition, current.localRotation, current.localScale);
-			Matrix4x4 combinedMatrix = parentMatrix * localTRS;
-
-			var mf = current.GetComponent<MeshFilter>();
-			var mr = current.GetComponent<MeshRenderer>();
-
-			if (mf != null && mr != null && mf.sharedMesh != null)
-			{
-				subMeshes.Add(new SubMeshInfo
-				{
-					mesh        = mf.sharedMesh,
-					material    = new Material(mr.sharedMaterial) { enableInstancing = true },
-					localMatrix = combinedMatrix
-				});
-			}
-
-			foreach (Transform child in current)
-			{
-				TraversePrefab(child, combinedMatrix);
-			}
-		}
-*/
 
 		/// <summary>
 		/// Recursively traverses the prefab hierarchy to collect all MeshFilters and MeshRenderers.
@@ -751,48 +747,52 @@ namespace VisAssets.SciVis.Structured.Arrows
 
 			if (mf != null && mr != null && mf.sharedMesh != null)
 			{
-				// マテリアルを複製し、GPUインスタンシングを有効化
+				// Clone the material and enable GPU instancing
 				Material instancedMaterial = new Material(mr.sharedMaterial) { enableInstancing = true };
 
-				// --- レンダリングパイプラインに合わせたシェーダの自動変換ロジック ---
+				// Determine the default color based on the material name
+				Color defColor = Color.white;
+				if (instancedMaterial.name.Contains("Cone"))
+				{
+					defColor = new Color(1f, 1f, 0.5f);
+				}
+				else if (instancedMaterial.name.Contains("Cylinder"))
+				{
+					defColor = new Color(0f, 0.8f, 1f);
+				}
+
+				// --- Automatic shader conversion logic based on the active render pipeline ---
 				var pipelineAsset = UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline ?? UnityEngine.QualitySettings.renderPipeline;
 				bool isURP = pipelineAsset != null;
 
 				if (isURP)
 				{
-					// URP環境なのにビルトインシェーダ（またはエラー）が設定されている場合、URPのLitに変換
+					// Upgrade to URP Lit if a Built-in shader (or error) is detected in a URP environment
 					if (instancedMaterial.shader.name == "Standard" ||
 					    instancedMaterial.shader.name == "Hidden/InternalErrorShader" ||
 					    instancedMaterial.shader.name.StartsWith("Legacy Shaders/"))
 					{
-						arrowShader = Shader.Find("Universal Render Pipeline/Lit");
-
-						if (arrowShader != null)
-						{
-							instancedMaterial.shader = arrowShader;
-						}
+						Shader urpShader = Shader.Find("Universal Render Pipeline/Lit");
+						if (urpShader != null) instancedMaterial.shader = urpShader;
 					}
 				}
 				else
 				{
-					// ビルトイン環境なのにURPシェーダが設定されている場合、Standardに変換
+					// Downgrade to Standard if a URP shader is detected in a Built-in environment
 					if (instancedMaterial.shader.name.StartsWith("Universal Render Pipeline/"))
 					{
-						arrowShader = Shader.Find("Standard");
-
-						if (arrowShader != null)
-						{
-							instancedMaterial.shader = arrowShader;
-						}
+						Shader standardShader = Shader.Find("Standard");
+						if (standardShader != null) instancedMaterial.shader = standardShader;
 					}
 				}
-				// -------------------------------------------------------------------
+				// -----------------------------------------------------------------------------
 
 				subMeshes.Add(new SubMeshInfo
 				{
-					mesh        = mf.sharedMesh,
-					material    = instancedMaterial,
-					localMatrix = combinedMatrix
+					mesh         = mf.sharedMesh,
+					material     = instancedMaterial,
+					localMatrix  = combinedMatrix,
+					defaultColor = defColor
 				});
 			}
 
