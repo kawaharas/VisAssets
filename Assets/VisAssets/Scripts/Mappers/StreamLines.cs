@@ -20,7 +20,7 @@ namespace VisAssets.SciVis.Structured.StreamLines
 		SerializedProperty p0;
 		SerializedProperty drawMode;
 		SerializedProperty ribbonWidth;
-		SerializedProperty UseMagnitude;
+		SerializedProperty useMagnitudeColor;
 		SerializedProperty lineColor;
 		SerializedProperty sphereColor;
 		SerializedProperty activeSeeds;
@@ -33,7 +33,7 @@ namespace VisAssets.SciVis.Structured.StreamLines
 			p0           = serializedObject.FindProperty("p0");
 			drawMode     = serializedObject.FindProperty("drawMode");
 			ribbonWidth  = serializedObject.FindProperty("ribbonWidth");
-			UseMagnitude = serializedObject.FindProperty("UseMagnitude");
+			useMagnitudeColor = serializedObject.FindProperty("useMagnitudeColor");
 			lineColor    = serializedObject.FindProperty("lineColor");
 			sphereColor  = serializedObject.FindProperty("sphereColor");
 			activeSeeds  = serializedObject.FindProperty("activeSeeds");
@@ -89,9 +89,9 @@ namespace VisAssets.SciVis.Structured.StreamLines
 
 			GUILayout.Space(5f);
 
-			UseMagnitude.boolValue = EditorGUILayout.Toggle("Use Magnitude Color", UseMagnitude.boolValue);
+			useMagnitudeColor.boolValue = EditorGUILayout.Toggle("Use Magnitude Color", useMagnitudeColor.boolValue);
 
-			if (!UseMagnitude.boolValue)
+			if (!useMagnitudeColor.boolValue)
 			{
 				GUILayout.Space(5f);
 				EditorGUILayout.PropertyField(lineColor, new GUIContent("Line/Ribbon Color"));
@@ -194,7 +194,7 @@ namespace VisAssets.SciVis.Structured.StreamLines
 		public float ribbonWidth = 0.05f;
 
 		[SerializeField]
-		public bool UseMagnitude = false;
+		public bool useMagnitudeColor = false;
 
 		[SerializeField]
 		public Color lineColor = Color.cyan;
@@ -581,6 +581,11 @@ namespace VisAssets.SciVis.Structured.StreamLines
 			StartNewStreamLine(seed);
 		}
 
+		public void ClearAllSeeds()
+		{
+			InitializeLinePool();
+		}
+
 		/// <summary>
 		/// Uses ring-buffer logic to reuse streamlines from the pool and updates the active seed list.
 		/// </summary>
@@ -797,6 +802,15 @@ namespace VisAssets.SciVis.Structured.StreamLines
 					line.ForceMeshUpdate();
 				}
 			}
+		}
+
+		public void SetMode(int mode)
+		{
+			drawMode = (DrawMode)mode;
+//			UpdateLineColors();
+			RefreshAllLines();
+
+			if (IsDataLoadedToParent()) ParameterChanged();
 		}
 	}
 }

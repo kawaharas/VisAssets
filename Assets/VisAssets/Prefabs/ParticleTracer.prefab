@@ -64,7 +64,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   UIPanel: {fileID: 0}
   FixedModuleName: 
-  UIPrefab: {fileID: 0}
+  UIPrefab: {fileID: 7903748647750350543, guid: ce5d7ac66beeef645b04b9695547de55, type: 3}
   moduleType: 2
   activation: {fileID: 0}
   pdf: {fileID: 0}

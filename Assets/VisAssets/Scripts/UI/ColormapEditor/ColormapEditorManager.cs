@@ -120,7 +120,23 @@ public class ColormapEditorManager : MonoBehaviour
 	{
 		if (isInitialized)
 		{
-			SyncWithTargetOrDefault();
+			// Retrieve the target module associated with the current UIPanel
+			UIPanel uiPanel = GetComponentInParent<UIPanel>();
+			IColormapReceiver currentTarget = null;
+
+			if (uiPanel != null && uiPanel.TargetModule != null)
+			{
+				currentTarget = uiPanel.TargetModule.GetComponent<IColormapReceiver>();
+			}
+
+			// Reload and synchronize the state from the target ONLY if
+			// the target module has changed since the last activation.
+			// This prevents overwriting the current UI edits with the target's default gradient.
+			if (currentTarget != targetModule)
+			{
+				targetModule = currentTarget;
+				SyncWithTargetOrDefault();
+			}
 		}
 	}
 

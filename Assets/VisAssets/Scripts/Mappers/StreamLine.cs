@@ -17,6 +17,7 @@ namespace VisAssets.SciVis.Structured.StreamLines
 
 		private Mesh          mesh;
 		private MeshFilter    meshFilter;
+		// Maintain the core calculated path data
 		private List<Vector3> vertices  = new List<Vector3>();
 		private List<Color>   colors    = new List<Color>();
 		private List<Color>   magColors = new List<Color>();
@@ -191,6 +192,7 @@ namespace VisAssets.SciVis.Structured.StreamLines
 			vertices.Add(currentPosition);
 			colors.Add(lineColor);
 			magColors.Add(manager.GetMagnitudeColor(v0.magnitude));
+			// Maintain line indices as we calculate
 			indices.Add(calculatedSteps);
 
 			calculatedSteps++;
@@ -219,14 +221,23 @@ namespace VisAssets.SciVis.Structured.StreamLines
 				colors[i] = newColor;
 			}
 
+			// Force rebuild to apply color
 			UpdateMeshAndSphere();
 		}
 
 		/// <summary>
-		/// Forces a mesh update. Useful when switching between Magnitude and Solid color modes.
+		/// Forces a complete rebuild of the mesh. Vital for switching between DrawModes (Line <-> Ribbon)
+		/// or color modes on traces that have already finished calculating.
 		/// </summary>
 		public void ForceMeshUpdate()
 		{
+			// Ensure we have data to rebuild from
+			if (vertices.Count < 2) return;
+
+			// Completely clear the mesh to ensure topology changes don't cause issues
+			mesh.Clear();
+
+			// Re-evaluate rendering mode
 			UpdateMeshAndSphere();
 		}
 
@@ -252,6 +263,7 @@ namespace VisAssets.SciVis.Structured.StreamLines
 		/// </summary>
 		private void UpdateAsLine()
 		{
+			// If calculation is finished, keep sphere active at the end point
 			headSphere.SetActive(true);
 			headSphere.transform.localPosition = vertices[vertices.Count - 1];
 			headSphere.transform.localScale    = Vector3.Scale(Vector3.one / 20f, manager.upstreamReciprocalScale);
@@ -260,7 +272,7 @@ namespace VisAssets.SciVis.Structured.StreamLines
 
 			if (sphereRenderer != null)
 			{
-				Color tipColor = manager.UseMagnitude ? magColors[magColors.Count - 1] : manager.sphereColor;
+				Color tipColor = manager.useMagnitudeColor ? magColors[magColors.Count - 1] : manager.sphereColor;
 
 				sphereRenderer.GetPropertyBlock(propBlock);
 				propBlock.SetColor("_Color", tipColor);
@@ -268,9 +280,10 @@ namespace VisAssets.SciVis.Structured.StreamLines
 				sphereRenderer.SetPropertyBlock(propBlock);
 			}
 
+			// It is crucial to clear the mesh when switching topologies
 			mesh.Clear();
 			mesh.SetVertices(vertices);
-			mesh.SetColors(manager.UseMagnitude ? magColors : colors);
+			mesh.SetColors(manager.useMagnitudeColor ? magColors : colors);
 			mesh.SetIndices(indices, MeshTopology.LineStrip, 0);
 			mesh.RecalculateBounds();
 		}
@@ -283,6 +296,7 @@ namespace VisAssets.SciVis.Structured.StreamLines
 			headSphere.SetActive(false);
 
 			int count = vertices.Count;
+			// A ribbon requires 2 vertices per path point
 			Vector3[] newVerts = new Vector3[count * 2];
 			Color[]   newCols  = new Color[count * 2];
 			int[]     newInds  = new int[(count - 1) * 6];
@@ -297,14 +311,11 @@ namespace VisAssets.SciVis.Structured.StreamLines
 				if (i == 0)
 				{
 					tangent = (vertices[1] - vertices[0]).normalized;
-
 					Vector3 up = Vector3.up;
-
 					if (Mathf.Abs(Vector3.Dot(tangent, up)) > 0.99f)
 					{
 						up = Vector3.right;
 					}
-
 					currentNormal = Vector3.Cross(tangent, up).normalized;
 				}
 				else if (i == count - 1)
@@ -326,10 +337,11 @@ namespace VisAssets.SciVis.Structured.StreamLines
 				newVerts[i * 2]     = p + offset;
 				newVerts[i * 2 + 1] = p - offset;
 
-				Color c = manager.UseMagnitude ? magColors[i] : colors[i];
+				Color c = manager.useMagnitudeColor ? magColors[i] : colors[i];
 				newCols[i * 2]     = c;
 				newCols[i * 2 + 1] = c;
 
+				// Generate triangle indices
 				if (i < count - 1)
 				{
 					int vIdx = i * 2;
@@ -345,6 +357,7 @@ namespace VisAssets.SciVis.Structured.StreamLines
 				}
 			}
 
+			// Crucial: clear before applying new topology
 			mesh.Clear();
 			mesh.SetVertices(newVerts);
 			mesh.SetColors(newCols);

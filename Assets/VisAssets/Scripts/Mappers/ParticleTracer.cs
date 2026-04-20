@@ -103,7 +103,7 @@ namespace VisAssets.SciVis.Structured.ParticleTracer
 
 			if (useMagnitudeColor != null)
 			{
-				EditorGUILayout.PropertyField(useMagnitudeColor, new GUIContent("Use Velocity Magnitude Color"));
+				EditorGUILayout.PropertyField(useMagnitudeColor, new GUIContent("Use Magnitude Color"));
 			}
 
 			GUILayout.Space(5f);

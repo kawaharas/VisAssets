@@ -1,9 +1,9 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace VisAssets.SciVis.Structured.Arrows.UI
+namespace VisAssets.SciVis.Structured.ParticleTracer.UI
 {
 	public class AxisSelector : MonoBehaviour
 	{
@@ -25,7 +25,7 @@ namespace VisAssets.SciVis.Structured.Arrows.UI
 			{
 				var selectedLabel =
 					this.GetComponentsInChildren<Text>().First(t => t.name == "Label").text;
-				var component = target.GetComponent<Arrows>();
+				var component = target.GetComponent<ParticleTracer>();
 				if (component != null)
 				{
 					switch (selectedLabel)

@@ -4,7 +4,7 @@ using UnityEngine;
 //using UnityEngine.Animations;
 using UnityEngine.UI;
 
-namespace VisAssets.SciVis.Structured.StreamLines.UI
+namespace VisAssets.SciVis.Structured.ParticleTracer.UI
 {
     public class SetColorMode : MonoBehaviour
 	{
@@ -21,13 +21,7 @@ namespace VisAssets.SciVis.Structured.StreamLines.UI
 		{
 			if (target != null)
 			{
-				var component = target.GetComponent<StreamLines>();
-
-				if (component != null)
-				{
-					component.useMagnitudeColor = value;
-					component.UpdateLineColors();
-				}
+				target.GetComponent<ParticleTracer>().useMagnitudeColor = value;
 			}
 		}
 	}
