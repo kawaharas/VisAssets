@@ -18,13 +18,15 @@ namespace VisAssets.SciVis.Structured.DataLoader
 	// =========================================================================
 	// Editor Extension
 	// =========================================================================
-#if UNITY_EDITOR
+	#if UNITY_EDITOR
 	[CustomEditor(typeof(ReadGrADS))]
 	public class ReadGrADSEditor : ReadModuleTemplateEditor
 	{
-		SerializedProperty logicalFieldsProp;
-		SerializedProperty upAxisProp;
-		SerializedProperty currentStepProp;
+		SerializedProperty logicalFields;
+		SerializedProperty upAxis;
+		SerializedProperty currentStep;
+		SerializedProperty zUnit;
+		SerializedProperty zScale;
 
 		/// <summary>
 		/// Overrides the base class method. Initializes serialized properties.
@@ -33,9 +35,11 @@ namespace VisAssets.SciVis.Structured.DataLoader
 		{
 			base.OnEnable();
 
-			logicalFieldsProp = serializedObject.FindProperty("logicalFields");
-			upAxisProp = serializedObject.FindProperty("upAxis");
-			currentStepProp = serializedObject.FindProperty("currentStep");
+			logicalFields = serializedObject.FindProperty("logicalFields");
+			upAxis        = serializedObject.FindProperty("upAxis");
+			currentStep   = serializedObject.FindProperty("currentStep");
+			zUnit         = serializedObject.FindProperty("zUnit");
+			zScale        = serializedObject.FindProperty("zScale");
 		}
 
 		/// <summary>
@@ -43,7 +47,28 @@ namespace VisAssets.SciVis.Structured.DataLoader
 		/// </summary>
 		protected override void DrawDataSourceSettingsExtension()
 		{
-			EditorGUILayout.PropertyField(upAxisProp, new GUIContent("Up Axis"));
+			EditorGUILayout.PropertyField(upAxis, new GUIContent("Up Axis"));
+
+			GUILayout.Space(5f);
+
+			EditorGUI.BeginChangeCheck();
+
+			EditorGUILayout.PropertyField(zUnit, new GUIContent("Z Unit"));
+
+			GUILayout.Space(5f);
+
+			EditorGUILayout.PropertyField(zScale, new GUIContent("Z Scale"));
+
+			if (EditorGUI.EndChangeCheck())
+			{
+				serializedObject.ApplyModifiedProperties();
+
+				if (Application.isPlaying)
+				{
+					ReadGrADS modRef = (ReadGrADS)target;
+					modRef.UpdateScaling();
+				}
+			}
 
 			ReadGrADS mod = (ReadGrADS)target;
 
@@ -53,13 +78,13 @@ namespace VisAssets.SciVis.Structured.DataLoader
 
 				EditorGUILayout.LabelField("[Time Control]", EditorStyles.boldLabel);
 
-				if (currentStepProp != null)
+				if (currentStep != null)
 				{
 					EditorGUI.BeginDisabledGroup(mod.HasAnimator);
 
 					EditorGUI.BeginChangeCheck();
 
-					EditorGUILayout.IntSlider(currentStepProp, 0, mod.ParsedTimeInfo.Steps - 1, new GUIContent("Time Step"));
+					EditorGUILayout.IntSlider(currentStep, 0, mod.ParsedTimeInfo.Steps - 1, new GUIContent("Time Step"));
 
 					if (EditorGUI.EndChangeCheck())
 					{
@@ -67,7 +92,7 @@ namespace VisAssets.SciVis.Structured.DataLoader
 
 						if (Application.isPlaying)
 						{
-							mod.SetData(currentStepProp.intValue);
+							mod.SetData(currentStep.intValue);
 						}
 					}
 
@@ -75,7 +100,7 @@ namespace VisAssets.SciVis.Structured.DataLoader
 
 					if (mod.ParsedTimeInfo.StartTime != DateTime.MinValue)
 					{
-						DateTime t = mod.ParsedTimeInfo.GetTimeAtStep(currentStepProp.intValue);
+						DateTime t = mod.ParsedTimeInfo.GetTimeAtStep(currentStep.intValue);
 						EditorGUILayout.LabelField("Current Time", t.ToString("yyyy-MM-dd HH:mm:ss") + " (UTC)");
 					}
 				}
@@ -92,7 +117,7 @@ namespace VisAssets.SciVis.Structured.DataLoader
 			GUILayout.Space(5f);
 
 			EditorGUI.BeginDisabledGroup(true);
-			EditorGUILayout.PropertyField(logicalFieldsProp, new GUIContent("Variables"), true);
+			EditorGUILayout.PropertyField(logicalFields, new GUIContent("Variables"), true);
 			EditorGUI.EndDisabledGroup();
 
 			GUILayout.Space(5f);
@@ -105,27 +130,10 @@ namespace VisAssets.SciVis.Structured.DataLoader
 	// =========================================================================
 	public class ReadGrADS : ReadModuleTemplate
 	{
-		[SerializeField]
-		public float[] offsets;
-		
-		private byte[] bytedata;
-		private GrADSMeta meta;
-		private List<float>[] coords;
-
-		public int currentParsedStep = -1;
-		private string cachedDataSource = "";
-		private bool isGeometryInitialized = false;
-
-		public List<LogicalFieldInfo> logicalFields = new List<LogicalFieldInfo>();
-
-		public TimeInfo ParsedTimeInfo { get; private set; }
-
-		[System.Serializable]
-		public class LogicalFieldInfo
+		public enum ZUnit
 		{
-			public string VarName;
-			public int Levels;
-			public string Description;
+			METERS,
+			KILOMETERS
 		}
 
 		public enum TimeUnit
@@ -136,6 +144,47 @@ namespace VisAssets.SciVis.Structured.DataLoader
 			Hour,
 			Minute,
 			Second
+		}
+
+		[SerializeField]
+		public float[] offsets;
+
+		public ZUnit zUnit = ZUnit.METERS;
+
+		[Range(1f, 1000f)]
+		public float zScale = 1.0f;
+
+		public double ScaleRatioPerMeter { get; private set; } = 1.0;
+
+		private byte[] bytedata;
+		private GrADSMeta meta;
+		private List<float>[] coords;
+
+		public int currentParsedStep = -1;
+		private string cachedDataSource = "";
+		private bool isGeometryInitialized = false;
+
+		// --- Caching variables for safe scaling updates ---
+		private double distX = 1.0;
+		private double distY = 1.0;
+		private double axis_min_z = 0.0;
+		private double axis_max_z = 0.0;
+		private float axis_width_x = 1f;
+		private float axis_width_y = 1f;
+		private float axis_width_z = 1f;
+		private float baseScaleX = 1f;
+		private float prev_zScale = 1.0f;
+		private ZUnit prev_zUnit = ZUnit.METERS;
+
+		public List<LogicalFieldInfo> logicalFields = new List<LogicalFieldInfo>();
+		public TimeInfo ParsedTimeInfo { get; private set; }
+
+		[System.Serializable]
+		public class LogicalFieldInfo
+		{
+			public string VarName;
+			public int Levels;
+			public string Description;
 		}
 
 		[System.Serializable]
@@ -158,33 +207,26 @@ namespace VisAssets.SciVis.Structured.DataLoader
 			public DateTime GetTimeAtStep(int step)
 			{
 				DateTime t = StartTime;
+
 				switch (Increment.Unit)
 				{
-					case TimeUnit.Year:
-						return t.AddYears(Increment.Value * step);
-					case TimeUnit.Month:
-						return t.AddMonths(Increment.Value * step);
-					case TimeUnit.Day:
-						return t.AddDays(Increment.Value * step);
-					case TimeUnit.Hour:
-						return t.AddHours(Increment.Value * step);
-					case TimeUnit.Minute:
-						return t.AddMinutes(Increment.Value * step);
-					case TimeUnit.Second:
-						return t.AddSeconds(Increment.Value * step);
-					default:
-						return t;
+					case TimeUnit.Year:   return t.AddYears(Increment.Value * step);
+					case TimeUnit.Month:  return t.AddMonths(Increment.Value * step);
+					case TimeUnit.Day:    return t.AddDays(Increment.Value * step);
+					case TimeUnit.Hour:   return t.AddHours(Increment.Value * step);
+					case TimeUnit.Minute: return t.AddMinutes(Increment.Value * step);
+					case TimeUnit.Second: return t.AddSeconds(Increment.Value * step);
+					default:              return t;
 				}
 			}
 		}
 
 		/// <summary>
-		/// Resets the component to its default values and applies component reordering.
+		/// Resets the component to its default values.
 		/// </summary>
 		protected override void Reset()
 		{
 #if UNITY_EDITOR
-			// Execute the base class component reordering logic.
 			base.Reset();
 #endif
 			sourceType = DataSourceType.FILE;
@@ -197,10 +239,12 @@ namespace VisAssets.SciVis.Structured.DataLoader
 			currentParsedStep = -1;
 			cachedDataSource = "";
 			isGeometryInitialized = false;
+			zUnit  = ZUnit.METERS;
+			zScale = 1.0f;
 		}
 
 		/// <summary>
-		/// Overrides the base class method. Initializes module-specific settings such as initial offsets.
+		/// Initializes module-specific settings such as initial offsets.
 		/// </summary>
 		public override void InitModule()
 		{
@@ -208,7 +252,7 @@ namespace VisAssets.SciVis.Structured.DataLoader
 		}
 
 		/// <summary>
-		/// Overrides the base class method. The main execution function of the module that triggers the data loading.
+		/// The main execution function of the module that triggers the data loading.
 		/// </summary>
 		public override int BodyFunc()
 		{
@@ -217,7 +261,6 @@ namespace VisAssets.SciVis.Structured.DataLoader
 			if (dataSource == cachedDataSource && bytedata != null)
 			{
 				SetData(currentStep);
-
 				return 1;
 			}
 
@@ -227,6 +270,81 @@ namespace VisAssets.SciVis.Structured.DataLoader
 			StartCoroutine(Load());
 
 			return 1;
+		}
+
+		private void OnValidate()
+		{
+			if (Application.isPlaying && isGeometryInitialized && df != null && df.dataLoaded)
+			{
+				UpdateScaling();
+			}
+		}
+
+		/// <summary>
+		/// Dynamically recalculates and applies the Z-axis scaling transformation.
+		/// Preserves the Right-Handed to Left-Handed conversion sign established by the framework.
+		/// </summary>
+		public void UpdateScaling()
+		{
+			if (!isGeometryInitialized) return;
+
+			// Preserve the coordinate system conversion sign (-1 or 1)
+			float currentZSign = Mathf.Sign(transform.localScale.z);
+
+			double distZ_raw = axis_max_z - axis_min_z;
+			double distZ_meters = (zUnit == ZUnit.KILOMETERS) ? distZ_raw * 1000.0 : distZ_raw;
+
+			double maxDist = Math.Max(Math.Max(distX, distY), distZ_meters);
+
+			ScaleRatioPerMeter = 10.0 / maxDist;
+
+			float baseNewScaleX = 10f / axis_width_x * (float)(distX / maxDist);
+			float baseNewScaleY = 10f / axis_width_y * (float)(distY / maxDist);
+			float baseNewScaleZ = 10f / axis_width_z * (float)(distZ_meters / maxDist);
+
+			float currentOverallScale = 1.0f;
+
+			if (baseScaleX > 0.0001f)
+			{
+				currentOverallScale = Mathf.Abs(transform.localScale.x / baseScaleX);
+			}
+
+			baseScaleX = baseNewScaleX;
+
+			float finalScaleX = baseNewScaleX * currentOverallScale;
+			float finalScaleY = baseNewScaleY * currentOverallScale;
+			// Apply the preserved sign to keep the correct orientation
+			float finalScaleZ = baseNewScaleZ * zScale * currentOverallScale * currentZSign;
+
+			transform.localScale = new Vector3(finalScaleX, finalScaleY, finalScaleZ);
+
+			SetParentChangedIntoAllChildren();
+		}
+
+		/// <summary>
+		/// Updates the vertical scaling dynamically from external UI scripts.
+		/// </summary>
+		public void SetZScale(float scale)
+		{
+			zScale = scale;
+
+			if (activation != null)
+			{
+				activation.SetParameterChanged(ModuleState.PARAMETER_CHANGED);
+			}
+		}
+
+		/// <summary>
+		/// Updates the unit of the vertical axis dynamically from external UI scripts.
+		/// </summary>
+		public void SetZUnit(int unitIndex)
+		{
+			zUnit = (ZUnit)unitIndex;
+
+			if (activation != null)
+			{
+				activation.SetParameterChanged(ModuleState.PARAMETER_CHANGED);
+			}
 		}
 
 		/// <summary>
@@ -245,20 +363,15 @@ namespace VisAssets.SciVis.Structured.DataLoader
 		/// </summary>
 		IEnumerator Load()
 		{
-			// Skip disk I/O if the data source has not changed
 			if (dataSource == cachedDataSource && bytedata != null)
 			{
 				int step = currentStep > 0 ? currentStep : 0;
-
 				yield return StartCoroutine(SetDataAsync(step));
-
 				yield break;
 			}
 
-			// Reset cache information for a new data source
 			cachedDataSource = dataSource;
 			currentParsedStep = -1;
-
 			isGeometryInitialized = false;
 
 			string ctlText = null;
@@ -310,7 +423,7 @@ namespace VisAssets.SciVis.Structured.DataLoader
 			for (int i = 0; i < meta.varInfo.Count; i++)
 			{
 				int levels = meta.varInfo[i].levs == 0 ? 1 : meta.varInfo[i].levs;
-	
+
 				if (levels == meta.dims[2])
 				{
 					df.elements[i].SetDims(new List<int> { meta.dims[0], meta.dims[1], meta.dims[2] });
@@ -350,10 +463,12 @@ namespace VisAssets.SciVis.Structured.DataLoader
 				df.elements[i].SetSteps(meta.dims[3]);
 				df.elements[i].SetFieldType(FieldType.RECTILINEAR);
 				df.elements[i].varName = meta.varInfo[i].description;
+
 				if (useUndef)
 				{
 					df.elements[i].SetUndef(undef);
 				}
+
 				df.elements[i].SetActive(true);
 
 				logicalFields.Add(new LogicalFieldInfo {
@@ -368,8 +483,8 @@ namespace VisAssets.SciVis.Structured.DataLoader
 			Debug.Log($"[ReadGrADS] Loading Binary Data: {meta.dataFile}");
 
 			bool useWebRequest = Application.platform == RuntimePlatform.Android ||
-			                     Application.platform == RuntimePlatform.WebGLPlayer ||
-			                     meta.dataFile.Contains("://");
+								 Application.platform == RuntimePlatform.WebGLPlayer ||
+								 meta.dataFile.Contains("://");
 
 			if (useWebRequest)
 			{
@@ -378,6 +493,7 @@ namespace VisAssets.SciVis.Structured.DataLoader
 			else
 			{
 				string absolutePath = meta.dataFile;
+
 				if (!Path.IsPathRooted(absolutePath))
 				{
 					absolutePath = Path.Combine(Application.streamingAssetsPath, absolutePath);
@@ -412,19 +528,20 @@ namespace VisAssets.SciVis.Structured.DataLoader
 		}
 
 		/// <summary>
-		/// Overrides the base class method. Applies GrADS-specific coordinate and scale adjustments before notifying downstream modules.
+		/// Applies GrADS-specific coordinate offsets and scales before notifying downstream modules.
+		/// Prevents overwriting geometry transformations on continuous parameter updates.
 		/// </summary>
 		protected override void ApplyLoadedData()
 		{
 			df.dataLoaded = true;
 
-			// Apply GrADS-specific coordinate and scale adjustments only on the initial load of a new file.
-			// This prevents overwriting user transformations (rotation/scale) during time step animations.
 			if (!isGeometryInitialized)
 			{
 				CalcOffsets();
 				SetCoordinateSystem();
 				isGeometryInitialized = true;
+				prev_zScale = zScale;
+				prev_zUnit  = zUnit;
 			}
 
 			SetParentChangedIntoAllChildren();
@@ -443,6 +560,7 @@ namespace VisAssets.SciVis.Structured.DataLoader
 			int fortranMarkerSize = meta.isSequential ? 4 : 0;
 
 			int skipBytesPerStep = 0;
+
 			for (int i = 0; i < numVars; i++)
 			{
 				skipBytesPerStep += (elements[i].size / elementsPerPlane) * (fortranMarkerSize + bytesPerPlane + fortranMarkerSize);
@@ -509,7 +627,7 @@ namespace VisAssets.SciVis.Structured.DataLoader
 		}
 
 		/// <summary>
-		/// Overrides the base class method. Prepares the module to load and apply data for a specific time step.
+		/// Prepares the module to load and apply data for a specific time step.
 		/// </summary>
 		public override void SetData(int step)
 		{
@@ -517,7 +635,6 @@ namespace VisAssets.SciVis.Structured.DataLoader
 			if (step == currentParsedStep) return;
 
 			currentParsedStep = step;
-
 			StartCoroutine(SetDataAsync(step));
 		}
 
@@ -534,6 +651,7 @@ namespace VisAssets.SciVis.Structured.DataLoader
 			int fortranMarkerSize = meta.isSequential ? 4 : 0;
 
 			int skipBytesPerStep = 0;
+
 			for (int i = 0; i < df.elements.Length; i++)
 			{
 				int levels = df.elements[i].size / elementsPerPlane;
@@ -573,12 +691,12 @@ namespace VisAssets.SciVis.Structured.DataLoader
 							for (int y = ySize - 1; y >= 0; y--)
 							{
 								int startIndex = y * xSize;
+
 								for (int x = 0; x < xSize; x++)
 								{
 									yRevPlane.Add(planeValues[startIndex + x]);
 								}
 							}
-
 							planeValues = yRevPlane;
 						}
 
@@ -619,46 +737,59 @@ namespace VisAssets.SciVis.Structured.DataLoader
 		}
 
 		/// <summary>
-		/// Calculates geographical offsets and scales based on the loaded coordinate dimensions and applies them to the transform.
+		/// Calculates the geometric offsets and initial scaling factors based on physical distances.
+		/// Caches the dimensions and base scales required for dynamic Z-axis updates.
 		/// </summary>
 		private void CalcOffsets()
 		{
 			float[] axis_min   = new float[3];
 			float[] axis_max   = new float[3];
 			float[] axis_width = new float[3];
-			float max_width = float.MinValue;
 
 			for (int i = 0; i < 3; i++)
 			{
 				float v0 = coords[i][0];
 				float v1 = coords[i][meta.dims[i] - 1];
 				axis_width[i] = Mathf.Abs(v1 - v0);
-				max_width = Math.Max(max_width, axis_width[i]);
 				offsets[i] = v0 + (v1 - v0) / 2f;
 				axis_min[i] = coords[i].Min();
 				axis_max[i] = coords[i].Max();
 			}
 
+			axis_width_x = axis_width[0];
+			axis_width_y = axis_width[1];
+			axis_width_z = axis_width[2];
+			axis_min_z = axis_min[2];
+			axis_max_z = axis_max[2];
+
 			double EARTH_RADIUS_NS_WGS84 = 6356752.3142;
 			double EARTH_RADIUS_WE_WGS84 = 6378137.0;
-			double distX = 2.0 * Math.PI * EARTH_RADIUS_WE_WGS84
+
+			distX = 2.0 * Math.PI * EARTH_RADIUS_WE_WGS84
 					* Math.Cos((axis_min[1] + (axis_max[1] - axis_min[1]) / 2.0) / 180.0 * Math.PI)
 					/ 360.0 * (axis_max[0] - axis_min[0]);
-			double distY = 2.0 * Math.PI * EARTH_RADIUS_NS_WGS84 / 360.0 * (axis_max[1] - axis_min[1]);
-			double distZ = axis_max[2] - axis_min[2];
-			double maxDist = Math.Max(Math.Max(distX, distY), distZ);
 
-			float ScaleX = 10f / axis_width[0] * (float)(distX / maxDist);
-			float ScaleY = 10f / axis_width[1] * (float)(distY / maxDist);
-			float ScaleZ = 10f / axis_width[2] * (float)(distZ / maxDist);
+			distY = 2.0 * Math.PI * EARTH_RADIUS_NS_WGS84 / 360.0 * (axis_max[1] - axis_min[1]);
+
+			double distZ_raw = axis_max_z - axis_min_z;
+			double distZ_meters = (zUnit == ZUnit.KILOMETERS) ? distZ_raw * 1000.0 : distZ_raw;
+
+			double maxDist = Math.Max(Math.Max(distX, distY), distZ_meters);
+
+			ScaleRatioPerMeter = 10.0 / maxDist;
+
+			float ScaleX = 10f / axis_width_x * (float)(distX / maxDist);
+			float ScaleY = 10f / axis_width_y * (float)(distY / maxDist);
+			float ScaleZ = 10f / axis_width_z * (float)(distZ_meters / maxDist) * zScale;
+
+			baseScaleX = ScaleX;
 
 			foreach (Transform child in transform)
 			{
 				child.gameObject.transform.localPosition = new Vector3(-offsets[0], -offsets[1], -offsets[2]);
 			}
 
-			float zSign = meta.zInvertedScale ? -1f : 1f;
-			transform.localScale = new Vector3(ScaleX, ScaleY, zSign * ScaleZ * 10000f);
+			transform.localScale = new Vector3(ScaleX, ScaleY, ScaleZ);
 		}
 
 		private struct VarInfo
@@ -780,7 +911,7 @@ namespace VisAssets.SciVis.Structured.DataLoader
 							if (line == null) break;
 
 							string[] vTokens = line.Split(new char[0], StringSplitOptions.RemoveEmptyEntries);
-				
+
 							m.varInfo.Add(new VarInfo {
 								varName = vTokens[0],
 								levs = Convert.ToInt32(vTokens[1]),
@@ -845,6 +976,7 @@ namespace VisAssets.SciVis.Structured.DataLoader
 					m.isZRev = !m.isZRev;
 					m.coords[axisIdx].Reverse();
 					m.zInvertedScale = true;
+					Debug.Log("m.isZRev = !m.isZRev");
 				}
 			}
 		}
