@@ -411,15 +411,15 @@ namespace VisAssets.SciVis.Structured.DataLoader
 
 		public List<DicomMetaEntry> metaDataList = new List<DicomMetaEntry>();
 
+#if UNITY_EDITOR
 		/// <summary>
 		/// Resets the component to its default values and applies component reordering.
 		/// </summary>
 		protected override void Reset()
 		{
-#if UNITY_EDITOR
 			// Execute the base class component reordering logic.
 			base.Reset();
-#endif
+
 			sourceType = DataSourceType.FOLDER; // Lock standard data source type to Folder
 			dataSource = "";
 
@@ -431,6 +431,7 @@ namespace VisAssets.SciVis.Structured.DataLoader
 			useHeaderSkipMenu = false;
 			upAxis = DataField.UpAxis.Z;
 		}
+#endif
 
 		/// <summary>
 		/// Overrides the base class method. Initializes module-specific settings.

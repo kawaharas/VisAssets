@@ -198,6 +198,15 @@ namespace VisAssets.SciVis.Structured.Slicer
 		Color[]   texcolor;
 		public int tri_idx = 0;
 
+#if UNITY_EDITOR
+		protected override void Reset()
+		{
+			base.Reset();
+
+			EnsureCorrectShader();
+		}
+#endif
+
 		/// <summary>
 		/// Automatically determines the current render pipeline (Built-in or URP) and assigns the appropriate shader.
 		/// Prevents compilation errors by using Unity's standard unlit shader for URP,
@@ -225,15 +234,6 @@ namespace VisAssets.SciVis.Structured.Slicer
 			}
 		}
 #endif
-
-		protected override void Reset()
-		{
-#if UNITY_EDITOR
-			base.Reset();
-
-			EnsureCorrectShader();
-#endif
-		}
 
 		public override void InitModule()
 		{

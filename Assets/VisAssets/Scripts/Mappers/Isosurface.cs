@@ -218,14 +218,14 @@ namespace VisAssets.SciVis.Structured.Isosurface
 		// Core Module Logic
 		// ==========================================================
 
+#if UNITY_EDITOR
 		protected override void Reset()
 		{
-#if UNITY_EDITOR
 			base.Reset();
 
 			EnsureCorrectShader();
-#endif
 		}
+#endif
 
 #if UNITY_EDITOR
 		/// <summary>

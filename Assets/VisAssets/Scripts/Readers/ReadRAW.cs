@@ -53,15 +53,15 @@ namespace VisAssets.SciVis.Structured.DataLoader
 		public Vector3Int dims;
 		public string varname = string.Empty;
 
+#if UNITY_EDITOR
 		/// <summary>
 		/// Resets the component to its default values and applies component reordering.
 		/// </summary>
 		protected override void Reset()
 		{
-#if UNITY_EDITOR
 			// Execute the base class component reordering logic.
 			base.Reset();
-#endif
+
 			sourceType = DataSourceType.FILE;
 
 			useUndefMenu      = true;
@@ -70,6 +70,7 @@ namespace VisAssets.SciVis.Structured.DataLoader
 			useByteswapMenu   = true;
 			useHeaderSkipMenu = true;
 		}
+#endif
 
 		/// <summary>
 		/// Overrides the base class method. Initializes module-specific settings (e.g., rotation for Z-axis upward).

@@ -219,17 +219,18 @@ namespace VisAssets.SciVis.Structured.Volume
 		public Texture2D LutTextureY => lutTextureY;
 		public Texture2D LutTextureZ => lutTextureZ;
 
+#if UNITY_EDITOR
 		/// <summary>
 		/// Resets component variables to their default values.
 		/// </summary>
 		protected override void Reset()
 		{
-#if UNITY_EDITOR
 			base.Reset();
-#endif
+
 			density = 10.0f;
 			InitializeDefaultGradient();
 		}
+#endif
 
 		/// <summary>
 		/// Initializes a default color gradient mapping for the transfer function.

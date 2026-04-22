@@ -221,14 +221,14 @@ namespace VisAssets.SciVis.Structured.DataLoader
 			}
 		}
 
+#if UNITY_EDITOR
 		/// <summary>
 		/// Resets the component to its default values.
 		/// </summary>
 		protected override void Reset()
 		{
-#if UNITY_EDITOR
 			base.Reset();
-#endif
+
 			sourceType = DataSourceType.FILE;
 			useUndefMenu      = false;
 			usePrecisionMenu  = false;
@@ -242,6 +242,7 @@ namespace VisAssets.SciVis.Structured.DataLoader
 			zUnit  = ZUnit.METERS;
 			zScale = 1.0f;
 		}
+#endif
 
 		/// <summary>
 		/// Initializes module-specific settings such as initial offsets.

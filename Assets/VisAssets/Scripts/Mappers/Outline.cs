@@ -122,6 +122,15 @@ namespace VisAssets.SciVis.Structured.Outline
 		public bool drawInnerMesh;
 
 #if UNITY_EDITOR
+		protected override void Reset()
+		{
+			base.Reset();
+
+			EnsureCorrectShader();
+		}
+#endif
+
+#if UNITY_EDITOR
 		/// <summary>
 		/// Automatically detects the current Render Pipeline and returns the appropriate default shader.
 		/// </summary>
@@ -136,15 +145,6 @@ namespace VisAssets.SciVis.Structured.Outline
 			}
 		}
 #endif
-
-		protected override void Reset()
-		{
-#if UNITY_EDITOR
-			base.Reset();
-
-			EnsureCorrectShader();
-#endif
-		}
 
 		private void OnValidate()
 		{

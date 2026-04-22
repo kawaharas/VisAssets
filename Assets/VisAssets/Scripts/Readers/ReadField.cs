@@ -76,15 +76,15 @@ namespace VisAssets.SciVis.Structured.DataLoader
 			public FieldType fieldType = FieldType.UNDEFINED;
 		}
 
+#if UNITY_EDITOR
 		/// <summary>
 		/// Resets the component to its default values and applies component reordering.
 		/// </summary>
 		protected override void Reset()
 		{
-#if UNITY_EDITOR
 			// Execute the base class component reordering logic.
 			base.Reset();
-#endif
+
 			sourceType = DataSourceType.FILE;
 
 			useUndefMenu      = false;
@@ -92,6 +92,7 @@ namespace VisAssets.SciVis.Structured.DataLoader
 			useByteswapMenu   = false;
 			useHeaderSkipMenu = false;
 		}
+#endif
 
 		/// <summary>
 		/// Overrides the base class method. Initializes module-specific settings.

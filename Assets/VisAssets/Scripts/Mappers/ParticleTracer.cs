@@ -235,9 +235,9 @@ namespace VisAssets.SciVis.Structured.ParticleTracer
 
 		private Color[] gradientLut = new Color[256];
 
+#if UNITY_EDITOR
 		protected override void Reset()
 		{
-#if UNITY_EDITOR
 			base.Reset();
 
 			EnsureCorrectShader();
@@ -250,8 +250,8 @@ namespace VisAssets.SciVis.Structured.ParticleTracer
 			);
 
 			BuildGradientLut();
-#endif
 		}
+#endif
 
 #if UNITY_EDITOR
 		/// <summary>
