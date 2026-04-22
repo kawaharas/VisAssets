@@ -1,6 +1,3 @@
-		/// <summary>
-		/// Assigns the appropriate material shader based on the current render pipeline configurations.
-		/// </summary>
 //
 // The part of Marching Cubes in this code was ported from VFIVE (isosurf.cpp).
 // https://www.jamstec.go.jp/ceist/aeird/avcrg/vfive.ja.html
@@ -154,6 +151,7 @@ namespace VisAssets.SciVis.Structured.Isosurface
 		int[] packedTables;
 
 		private int maximumVertexNum;
+		private int currentVolumeSize = -1;
 
 		ComputeBuffer  cvBufferSingle;
 		GraphicsBuffer vertexBufferSingle;
@@ -252,6 +250,31 @@ namespace VisAssets.SciVis.Structured.Isosurface
 
 			singleMesh = new Mesh();
 			singleMesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
+			singleMesh.vertexBufferTarget |= GraphicsBuffer.Target.Raw;
+
+			var vp = new VertexAttributeDescriptor(VertexAttribute.Position, VertexAttributeFormat.Float32, 3);
+			var vn = new VertexAttributeDescriptor(VertexAttribute.Normal,   VertexAttributeFormat.Float32, 3);
+			var vc = new VertexAttributeDescriptor(VertexAttribute.Color,    VertexAttributeFormat.Float32, 4);
+
+			singleMesh.SetVertexBufferParams(maximumVertexNum, vp, vn, vc);
+			singleMesh.SetIndexBufferParams(maximumVertexNum, IndexFormat.UInt32);
+
+			int[] inds = new int[maximumVertexNum];
+			for (int i = 0; i < maximumVertexNum; i++)
+			{
+				inds[i] = i;
+			}
+			singleMesh.SetIndexBufferData(inds, 0, 0, maximumVertexNum);
+			singleMesh.SetSubMesh(0, new SubMeshDescriptor(0, maximumVertexNum), MeshUpdateFlags.DontRecalculateBounds);
+
+			vertexBufferSingle = singleMesh.GetVertexBuffer(0);
+			counterBufferSingle = new ComputeBuffer(1, sizeof(uint), ComputeBufferType.Counter);
+			counterCheckBufferSingle = new ComputeBuffer(1, sizeof(uint), ComputeBufferType.IndirectArguments);
+
+			if (CachedMeshFilter != null)
+			{
+				CachedMeshFilter.sharedMesh = singleMesh;
+			}
 
 			UpdateMaterialShader();
 		}
@@ -344,22 +367,14 @@ namespace VisAssets.SciVis.Structured.Isosurface
 
 		private void OnDestroy()
 		{
-			if (tablesBuffer != null)
-			{
-				tablesBuffer.Dispose();
-			}
+			if (tablesBuffer != null) tablesBuffer.Dispose();
+			if (cvBufferSingle != null) cvBufferSingle.Dispose();
+			if (vertexBufferSingle != null) vertexBufferSingle.Dispose();
+			if (counterBufferSingle != null) counterBufferSingle.Dispose();
+			if (counterCheckBufferSingle != null) counterCheckBufferSingle.Dispose();
 
-			DisposeSinglePassBuffers();
-
-			if (material != null)
-			{
-				Destroy(material);
-			}
-
-			if (singleMesh != null)
-			{
-				Destroy(singleMesh);
-			}
+			if (material != null) Destroy(material);
+			if (singleMesh != null) Destroy(singleMesh);
 		}
 
 		void OnValidate()
@@ -457,39 +472,25 @@ namespace VisAssets.SciVis.Structured.Isosurface
 
 		/// <summary>
 		/// Prepares coordinate and value data in a unified ComputeBuffer for high-performance single-pass GPU execution.
+		/// Safely reuses buffers if the spatial volume dimensions remain constant, preventing mobile driver memory crashes.
 		/// </summary>
 		private void GenCoordPrepSinglePass()
 		{
-			DisposeSinglePassBuffers();
+			int volumeSize = dims[0] * dims[1] * dims[2];
+			if (volumeSize <= 0) return;
 
-			int maxVerts = maximumVertexNum;
-			cvBufferSingle = new ComputeBuffer(dims[0] * dims[1] * dims[2], sizeof(float) * 4);
-			Vector4[] cv = new Vector4[dims[0] * dims[1] * dims[2]];
-			Parallel.For(0, dims[0] * dims[1] * dims[2], i => {
+			if (cvBufferSingle == null || currentVolumeSize != volumeSize)
+			{
+				if (cvBufferSingle != null) cvBufferSingle.Dispose();
+				cvBufferSingle = new ComputeBuffer(volumeSize, sizeof(float) * 4);
+				currentVolumeSize = volumeSize;
+			}
+
+			Vector4[] cv = new Vector4[volumeSize];
+			Parallel.For(0, volumeSize, i => {
 				cv[i] = new Vector4(coords[i * 3 + 0], coords[i * 3 + 1], coords[i * 3 + 2], values[i]);
 			});
 			cvBufferSingle.SetData(cv);
-
-			counterBufferSingle      = new ComputeBuffer(1, sizeof(uint), ComputeBufferType.Counter);
-			counterCheckBufferSingle = new ComputeBuffer(1, sizeof(uint), ComputeBufferType.IndirectArguments);
-
-			singleMesh.vertexBufferTarget |= GraphicsBuffer.Target.Raw;
-			var vp = new VertexAttributeDescriptor(VertexAttribute.Position, VertexAttributeFormat.Float32, 3);
-			var vn = new VertexAttributeDescriptor(VertexAttribute.Normal,   VertexAttributeFormat.Float32, 3);
-			var vc = new VertexAttributeDescriptor(VertexAttribute.Color,    VertexAttributeFormat.Float32, 4);
-			singleMesh.SetVertexBufferParams(maxVerts, vp, vn, vc);
-			singleMesh.SetIndexBufferParams(maxVerts, IndexFormat.UInt32);
-			singleMesh.SetSubMesh(0, new SubMeshDescriptor(0, maxVerts), MeshUpdateFlags.DontRecalculateBounds);
-			vertexBufferSingle = singleMesh.GetVertexBuffer(0);
-
-			int[] inds = new int[maxVerts];
-
-			for (int i = 0; i < maxVerts; i++)
-			{
-				inds[i] = i;
-			}
-
-			singleMesh.SetIndices(inds, MeshTopology.Triangles, 0);
 
 			if (CachedMeshRenderer != null)
 			{
@@ -527,7 +528,7 @@ namespace VisAssets.SciVis.Structured.Isosurface
 
 			ComputeBuffer.CopyCount(counterBufferSingle, counterCheckBufferSingle, 0);
 			uint[] countData = new uint[1];
-			counterCheckBufferSingle.GetData(countData);
+			counterCheckBufferSingle.GetData(countData); // Blocks CPU until GPU is done
 			triCount = (int)countData[0];
 
 			int validVertexCount = Mathf.Min(triCount * 3, maxVerts);
@@ -542,38 +543,6 @@ namespace VisAssets.SciVis.Structured.Isosurface
 			var v0 = Vector3.Scale(element.boundMin, scale);
 			var v1 = Vector3.Scale(element.boundMax, scale);
 			singleMesh.bounds = new UnityEngine.Bounds(v0 + (v1 - v0) / 2, (v1 - v0) * 2);
-
-			if (CachedMeshFilter != null)
-			{
-				CachedMeshFilter.sharedMesh = singleMesh;
-			}
-		}
-
-		private void DisposeSinglePassBuffers()
-		{
-			if (cvBufferSingle != null)
-			{
-				cvBufferSingle.Dispose();
-				cvBufferSingle = null;
-			}
-
-			if (vertexBufferSingle != null)
-			{
-				vertexBufferSingle.Dispose();
-				vertexBufferSingle = null;
-			}
-
-			if (counterBufferSingle != null)
-			{
-				counterBufferSingle.Dispose();
-				counterBufferSingle = null;
-			}
-
-			if (counterCheckBufferSingle != null)
-			{
-				counterCheckBufferSingle.Dispose();
-				counterCheckBufferSingle = null;
-			}
 		}
 	}
 }
