@@ -269,6 +269,12 @@ namespace VisAssets.SciVis.Structured.Isosurface
 		{
 			int vertexStride = 40;
 			long maxBufferBytes = SystemInfo.maxGraphicsBufferSize;
+
+			if (maxBufferBytes <= 0)
+			{
+				maxBufferBytes = 128 * 1024 * 1024;
+			}
+
 			long maxTheoreticalVerts = (long)(maxBufferBytes * 0.8f) / vertexStride;
 			int practicalCap = 15000000;
 #if UNITY_ANDROID && !UNITY_EDITOR
@@ -276,6 +282,11 @@ namespace VisAssets.SciVis.Structured.Isosurface
 #endif
 			int calculatedVerts = (int)Math.Min(maxTheoreticalVerts, practicalCap);
 			maximumVertexNum = (calculatedVerts / 3) * 3;
+
+			if (maximumVertexNum <= 0)
+			{
+				maximumVertexNum = 65536 * 3;
+			}
 
 			dims = new int[3];
 			triCount = 0;
@@ -344,6 +355,14 @@ namespace VisAssets.SciVis.Structured.Isosurface
 				slider = 0.5f;
 			}
 
+			if (IsChunkMode() && isCalculating)
+			{
+				needsRecalculation = true;
+				abortChunking = true;
+
+				return;
+			}
+
 			if (!IsChunkMode())
 			{
 				GenCoordPrepSinglePass();
@@ -360,6 +379,11 @@ namespace VisAssets.SciVis.Structured.Isosurface
 		{
 			if (!pdf.dataLoaded) return;
 
+			element = pdf.elements[0];
+			dims    = element.dims;
+			coords  = element.coords[3];
+			values  = element.values;
+
 			if (IsChunkMode() && isCalculating)
 			{
 				needsRecalculation = true;
@@ -367,11 +391,6 @@ namespace VisAssets.SciVis.Structured.Isosurface
 
 				return;
 			}
-
-			element = pdf.elements[0];
-			dims    = element.dims;
-			coords  = element.coords[3];
-			values  = element.values;
 
 			if (!IsChunkMode())
 			{
@@ -407,9 +426,31 @@ namespace VisAssets.SciVis.Structured.Isosurface
 			DisposeSinglePassBuffers();
 			DisposeChunkBuffers();
 
+			ClearOldChunks();
+
 			if (material != null)
 			{
 				Destroy(material);
+			}
+		}
+
+		/// <summary>
+		/// Safely destroys all generated child meshes before destroying the parent object.
+		/// This prevents fatal VBO memory leaks and GC-triggered driver crashes on PowerVR GPUs.
+		/// </summary>
+		private void ClearOldChunks()
+		{
+			if (chunkParent != null)
+			{
+				foreach (MeshFilter mf in chunkParent.GetComponentsInChildren<MeshFilter>())
+				{
+					if (mf != null && mf.sharedMesh != null)
+					{
+						Destroy(mf.sharedMesh);
+					}
+				}
+				Destroy(chunkParent);
+				chunkParent = null;
 			}
 		}
 
@@ -609,10 +650,7 @@ namespace VisAssets.SciVis.Structured.Isosurface
 				CachedMeshRenderer.enabled = true;
 			}
 
-			if (chunkParent != null)
-			{
-				Destroy(chunkParent);
-			}
+			ClearOldChunks();
 		}
 
 		/// <summary>
@@ -700,17 +738,23 @@ namespace VisAssets.SciVis.Structured.Isosurface
 			{
 				CachedMeshRenderer.enabled = false;
 			}
-
+/*
 			if (chunkParent != null)
 			{
 				Destroy(chunkParent);
 			}
+*/
+			ClearOldChunks();
 
 			chunkParent = new GameObject("Isosurface_Chunks");
 			chunkParent.transform.SetParent(this.transform, false);
 
-			int maxVertsPerChunk = Math.Min(maximumVertexNum, 65536 * 15);
+//			int maxVertsPerChunk = Math.Min(maximumVertexNum, 65536 * 15);
+//			maxVertsPerChunk = (maxVertsPerChunk / 3) * 3;
+//			shader.SetInt("maximumVertexNum", maxVertsPerChunk);
+			int maxVertsPerChunk = Math.Min(maximumVertexNum, 65536 * 4);
 			maxVertsPerChunk = (maxVertsPerChunk / 3) * 3;
+			if (maxVertsPerChunk <= 0) maxVertsPerChunk = 65536 * 3;
 			shader.SetInt("maximumVertexNum", maxVertsPerChunk);
 
 			if (chunkCvBuffer == null || currentChunkSize != chunkSize)
