@@ -23,30 +23,20 @@ namespace VisAssets.SciVis.Structured.Isosurface
 {
 	using ModuleState = Activation.ModuleState;
 
-	// =========================================================================
-	// Editor Extension
-	// =========================================================================
 #if UNITY_EDITOR
 	[CustomEditor(typeof(Isosurface))]
 	public class IsosurfaceEditor : Editor
 	{
-		SerializedProperty slider;
-		SerializedProperty threshold;
-		SerializedProperty min;
-		SerializedProperty max;
-		SerializedProperty triCount;
-		SerializedProperty shader;
-		SerializedProperty builtinCustomshader;
-		SerializedProperty rendershader;
+		SerializedProperty slider, threshold, min, max, triCount, shader, builtinCustomshader, rendershader;
 
 		private void OnEnable()
 		{
-			slider      = serializedObject.FindProperty("slider");
-			threshold   = serializedObject.FindProperty("threshold");
-			min         = serializedObject.FindProperty("min");
-			max         = serializedObject.FindProperty("max");
-			triCount    = serializedObject.FindProperty("triCount");
-			shader      = serializedObject.FindProperty("shader");
+			slider = serializedObject.FindProperty("slider");
+			threshold = serializedObject.FindProperty("threshold");
+			min = serializedObject.FindProperty("min");
+			max = serializedObject.FindProperty("max");
+			triCount = serializedObject.FindProperty("triCount");
+			shader = serializedObject.FindProperty("shader");
 			builtinCustomshader = serializedObject.FindProperty("builtinCustomShader");
 			rendershader = serializedObject.FindProperty("renderShader");
 		}
@@ -95,9 +85,6 @@ namespace VisAssets.SciVis.Structured.Isosurface
 	}
 #endif
 
-	// =========================================================================
-	// Main Class
-	// =========================================================================
 	public class Isosurface : MapperModuleTemplate
 	{
 		[StructLayout(LayoutKind.Sequential)]
@@ -107,7 +94,7 @@ namespace VisAssets.SciVis.Structured.Isosurface
 		}
 
 		DataElement element;
-		int []  dims;
+		int[] dims;
 		float[] coords;
 		float[] values;
 
@@ -119,7 +106,6 @@ namespace VisAssets.SciVis.Structured.Isosurface
 
 		[SerializeField] public Shader builtinCustomShader;
 		public Shader renderShader;
-
 		private Material material;
 
 		public ComputeShader shader = null;
@@ -128,35 +114,19 @@ namespace VisAssets.SciVis.Structured.Isosurface
 
 		private int maximumVertexNum;
 		private int currentVolumeSize = -1;
-
 		private bool isCalculating = false;
 		private bool needsRecalculation = false;
 
-		ComputeBuffer  cvBufferSingle;
-		GraphicsBuffer vertexBufferSingle;
-		ComputeBuffer  counterBufferSingle;
-		ComputeBuffer  counterCheckBufferSingle;
+		ComputeBuffer cvBufferSingle;
+		ComputeBuffer vertexBufferSingle;
+		ComputeBuffer counterBufferSingle;
+		ComputeBuffer counterCheckBufferSingle;
 		Mesh singleMesh;
 
 		private MeshFilter _cachedMeshFilter;
-		private MeshFilter CachedMeshFilter
-		{
-			get
-			{
-				if (_cachedMeshFilter == null) _cachedMeshFilter = GetComponent<MeshFilter>();
-				return _cachedMeshFilter;
-			}
-		}
-
+		private MeshFilter CachedMeshFilter => _cachedMeshFilter ??= GetComponent<MeshFilter>();
 		private MeshRenderer _cachedMeshRenderer;
-		private MeshRenderer CachedMeshRenderer
-		{
-			get
-			{
-				if (_cachedMeshRenderer == null) _cachedMeshRenderer = GetComponent<MeshRenderer>();
-				return _cachedMeshRenderer;
-			}
-		}
+		private MeshRenderer CachedMeshRenderer => _cachedMeshRenderer ??= GetComponent<MeshRenderer>();
 
 #if UNITY_EDITOR
 		protected override void Reset()
@@ -189,13 +159,9 @@ namespace VisAssets.SciVis.Structured.Isosurface
 			if (maxBufferBytes <= 0) maxBufferBytes = 128 * 1024 * 1024;
 
 			long maxTheoreticalVerts = (long)(maxBufferBytes * 0.8f) / vertexStride;
-
-			int practicalCap = 15000000;
-#if UNITY_ANDROID && !UNITY_EDITOR
-			practicalCap = 1500000; // Androidの安全なメモリ上限(60MB程度)に調整
-#endif
-			int calculatedVerts = (int)Math.Min(maxTheoreticalVerts, practicalCap);
-			maximumVertexNum = (calculatedVerts / 3) * 3;
+			int practicalCap = 1500000;
+			maximumVertexNum = (int)Math.Min(maxTheoreticalVerts, practicalCap);
+			maximumVertexNum = (maximumVertexNum / 3) * 3;
 			if (maximumVertexNum <= 0) maximumVertexNum = 65536 * 3;
 
 			dims = new int[3];
@@ -206,29 +172,14 @@ namespace VisAssets.SciVis.Structured.Isosurface
 			tablesBuffer = new ComputeBuffer(packedTables.Length, sizeof(int));
 			tablesBuffer.SetData(packedTables);
 
-			singleMesh = new Mesh();
-			singleMesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
-			singleMesh.vertexBufferTarget |= GraphicsBuffer.Target.Raw;
-
-			var vp = new VertexAttributeDescriptor(VertexAttribute.Position, VertexAttributeFormat.Float32, 3);
-			var vn = new VertexAttributeDescriptor(VertexAttribute.Normal,   VertexAttributeFormat.Float32, 3);
-			var vc = new VertexAttributeDescriptor(VertexAttribute.Color,    VertexAttributeFormat.Float32, 4);
-
-			singleMesh.SetVertexBufferParams(maximumVertexNum, vp, vn, vc);
-			singleMesh.SetIndexBufferParams(maximumVertexNum, IndexFormat.UInt32);
-
-			int[] inds = new int[maximumVertexNum];
-			for (int i = 0; i < maximumVertexNum; i++) inds[i] = i;
-
-			singleMesh.SetIndexBufferData(inds, 0, 0, maximumVertexNum);
-			singleMesh.SetSubMesh(0, new SubMeshDescriptor(0, maximumVertexNum), MeshUpdateFlags.DontRecalculateBounds);
-
-			vertexBufferSingle = singleMesh.GetVertexBuffer(0);
+			vertexBufferSingle = new ComputeBuffer(maximumVertexNum * 10, 4, ComputeBufferType.Raw);
 			counterBufferSingle = new ComputeBuffer(1, sizeof(uint), ComputeBufferType.Counter);
 			counterCheckBufferSingle = new ComputeBuffer(1, sizeof(uint), ComputeBufferType.IndirectArguments);
 
-			if (CachedMeshFilter != null) CachedMeshFilter.sharedMesh = singleMesh;
+			singleMesh = new Mesh();
+			singleMesh.indexFormat = IndexFormat.UInt32;
 
+			if (CachedMeshFilter != null) CachedMeshFilter.sharedMesh = singleMesh;
 			UpdateMaterialShader();
 		}
 
@@ -238,12 +189,11 @@ namespace VisAssets.SciVis.Structured.Isosurface
 			return 1;
 		}
 
-		public override void IdleFunc() {}
+		public override void IdleFunc() { }
 
 		public override void SetParameters()
 		{
 			if (!pdf.dataLoaded) return;
-
 			if (dims != null && pdf.elements != null && pdf.elements.Length > 0)
 			{
 				if (dims[0] != pdf.elements[0].dims[0] || dims[1] != pdf.elements[0].dims[1] || dims[2] != pdf.elements[0].dims[2])
@@ -262,11 +212,11 @@ namespace VisAssets.SciVis.Structured.Isosurface
 			needsRecalculation = false;
 
 			element = pdf.elements[0];
-			dims    = element.dims;
-			coords  = element.coords[3];
-			values  = element.values;
-			min     = element.min;
-			max     = element.max;
+			dims = element.dims;
+			coords = element.coords[3];
+			values = element.values;
+			min = element.min;
+			max = element.max;
 
 			threshold = Mathf.Clamp(threshold, min, max);
 			slider = (max > min) ? (threshold - min) / (max - min) : 0.5f;
@@ -275,7 +225,7 @@ namespace VisAssets.SciVis.Structured.Isosurface
 			Calc();
 		}
 
-		public override void GetParameters() {}
+		public override void GetParameters() { }
 
 		public override void ReSetParameters()
 		{
@@ -286,9 +236,9 @@ namespace VisAssets.SciVis.Structured.Isosurface
 			needsRecalculation = false;
 
 			element = pdf.elements[0];
-			dims    = element.dims;
-			coords  = element.coords[3];
-			values  = element.values;
+			dims = element.dims;
+			coords = element.coords[3];
+			values = element.values;
 
 			GenCoordPrepSinglePass();
 			InitLevel();
@@ -311,21 +261,14 @@ namespace VisAssets.SciVis.Structured.Isosurface
 		{
 			StopAllCoroutines();
 
-			// 最重要：バッファを破棄する前に、レンダリングパイプラインからメッシュを引き剥がす（起動前クラッシュ対策）
 			if (CachedMeshFilter != null) CachedMeshFilter.sharedMesh = null;
 			if (CachedMeshRenderer != null) CachedMeshRenderer.sharedMaterial = null;
 
-			if (tablesBuffer != null) tablesBuffer.Dispose();
-			if (cvBufferSingle != null) cvBufferSingle.Dispose();
-
-			if (vertexBufferSingle != null)
-			{
-				vertexBufferSingle.Dispose();
-				vertexBufferSingle = null;
-			}
-
-			if (counterBufferSingle != null) counterBufferSingle.Dispose();
-			if (counterCheckBufferSingle != null) counterCheckBufferSingle.Dispose();
+			tablesBuffer = null;
+			cvBufferSingle = null;
+			vertexBufferSingle = null;
+			counterBufferSingle = null;
+			counterCheckBufferSingle = null;
 
 			if (material != null) Destroy(material);
 			if (singleMesh != null) Destroy(singleMesh);
@@ -334,9 +277,8 @@ namespace VisAssets.SciVis.Structured.Isosurface
 		void OnValidate()
 		{
 			if (!IsDataLoadedToParent() || values == null) return;
-
 			threshold = min + (max - min) * slider;
-			if(activation != null) activation.SetParameterChanged(ModuleState.PARAMETER_CHANGED);
+			if (activation != null) activation.SetParameterChanged(ModuleState.PARAMETER_CHANGED);
 		}
 
 		public void UpdateMaterialShader()
@@ -370,7 +312,7 @@ namespace VisAssets.SciVis.Structured.Isosurface
 			if (values == null) return;
 			threshold = Mathf.Clamp(value, min, max);
 			if (max > min) slider = (threshold - min) / (max - min);
-			if(activation != null) activation.SetParameterChanged(ModuleState.PARAMETER_CHANGED);
+			if (activation != null) activation.SetParameterChanged(ModuleState.PARAMETER_CHANGED);
 		}
 
 		private void InitLevel()
@@ -384,7 +326,6 @@ namespace VisAssets.SciVis.Structured.Isosurface
 		public void Calc()
 		{
 			if (values == null || coords == null || cvBufferSingle == null) return;
-
 			if (isCalculating)
 			{
 				needsRecalculation = true;
@@ -415,8 +356,8 @@ namespace VisAssets.SciVis.Structured.Isosurface
 		}
 
 		/// <summary>
-		/// Uses AsyncGPUReadback to fetch the triangle count without stalling the CPU.
-		/// Fixes Android QUEUE_BUFFER_TIMEOUT crashes.
+		/// Uses AsyncGPUReadback to safely fetch vertices from a dedicated ComputeBuffer.
+		/// Completely isolates Compute Shader from the Rendering Pipeline to prevent driver freezes.
 		/// </summary>
 		private IEnumerator SinglePassCalcRoutine()
 		{
@@ -447,26 +388,59 @@ namespace VisAssets.SciVis.Structured.Isosurface
 			shader.Dispatch(kernel, _x, _y, _z);
 			ComputeBuffer.CopyCount(counterBufferSingle, counterCheckBufferSingle, 0);
 
-			// GPUの描画完了を待機（非同期読み出しによるフリーズ回避）
-			var req = UnityEngine.Rendering.AsyncGPUReadback.Request(counterCheckBufferSingle);
-			yield return new WaitUntil(() => req.done);
+			var reqCount = UnityEngine.Rendering.AsyncGPUReadback.Request(counterCheckBufferSingle);
+			yield return new WaitUntil(() => reqCount.done);
 
-			if (!req.hasError)
+			if (reqCount.hasError)
 			{
-				uint[] countData = req.GetData<uint>().ToArray();
-				triCount = (int)countData[0];
+				isCalculating = false;
+				yield break;
+			}
 
-				int validVertexCount = Mathf.Min(triCount * 3, maxVerts);
-				if (validVertexCount == 0) validVertexCount = 3;
+			uint triCountLocal = reqCount.GetData<uint>()[0];
+			uint vertCount = triCountLocal * 3;
+			triCount = (int)triCountLocal;
 
-				if (singleMesh != null)
+			int validVertexCount = Mathf.Min((int)vertCount, maxVerts);
+
+			if (validVertexCount >= 3)
+			{
+				int byteSize = validVertexCount * 40;
+				var reqVerts = UnityEngine.Rendering.AsyncGPUReadback.Request(vertexBufferSingle, byteSize, 0);
+
+				yield return new WaitUntil(() => reqVerts.done);
+
+				if (!reqVerts.hasError && singleMesh != null)
 				{
+					var vertData = reqVerts.GetData<VertexData>();
+
+					var layout = new[]
+					{
+						new VertexAttributeDescriptor(VertexAttribute.Position, VertexAttributeFormat.Float32, 3),
+						new VertexAttributeDescriptor(VertexAttribute.Normal, VertexAttributeFormat.Float32, 3),
+						new VertexAttributeDescriptor(VertexAttribute.Color, VertexAttributeFormat.Float32, 4)
+					};
+
+					singleMesh.SetVertexBufferParams(validVertexCount, layout);
+					singleMesh.SetVertexBufferData(vertData, 0, 0, validVertexCount);
+
+					int[] inds = new int[validVertexCount];
+					for (int i = 0; i < validVertexCount; i++) inds[i] = i;
+
+					singleMesh.SetIndexBufferParams(validVertexCount, IndexFormat.UInt32);
+					singleMesh.SetIndexBufferData(inds, 0, 0, validVertexCount);
+
 					singleMesh.SetSubMesh(0, new SubMeshDescriptor(0, validVertexCount), MeshUpdateFlags.DontRecalculateBounds);
+
 					var scale = transform.localScale;
 					var v0 = Vector3.Scale(element.boundMin, scale);
 					var v1 = Vector3.Scale(element.boundMax, scale);
 					singleMesh.bounds = new UnityEngine.Bounds(v0 + (v1 - v0) / 2, (v1 - v0) * 2);
 				}
+			}
+			else if (singleMesh != null)
+			{
+				singleMesh.SetSubMesh(0, new SubMeshDescriptor(0, 0), MeshUpdateFlags.DontRecalculateBounds);
 			}
 
 			isCalculating = false;
