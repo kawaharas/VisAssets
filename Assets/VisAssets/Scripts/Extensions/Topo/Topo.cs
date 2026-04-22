@@ -660,7 +660,7 @@ namespace VisAssets.Extensions.Topo
 		private void SetupMaterial()
 		{
 			bool isURP = UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline != null;
-			string expectedShader = isURP ? "Universal Render Pipeline/Lit" : "VisAssets/Isosurface";
+			string expectedShader = isURP ? "Universal Render Pipeline/Particles/Lit" : "VisAssets/Isosurface";
 
 			if (shader == null || shader.name != expectedShader)
 			{
