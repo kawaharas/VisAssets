@@ -65,6 +65,15 @@ namespace VisAssets.Extensions.Topo
 					{
 						seaMaterial.SetFloat("_Surface", 1.0f); // 1 = Transparent
 						seaMaterial.SetFloat("_Blend",   0.0f); // 0 = Alpha
+
+						seaMaterial.SetOverrideTag("RenderType", "Transparent");
+						seaMaterial.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.SrcAlpha);
+						seaMaterial.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+						seaMaterial.SetInt("_ZWrite", 0);
+
+						seaMaterial.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
+
+						seaMaterial.SetShaderPassEnabled("ShadowCaster", false);
 					}
 				}
 

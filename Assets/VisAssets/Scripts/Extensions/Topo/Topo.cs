@@ -678,9 +678,19 @@ namespace VisAssets.Extensions.Topo
 				{
 					topoMaterial = new Material(shader);
 
-					if (isURP && topoMaterial.HasProperty("_Smoothness"))
+					if (isURP)
 					{
-						topoMaterial.SetFloat("_Smoothness", 0f);
+						if (topoMaterial.HasProperty("_Smoothness"))
+						{
+							topoMaterial.SetFloat("_Smoothness", 0f);
+						}
+
+						if (topoMaterial.HasProperty("_Cull"))
+						{
+							topoMaterial.SetFloat("_Cull", 0f); // 0 = Off
+						}
+
+						topoMaterial.doubleSidedGI = true;
 					}
 				}
 
