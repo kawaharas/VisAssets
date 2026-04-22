@@ -223,6 +223,8 @@ namespace VisAssets.SciVis.Structured.Isosurface
 
 		public override void InitModule()
 		{
+			if (tablesBuffer != null) return;
+
 			int vertexStride = 40;
 			long maxBufferBytes = SystemInfo.maxGraphicsBufferSize;
 
