@@ -191,6 +191,12 @@ namespace VisAssets.SciVis.Structured.Isosurface
 		private Coroutine  chunkCoroutine;
 		private GameObject chunkParent;
 
+		private ComputeBuffer chunkCvBuffer;
+		private GraphicsBuffer chunkVertBuffer;
+		private ComputeBuffer chunkCounter;
+		private ComputeBuffer chunkCounterCheck;
+		private int currentChunkSize = -1;
+
 		// ==========================================================
 		// Component Caching (Lazy Evaluation)
 		// ==========================================================
@@ -399,11 +405,24 @@ namespace VisAssets.SciVis.Structured.Isosurface
 			}
 
 			DisposeSinglePassBuffers();
+			DisposeChunkBuffers();
 
 			if (material != null)
 			{
 				Destroy(material);
 			}
+		}
+
+		private void DisposeChunkBuffers()
+		{
+			if (chunkCvBuffer != null) chunkCvBuffer.Dispose();
+			if (chunkVertBuffer != null) chunkVertBuffer.Dispose();
+			if (chunkCounter != null) chunkCounter.Dispose();
+			if (chunkCounterCheck != null) chunkCounterCheck.Dispose();
+			chunkCvBuffer = null;
+			chunkVertBuffer = null;
+			chunkCounter = null;
+			chunkCounterCheck = null;
 		}
 
 		void OnValidate()
@@ -673,7 +692,7 @@ namespace VisAssets.SciVis.Structured.Isosurface
 
 		/// <summary>
 		/// Executes the Marching Cubes algorithm in segmented chunks to bypass mobile graphics memory limitations.
-		/// Utilizes AsyncGPUReadback to prevent pipeline stalling.
+		/// Utilizes AsyncGPUReadback to prevent pipeline stalling. Buffers are cached to avoid mobile driver crashes.
 		/// </summary>
 		private IEnumerator BuildChunksRoutine()
 		{
@@ -690,15 +709,20 @@ namespace VisAssets.SciVis.Structured.Isosurface
 			chunkParent = new GameObject("Isosurface_Chunks");
 			chunkParent.transform.SetParent(this.transform, false);
 
-			int maxVertsPerChunk = Math.Min(maximumVertexNum, 65536 * 45);
+			int maxVertsPerChunk = Math.Min(maximumVertexNum, 65536 * 15);
 			maxVertsPerChunk = (maxVertsPerChunk / 3) * 3;
 			shader.SetInt("maximumVertexNum", maxVertsPerChunk);
 
-			int maxVoxelCount = (chunkSize + 1) * (chunkSize + 1) * (chunkSize + 1);
-			var chunkCvBuffer = new ComputeBuffer(maxVoxelCount, sizeof(float) * 4);
-			var chunkVertBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Raw, maxVertsPerChunk * 10, 4);
-			var chunkCounter = new ComputeBuffer(1, sizeof(uint), ComputeBufferType.Counter);
-			var chunkCounterCheck = new ComputeBuffer(1, sizeof(uint), ComputeBufferType.IndirectArguments);
+			if (chunkCvBuffer == null || currentChunkSize != chunkSize)
+			{
+				DisposeChunkBuffers(); // サイズが変わった場合のみ安全に破棄
+				int maxVoxelCount = (chunkSize + 1) * (chunkSize + 1) * (chunkSize + 1);
+				chunkCvBuffer = new ComputeBuffer(maxVoxelCount, sizeof(float) * 4);
+				chunkVertBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Raw, maxVertsPerChunk * 10, 4);
+				chunkCounter = new ComputeBuffer(1, sizeof(uint), ComputeBufferType.Counter);
+				chunkCounterCheck = new ComputeBuffer(1, sizeof(uint), ComputeBufferType.IndirectArguments);
+				currentChunkSize = chunkSize;
+			}
 
 			int kernel = shader.FindKernel("Calc");
 			shader.SetBuffer(kernel, "tables", tablesBuffer);
@@ -817,11 +841,6 @@ namespace VisAssets.SciVis.Structured.Isosurface
 			}
 
 		EndCoroutine:
-			chunkCvBuffer.Dispose();
-			chunkVertBuffer.Dispose();
-			chunkCounter.Dispose();
-			chunkCounterCheck.Dispose();
-
 			triCount = totalTris;
 			isCalculating = false;
 
