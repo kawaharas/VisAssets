@@ -11,11 +11,33 @@ namespace VisAssets.SciVis.Structured.Isosurface.UI
 		public  GameObject inputField;
 		public  GameObject placeholder;
 
+		private Slider uiSlider;
+		private bool isInitialized = false;
+
 		void Start()
 		{
-			target = GetComponentInParent<UIPanel>().TargetModule;
-			var slider = GetComponent<Slider>();
-			slider.onValueChanged.AddListener(OnValueChanged);
+			target   = GetComponentInParent<UIPanel>().TargetModule;
+			uiSlider = GetComponent<Slider>();
+			uiSlider.onValueChanged.AddListener(OnValueChanged);
+		}
+
+		void Update()
+		{
+			if (!isInitialized && target != null)
+			{
+				var isosurface = target.GetComponent<Isosurface>();
+
+				if (isosurface != null && isosurface.max > isosurface.min)
+				{
+					uiSlider.minValue = isosurface.min;
+					uiSlider.maxValue = isosurface.max;
+					uiSlider.value = isosurface.threshold;
+
+					UpdateText(isosurface.threshold);
+
+					isInitialized = true;
+				}
+			}
 		}
 
 		public void OnValueChanged(float value)
@@ -23,11 +45,36 @@ namespace VisAssets.SciVis.Structured.Isosurface.UI
 			if (target != null)
 			{
 				var isosurface = target.GetComponent<Isosurface>();
+
 				if (isosurface != null)
 				{
 					isosurface.SetValue(value);
-					inputField.GetComponent<InputField>().text = value.ToString();
-					placeholder.GetComponent<Text>().text = value.ToString();
+
+					UpdateText(value);
+				}
+			}
+		}
+
+		private void UpdateText(float value)
+		{
+			string formattedValue = (value < 0.001f || value > 1000f) ? value.ToString("E3") : value.ToString("G5");
+
+			if (inputField != null)
+			{
+				var input = inputField.GetComponent<InputField>();
+
+				if (input != null)
+				{
+					input.text = formattedValue;
+				}
+			}
+			if (placeholder != null)
+			{
+				var text = placeholder.GetComponent<Text>();
+
+				if (text != null)
+				{
+					text.text = formattedValue;
 				}
 			}
 		}

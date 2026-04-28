@@ -1,4 +1,7 @@
+#pragma kernel GenCoordPrep
 #pragma kernel Calc
+
+#pragma multi_compile _ VRAM_OPTIMIZATION_ON
 
 #define SIZEOF_UINT   4
 #define SIZEOF_FLOAT  4
@@ -12,18 +15,38 @@ float threshold;
 uint  maximumVertexNum;
 
 RWStructuredBuffer<int>    tables;
+RWStructuredBuffer<float>  cvm;
 RWStructuredBuffer<float4> cvBuffer;
 RWByteAddressBuffer        vertices;
 RWStructuredBuffer<uint>   counter;
 RWStructuredBuffer<uint>   counterCheck;
 
-int    GetTriangleNum(uint i);
-int    GetEdgeEndVert(int j, int i);
-int    GetTriangle(uint k, int j, uint i);
-uint   GetIndex(uint i, uint j, uint k);
-float  GetCoord(uint i, uint j, uint k, uint axis);
-float  GetValue(uint i, uint j, uint k);
 float4 GetColor();
+
+int GetTriangleNum(uint i) { return tables[i]; }
+int GetEdgeEndVert(int j, int i) { return tables[256 + j * 2 + i]; }
+int GetTriangle(uint k, int j, uint i) { return tables[256 + (12 * 2) + 3 * 4 * k + 3 * (uint)j + i]; }
+uint GetIndex(uint i, uint j, uint k) { return (dims.y * k + j) * dims.x + i; }
+
+float3 GetCoord(uint i, uint j, uint k) {
+#if VRAM_OPTIMIZATION_ON
+    return cvBuffer[GetIndex(i, j, k)].xyz;
+#else
+    return float3(cvm[GetIndex(i,j,k)*13+0], cvm[GetIndex(i,j,k)*13+1], cvm[GetIndex(i,j,k)*13+2]);
+#endif
+}
+
+float GetValue(uint i, uint j, uint k) {
+#if VRAM_OPTIMIZATION_ON
+    return cvBuffer[GetIndex(i, j, k)].w;
+#else
+    return cvm[GetIndex(i,j,k)*13+3];
+#endif
+}
+
+float GetMetrics(uint i, uint j, uint k, uint n) {
+    return cvm[GetIndex(i, j, k) * 13 + 4 + n];
+}
 
 void WriteVertex(uint offset, float3 p, float3 n, float4 c)
 {
@@ -33,195 +56,125 @@ void WriteVertex(uint offset, float3 p, float3 n, float4 c)
 	uint addr_n  = addr_p  + SIZEOF_FLOAT3;
 	uint addr_c0 = addr_n  + SIZEOF_FLOAT3;
 	uint addr_c1 = addr_c0 + SIZEOF_FLOAT;
-
 	vertices.Store3(addr_p,  asuint(p));
 	vertices.Store3(addr_n,  asuint(n));
 	vertices.Store3(addr_c0, asuint(c0));
 	vertices.Store3(addr_c1, asuint(c1));
 }
 
+[numthreads(4,4,4)]
+void GenCoordPrep(uint3 id : SV_DispatchThreadID)
+{
+	if (any(id >= dims.xyz)) return;
+
+	float x1, x2, x3, y1, y2, y3, z1, z2, z3, jac;
+
+	if (id.x == 0) { x1 = GetCoord(id.x+1, id.y, id.z).x - GetCoord(id.x, id.y, id.z).x; y1 = GetCoord(id.x+1, id.y, id.z).y - GetCoord(id.x, id.y, id.z).y; z1 = GetCoord(id.x+1, id.y, id.z).z - GetCoord(id.x, id.y, id.z).z; }
+	else if (id.x == dims.x - 1) { x1 = GetCoord(id.x, id.y, id.z).x - GetCoord(id.x-1, id.y, id.z).x; y1 = GetCoord(id.x, id.y, id.z).y - GetCoord(id.x-1, id.y, id.z).y; z1 = GetCoord(id.x, id.y, id.z).z - GetCoord(id.x-1, id.y, id.z).z; }
+	else { x1 = (GetCoord(id.x+1, id.y, id.z).x - GetCoord(id.x-1, id.y, id.z).x) / 2.0; y1 = (GetCoord(id.x+1, id.y, id.z).y - GetCoord(id.x-1, id.y, id.z).y) / 2.0; z1 = (GetCoord(id.x+1, id.y, id.z).z - GetCoord(id.x-1, id.y, id.z).z) / 2.0; }
+
+	if (id.y == 0) { x2 = GetCoord(id.x, id.y+1, id.z).x - GetCoord(id.x, id.y, id.z).x; y2 = GetCoord(id.x, id.y+1, id.z).y - GetCoord(id.x, id.y, id.z).y; z2 = GetCoord(id.x, id.y+1, id.z).z - GetCoord(id.x, id.y, id.z).z; }
+	else if (id.y == dims.y - 1) { x2 = GetCoord(id.x, id.y, id.z).x - GetCoord(id.x, id.y-1, id.z).x; y2 = GetCoord(id.x, id.y, id.z).y - GetCoord(id.x, id.y-1, id.z).y; z2 = GetCoord(id.x, id.y, id.z).z - GetCoord(id.x, id.y-1, id.z).z; }
+	else { x2 = (GetCoord(id.x, id.y+1, id.z).x - GetCoord(id.x, id.y-1, id.z).x) / 2.0; y2 = (GetCoord(id.x, id.y+1, id.z).y - GetCoord(id.x, id.y-1, id.z).y) / 2.0; z2 = (GetCoord(id.x, id.y+1, id.z).z - GetCoord(id.x, id.y-1, id.z).z) / 2.0; }
+
+	if (id.z == 0) { x3 = GetCoord(id.x, id.y, id.z+1).x - GetCoord(id.x, id.y, id.z).x; y3 = GetCoord(id.x, id.y, id.z+1).y - GetCoord(id.x, id.y, id.z).y; z3 = GetCoord(id.x, id.y, id.z+1).z - GetCoord(id.x, id.y, id.z).z; }
+	else if (id.z == dims.z - 1) { x3 = GetCoord(id.x, id.y, id.z).x - GetCoord(id.x, id.y, id.z-1).x; y3 = GetCoord(id.x, id.y, id.z).y - GetCoord(id.x, id.y, id.z-1).y; z3 = GetCoord(id.x, id.y, id.z).z - GetCoord(id.x, id.y, id.z-1).z; }
+	else { x3 = (GetCoord(id.x, id.y, id.z+1).x - GetCoord(id.x, id.y, id.z-1).x) / 2.0; y3 = (GetCoord(id.x, id.y, id.z+1).y - GetCoord(id.x, id.y, id.z-1).y) / 2.0; z3 = (GetCoord(id.x, id.y, id.z+1).z - GetCoord(id.x, id.y, id.z-1).z) / 2.0; }
+
+	jac = x1*(y2*z3-y3*z2) - x2*(y1*z3-y3*z1) + x3*(y1*z2-y2*z1);
+	uint offset = GetIndex(id.x, id.y, id.z) * 13 + 4;
+
+	if (jac == 0) { for (int n = 0; n < 9; n++) cvm[offset + n] = 0; }
+	else
+	{
+		cvm[offset+0] = (y2*z3-y3*z2)/jac; cvm[offset+1] = (y3*z1-y1*z3)/jac; cvm[offset+2] = (y1*z2-y2*z1)/jac;
+		cvm[offset+3] = (x3*z2-x2*z3)/jac; cvm[offset+4] = (x1*z3-x3*z1)/jac; cvm[offset+5] = (x2*z1-x1*z2)/jac;
+		cvm[offset+6] = (x2*y3-x3*y2)/jac; cvm[offset+7] = (x3*y1-x1*y3)/jac; cvm[offset+8] = (x1*y2-x2*y1)/jac;
+	}
+}
+
 void VertIntPosition(int vert, out uint i, out uint j, out uint k, uint3 id)
 {
-	uint shift_i = fmod((float)vert, 2.0) == 0 ? 0 : 1; // (0,2,4,6) --> 0, (1,3,5,7) --> 1
-	uint shift_j = fmod((float)vert, 4.0) < 2.0 ? 0 : 1; // (0,1,4,5) --> 0, (2,3,6,7) --> 1
-	uint shift_k = vert < 4 ? 0 : 1; // (0,1,2,3) --> 0, (4,5,6,7) --> 1
-
-	i = id.x + shift_i;
-	j = id.y + shift_j;
-	k = id.z + shift_k;
+	uint shift_i = fmod((float)vert, 2.0) == 0 ? 0 : 1;
+	uint shift_j = fmod((float)vert, 4.0) < 2.0 ? 0 : 1;
+	uint shift_k = vert < 4 ? 0 : 1;
+	i = id.x + shift_i; j = id.y + shift_j; k = id.z + shift_k;
 }
 
 void Grad(uint i, uint j, uint k, out float vx, out float vy, out float vz)
 {
-	float dfd1, dfd2, dfd3, gx, gy, gz, gg;
+	float dfd1, dfd2, dfd3, gx, gy, gz;
 
-	if (i == 0)
-	{
-		dfd1 =  GetValue(i + 1, j, k) - GetValue(i,     j ,k);
-	}
-	else if (i == dims.x - 1)
-	{
-		dfd1 =  GetValue(i,     j, k) - GetValue(i - 1, j, k);
-	}
-	else
-	{
-		dfd1 = (GetValue(i + 1, j, k) - GetValue(i - 1, j, k)) / 2.0;
-	}
+	if (i == 0) dfd1 = GetValue(i+1, j, k) - GetValue(i, j, k);
+	else if (i == dims.x - 1) dfd1 = GetValue(i, j, k) - GetValue(i-1, j, k);
+	else dfd1 = (GetValue(i+1, j, k) - GetValue(i-1, j, k)) / 2.0;
 
-	if (j == 0)
-	{
-		dfd2 =  GetValue(i, j + 1, k) - GetValue(i, j,     k);
-	}
-	else if (j == dims.y - 1)
-	{
-		dfd2 =  GetValue(i, j,     k) - GetValue(i, j - 1, k);
-	}
-	else
-	{
-		dfd2 = (GetValue(i, j + 1, k) - GetValue(i, j - 1, k)) / 2.0;
-	}
+	if (j == 0) dfd2 = GetValue(i, j+1, k) - GetValue(i, j, k);
+	else if (j == dims.y - 1) dfd2 = GetValue(i, j, k) - GetValue(i, j-1, k);
+	else dfd2 = (GetValue(i, j+1, k) - GetValue(i, j-1, k)) / 2.0;
 
-	if (k == 0)
-	{
-		dfd3 =  GetValue(i, j, k + 1) - GetValue(i, j, k);
-	}
-	else if (k == dims.z - 1)
-	{
-		dfd3 =  GetValue(i, j, k    ) - GetValue(i, j, k - 1);
-	}
-	else
-	{
-		dfd3 = (GetValue(i, j, k + 1) - GetValue(i, j, k - 1)) / 2.0;
-	}
+	if (k == 0) dfd3 = GetValue(i, j, k+1) - GetValue(i, j, k);
+	else if (k == dims.z - 1) dfd3 = GetValue(i, j, k) - GetValue(i, j, k-1);
+	else dfd3 = (GetValue(i, j, k+1) - GetValue(i, j, k-1)) / 2.0;
 
-	float x1, x2, x3, y1, y2, y3, z1, z2, z3, jac;
+#if VRAM_OPTIMIZATION_ON
+    float x1, x2, x3, y1, y2, y3, z1, z2, z3;
+    if (i == 0) { float3 p1 = GetCoord(i+1, j, k); float3 p0 = GetCoord(i, j, k); x1 = p1.x - p0.x; y1 = p1.y - p0.y; z1 = p1.z - p0.z; }
+    else if (i == dims.x - 1) { float3 p0 = GetCoord(i, j, k); float3 pm = GetCoord(i-1, j, k); x1 = p0.x - pm.x; y1 = p0.y - pm.y; z1 = p0.z - pm.z; }
+    else { float3 p1 = GetCoord(i+1, j, k); float3 pm = GetCoord(i-1, j, k); x1 = (p1.x - pm.x)/2.0; y1 = (p1.y - pm.y)/2.0; z1 = (p1.z - pm.z)/2.0; }
 
-	if (i == 0)
-	{
-		x1 = GetCoord(i + 1, j, k, 0) - GetCoord(i, j, k, 0);
-		y1 = GetCoord(i + 1, j, k, 1) - GetCoord(i, j, k, 1);
-		z1 = GetCoord(i + 1, j, k, 2) - GetCoord(i, j, k, 2);
-	}
-	else if (i == dims.x - 1)
-	{
-		x1 = GetCoord(i, j, k, 0) - GetCoord(i - 1, j, k, 0);
-		y1 = GetCoord(i, j, k, 1) - GetCoord(i - 1, j, k, 1);
-		z1 = GetCoord(i, j, k, 2) - GetCoord(i - 1, j, k, 2);
-	}
-	else
-	{
-		x1 = (GetCoord(i + 1, j, k, 0) - GetCoord(i - 1, j, k, 0)) / 2.0;
-		y1 = (GetCoord(i + 1, j, k, 1) - GetCoord(i - 1, j, k, 1)) / 2.0;
-		z1 = (GetCoord(i + 1, j, k, 2) - GetCoord(i - 1, j, k, 2)) / 2.0;
-	}
+    if (j == 0) { float3 p1 = GetCoord(i, j+1, k); float3 p0 = GetCoord(i, j, k); x2 = p1.x - p0.x; y2 = p1.y - p0.y; z2 = p1.z - p0.z; }
+    else if (j == dims.y - 1) { float3 p0 = GetCoord(i, j, k); float3 pm = GetCoord(i, j-1, k); x2 = p0.x - pm.x; y2 = p0.y - pm.y; z2 = p0.z - pm.z; }
+    else { float3 p1 = GetCoord(i, j+1, k); float3 pm = GetCoord(i, j-1, k); x2 = (p1.x - pm.x)/2.0; y2 = (p1.y - pm.y)/2.0; z2 = (p1.z - pm.z)/2.0; }
 
-	if (j == 0)
-	{
-		x2 = GetCoord(i, j + 1, k, 0) - GetCoord(i, j, k, 0);
-		y2 = GetCoord(i, j + 1, k, 1) - GetCoord(i, j, k, 1);
-		z2 = GetCoord(i, j + 1, k, 2) - GetCoord(i, j, k, 2);
-	}
-	else if (j == dims.y - 1)
-	{
-		x2 = GetCoord(i, j, k, 0) - GetCoord(i, j - 1, k, 0);
-		y2 = GetCoord(i, j, k, 1) - GetCoord(i, j - 1, k, 1);
-		z2 = GetCoord(i, j, k, 2) - GetCoord(i, j - 1, k, 2);
-	}
-	else
-	{
-		x2 = (GetCoord(i, j + 1, k, 0) - GetCoord(i, j - 1, k, 0)) / 2.0;
-		y2 = (GetCoord(i, j + 1, k, 1) - GetCoord(i, j - 1, k, 1)) / 2.0;
-		z2 = (GetCoord(i, j + 1, k, 2) - GetCoord(i, j - 1, k, 2)) / 2.0;
-	}
+    if (k == 0) { float3 p1 = GetCoord(i, j, k+1); float3 p0 = GetCoord(i, j, k); x3 = p1.x - p0.x; y3 = p1.y - p0.y; z3 = p1.z - p0.z; }
+    else if (k == dims.z - 1) { float3 p0 = GetCoord(i, j, k); float3 pm = GetCoord(i, j, k-1); x3 = p0.x - pm.x; y3 = p0.y - pm.y; z3 = p0.z - pm.z; }
+    else { float3 p1 = GetCoord(i, j, k+1); float3 pm = GetCoord(i, j, k-1); x3 = (p1.x - pm.x)/2.0; y3 = (p1.y - pm.y)/2.0; z3 = (p1.z - pm.z)/2.0; }
 
-	if (k == 0)
-	{
-		x3 =  GetCoord(i, j, k + 1, 0) - GetCoord(i, j, k,     0);
-		y3 =  GetCoord(i, j, k + 1, 1) - GetCoord(i, j, k,     1);
-		z3 =  GetCoord(i, j, k + 1, 2) - GetCoord(i, j, k,     2);
-	}
-	else if (k == dims.z - 1)
-	{
-		x3 =  GetCoord(i, j, k,     0) - GetCoord(i, j, k - 1, 0);
-		y3 =  GetCoord(i, j, k,     1) - GetCoord(i, j, k - 1, 1);
-		z3 =  GetCoord(i, j, k,     2) - GetCoord(i, j, k - 1, 2);
-	}
-	else
-	{
-		x3 = (GetCoord(i, j, k + 1, 0) - GetCoord(i, j, k - 1, 0)) / 2.0;
-		y3 = (GetCoord(i, j, k + 1, 1) - GetCoord(i, j, k - 1, 1)) / 2.0;
-		z3 = (GetCoord(i, j, k + 1, 2) - GetCoord(i, j, k - 1, 2)) / 2.0;
-	}
+    float jac = x1*(y2*z3-y3*z2) - x2*(y1*z3-y3*z1) + x3*(y1*z2-y2*z1);
+    if (jac == 0) { gx = gy = gz = 0; }
+    else {
+        gx = ((y2*z3-y3*z2)*dfd1 + (y3*z1-y1*z3)*dfd2 + (y1*z2-y2*z1)*dfd3) / jac;
+        gy = ((x3*z2-x2*z3)*dfd1 + (x1*z3-x3*z1)*dfd2 + (x2*z1-x1*z2)*dfd3) / jac;
+        gz = ((x2*y3-x3*y2)*dfd1 + (x3*y1-x1*y3)*dfd2 + (x1*y2-x2*y1)*dfd3) / jac;
+    }
+#else
+    gx = GetMetrics(i, j, k, 0)*dfd1 + GetMetrics(i, j, k, 1)*dfd2 + GetMetrics(i, j, k, 2)*dfd3;
+    gy = GetMetrics(i, j, k, 3)*dfd1 + GetMetrics(i, j, k, 4)*dfd2 + GetMetrics(i, j, k, 5)*dfd3;
+    gz = GetMetrics(i, j, k, 6)*dfd1 + GetMetrics(i, j, k, 7)*dfd2 + GetMetrics(i, j, k, 8)*dfd3;
+#endif
 
-	jac = x1 * (y2 * z3 - y3 * z2) - x2 * (y1 * z3 - y3 * z1) + x3 * (y1 * z2 - y2 * z1);
-
-	if (jac == 0)
-	{
-		gx = gy = gz = 0;
-	}
-	else
-	{
-		gx = ((y2 * z3 - y3 * z2) / jac) * dfd1 + ((y3 * z1 - y1 * z3) / jac) * dfd2 + ((y1 * z2 - y2 * z1) / jac) * dfd3;
-		gy = ((x3 * z2 - x2 * z3) / jac) * dfd1 + ((x1 * z3 - x3 * z1) / jac) * dfd2 + ((x2 * z1 - x1 * z2) / jac) * dfd3;
-		gz = ((x2 * y3 - x3 * y2) / jac) * dfd1 + ((x3 * y1 - x1 * y3) / jac) * dfd2 + ((x1 * y2 - x2 * y1) / jac) * dfd3;
-	}
-
-	gg = sqrt(gx * gx + gy * gy + gz * gz);
-
-	if (gg > 0.0)
-	{
-		vx = -gx / gg; vy = -gy / gg; vz = -gz / gg;
-	}
-	else
-	{
-		vx = vy = vz = 0;
-	}
+	float gg = sqrt(gx*gx + gy*gy + gz*gz);
+	if (gg > 0.0) { vx = -gx/gg; vy = -gy/gg; vz = -gz/gg; }
+	else { vx = 0; vy = 0; vz = 0; }
 }
 
 void CrossPoint(int edge, out float3 vert, out float3 norm, uint3 id)
 {
-	uint i0, j0, k0, i1, j1, k1;
-	float weight0, weight1;
-	float x0, y0, z0, x1, y1, z1;
-	float nx0, ny0, nz0, nx1, ny1, nz1;
-	i0 = j0 = k0 = i1 = j1 = k1 = 0;
-	nx0 = ny0 = nz0 = nx1 = ny1 = nz1 = 0;
+	uint i0=0, j0=0, k0=0, i1=0, j1=0, k1=0; float nx0=0, ny0=0, nz0=0, nx1=0, ny1=0, nz1=0;
 
 	VertIntPosition(GetEdgeEndVert(edge, 0), i0, j0, k0, id);
 	VertIntPosition(GetEdgeEndVert(edge, 1), i1, j1, k1, id);
 
-	if (GetValue(i1, j1, k1) != GetValue(i0, j0, k0))
-	{
-		weight0 = (GetValue(i1, j1, k1) - threshold) / (GetValue(i1, j1, k1) - GetValue(i0, j0, k0));
-	}
-	else
-	{
-		weight0 = 0;
-	}
-	weight1 = 1.0 - weight0;
+	float weight0 = (GetValue(i1, j1, k1) != GetValue(i0, j0, k0)) ? (GetValue(i1, j1, k1) - threshold) / (GetValue(i1, j1, k1) - GetValue(i0, j0, k0)) : 0;
+	float weight1 = 1.0 - weight0;
 
-	x0 = GetCoord(i0, j0, k0, 0);
-	y0 = GetCoord(i0, j0, k0, 1);
-	z0 = GetCoord(i0, j0, k0, 2);
-	x1 = GetCoord(i1, j1, k1, 0);
-	y1 = GetCoord(i1, j1, k1, 1);
-	z1 = GetCoord(i1, j1, k1, 2);
+	float3 p0 = GetCoord(i0, j0, k0);
+	float3 p1 = GetCoord(i1, j1, k1);
 
-	Grad(i0, j0, k0, nx0, ny0, nz0);
-	Grad(i1, j1, k1, nx1, ny1, nz1);
+	Grad(i0, j0, k0, nx0, ny0, nz0); Grad(i1, j1, k1, nx1, ny1, nz1);
 
-	vert.x = weight0 * x0 + weight1 * x1;
-	vert.y = weight0 * y0 + weight1 * y1;
-	vert.z = weight0 * z0 + weight1 * z1;
-	norm.x = weight0 * nx0 + weight1 * nx1;
-	norm.y = weight0 * ny0 + weight1 * ny1;
-	norm.z = weight0 * nz0 + weight1 * nz1;
-}
+	vert.x = weight0*p0.x + weight1*p1.x;
+	vert.y = weight0*p0.y + weight1*p1.y;
+	vert.z = weight0*p0.z + weight1*p1.z;
+	norm.x = weight0*nx0 + weight1*nx1;
+	norm.y = weight0*ny0 + weight1*ny1;
+	norm.z = weight0*nz0 + weight1*nz1;}
 
 void AddTriangleGeom(float3 vert0, float3 vert1, float3 vert2, float3 norm0, float3 norm1, float3 norm2)
 {
 	uint count = counter.IncrementCounter();
-	if ((count * 3 + 2) >= maximumVertexNum) return; // For memory safety
+	if ((count * 3 + 2) >= maximumVertexNum) return;
 
 	float4 color = GetColor();
 	uint vidx = count * 3;
@@ -234,7 +187,6 @@ int CellCode(int i0, int j0, int k0)
 {
 	int  sum  = 0;
 	uint code = 0;
-
 	for (int k = k0 + 1; k >= k0; k--)
 	{
 		for (int j = j0 + 1; j >= j0; j--)
@@ -243,20 +195,12 @@ int CellCode(int i0, int j0, int k0)
 			{
 				uint bit = (GetValue(i, j, k) > threshold ? 1 : 0);
 				code |= bit;
-				if (i != i0 || j != j0 || k != k0)
-				{
-					code <<= 1;
-				}
+				if (i != i0 || j != j0 || k != k0) code <<= 1;
 				sum += (int)bit;
 			}
 		}
 	}
-
-	if (sum > 4)
-	{
-		code = ~(code & 0xff) & 0xff; // Bitwise NOT logic adjusted for compute shader compatibility
-	}
-
+	if (sum > 4) code = ~(code & 0xff) & 0xff;
 	return code;
 }
 
@@ -268,15 +212,10 @@ void UnitCube(uint3 id)
 
 	uint code = CellCode((int)id.x, (int)id.y, (int)id.z);
 	int p = GetTriangleNum(code);
-
 	while (p-- > 0)
 	{
-		edge0 = GetTriangle(code, p, 0);
-		edge1 = GetTriangle(code, p, 1);
-		edge2 = GetTriangle(code, p, 2);
-		CrossPoint(edge0, posit0, norml0, id);
-		CrossPoint(edge1, posit1, norml1, id);
-		CrossPoint(edge2, posit2, norml2, id);
+		edge0 = GetTriangle(code, p, 0); edge1 = GetTriangle(code, p, 1); edge2 = GetTriangle(code, p, 2);
+		CrossPoint(edge0, posit0, norml0, id); CrossPoint(edge1, posit1, norml1, id); CrossPoint(edge2, posit2, norml2, id);
 		AddTriangleGeom(posit0, posit1, posit2, norml0, norml1, norml2);
 	}
 }
@@ -285,88 +224,15 @@ void UnitCube(uint3 id)
 void Calc(uint3 id : SV_DispatchThreadID)
 {
 	if (any(id + 1 >= dims.xyz)) return;
-
 	UnitCube(id);
-}
-
-int GetTriangleNum(uint i)
-{
-	return tables[i];
-}
-
-int GetEdgeEndVert(int j, int i)
-{
-	return tables[256 + j * 2 + i];
-}
-
-int GetTriangle(uint k, int j, uint i)
-{
-	return tables[256 + (12 * 2) + 3 * 4 * k + 3 * (uint)j + i];
-}
-
-uint GetIndex(uint i, uint j, uint k)
-{
-	return (dims.y * k + j) * dims.x + i;
-}
-
-float GetCoord(uint i, uint j, uint k, uint axis)
-{
-	float4 data = cvBuffer[GetIndex(i, j, k)];
-
-	if (axis == 0) return data.x;
-	if (axis == 1) return data.y;
-
-	return data.z;
-}
-
-float GetValue(uint i, uint j, uint k)
-{
-	return cvBuffer[GetIndex(i, j, k)].w;
 }
 
 float4 GetColor()
 {
 	float level = (_max - threshold) / (_max - _min);
-	float r = 0, g = 0, b = 0, a = 1.0;
-
-	if (level < 0.5)
-	{
-		r = 0.0;
-	}
-	else if (level >= 0.5 && level < 5.0 / 6.0)
-	{
-		r = 6.0 * (level - 0.5);
-	}
-	else if (level >= 5.0 / 6.0)
-	{
-		r = 1.0;
-	}
-
-	if (level < 1.0 / 3.0)
-	{
-		g = 3.0 * (level);
-	}
-	else if (level >= 1.0 / 3.0 && level < 2.0 / 3.0)
-	{
-		g = 1.0;
-	}
-	else if (level >= 2.0 / 3.0)
-	{
-		g = 1.0 - 3.0 * (level - 2.0 / 3.0);
-	}
-
-	if (level < 1.0 / 3.0)
-	{
-		b = 1.0;
-	}
-	else if (level >= 1.0 / 3.0 && level < 1.0 / 2.0)
-	{
-		b = 1.0 - 6.0 * (level - 1.0 / 3.0);
-	}
-	else if (level >= 1.0 / 2.0)
-	{
-		b = 0.0;
-	}
-
+	float r=0, g=0, b=0, a=1.0;
+	if (level < 0.5) r = 0.0; else if (level >= 0.5 && level < 5.0 / 6.0) r = 6.0 * (level - 0.5); else if (level >= 5.0 / 6.0) r = 1.0;
+	if (level < 1.0 / 3.0) g = 3.0 * (level); else if (level >= 1.0 / 3.0 && level < 2.0 / 3.0) g = 1.0; else if (level >= 2.0 / 3.0) g = 1.0 - 3.0 * (level - 2.0 / 3.0);
+	if (level < 1.0 / 3.0) b = 1.0; else if (level >= 1.0 / 3.0 && level < 1.0 / 2.0) b = 1.0 - 6.0 * (level - 1.0 / 3.0); else if (level >= 1.0 / 2.0) b = 0.0;
 	return float4(r, g, b, a);
 }

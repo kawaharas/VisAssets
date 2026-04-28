@@ -72,12 +72,14 @@ MonoBehaviour:
   threshold: 0
   min: 0
   max: 1
+  color: {r: 0, g: 0, b: 0, a: 0}
+  shadingMode: 0
   triCount: 0
   builtinCustomShader: {fileID: 4800000, guid: 2a0b09d4c7444a44e927e714ef791dde, type: 3}
   renderShader: {fileID: 4800000, guid: 2a0b09d4c7444a44e927e714ef791dde, type: 3}
-  forceChunkModeOnPC: 0
-  chunkSize: 96
   shader: {fileID: 7200000, guid: 7535bba997a251e498d15765f51d7467, type: 3}
+  useGPU: 1
+  vramOptimization: 0
 --- !u!33 &6984052276723204056
 MeshFilter:
   m_ObjectHideFlags: 0

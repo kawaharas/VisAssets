@@ -1,80 +1,90 @@
-﻿using System.Collections;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.UI;
-using UnityEngine.XR;
 using UnityEngine.EventSystems;
 
 namespace VisAssets
 {
 	public class UIVisibility : MonoBehaviour
 	{
-		private float sensitivity = 0.2f;
-		private float time_diff;
-		public bool IsTapped;
-		public bool IsVisible;
+		[SerializeField]
+		private GameObject uiPanel;
+
+		[SerializeField]
+		private float doubleTapSpeed = 0.2f;
+
+		private float lastClickTime;
+		private bool  isVisible = true;
 
 		void Start()
 		{
+			if (uiPanel == null)
+			{
+				Debug.LogWarning("UIVisibility: uiPanel is not assigned in the Inspector.");
+			}
+			else
+			{
+				uiPanel.SetActive(isVisible);
+			}
 		}
 
 		void Update()
 		{
-			if (IsTapped)
+			if (Input.GetMouseButtonDown(0))
 			{
-				time_diff += Time.deltaTime;
-				if (time_diff < sensitivity)
+				Vector2 clickPos = Input.touchCount > 0 ? Input.GetTouch(0).position : (Vector2)Input.mousePosition;
+
+				if (IsPointerOverUI(clickPos))
+//				if (IsPointerOverUI())
 				{
-					if (XRSettings.enabled)
-					{
-						if (Input.GetMouseButtonDown(0))
-						{
-							IsTapped = false;
-							StartCoroutine(LoadDevice("None"));
-							time_diff = 0.0f;
-						}
-					}
-					else
-					{
-						if (Input.GetMouseButtonDown(0))
-						{
-							IsTapped = false;
-							TogglePanelVisibility();
-							time_diff = 0.0f;
-						}
-					}
+					lastClickTime = 0;
+
+					return;
+				}
+
+				float timeSinceLastClick = Time.time - lastClickTime;
+
+				if (timeSinceLastClick <= doubleTapSpeed)
+				{
+					TogglePanelVisibility();
+					lastClickTime = 0;
 				}
 				else
 				{
-					IsTapped = false;
-					time_diff = 0.0f;
-				}
-			}
-			else
-			{
-				if (Input.GetMouseButtonDown(0))
-				{
-					IsTapped = true;
+					lastClickTime = Time.time;
 				}
 			}
 		}
 
-		void TogglePanelVisibility()
+		private void TogglePanelVisibility()
 		{
-			IsVisible = !IsVisible;
-			var target = transform.Find("MainPanel");
-			if (target != null)
-			{
-				target.gameObject.SetActive(IsVisible);
-			}
-		}
+			if (uiPanel == null) return;
 
-		IEnumerator LoadDevice(string device)
+			isVisible = !isVisible;
+			uiPanel.SetActive(isVisible);
+		}
+/*
+		private bool IsPointerOverUI()
 		{
-			XRSettings.LoadDeviceByName(device);
-			yield return null;
-			XRSettings.enabled = false;
-			Camera.main.ResetAspect();
+			if (EventSystem.current == null) return false;
+
+			if (Input.touchCount > 0)
+			{
+				return EventSystem.current.IsPointerOverGameObject(Input.GetTouch(0).fingerId);
+			}
+
+			return EventSystem.current.IsPointerOverGameObject();
+		}
+*/
+		private bool IsPointerOverUI(Vector2 screenPosition)
+		{
+			if (EventSystem.current == null) return false;
+
+			PointerEventData eventData = new PointerEventData(EventSystem.current);
+			eventData.position = screenPosition;
+			List<RaycastResult> results = new List<RaycastResult>();
+			EventSystem.current.RaycastAll(eventData, results);
+
+			return results.Count > 0;
 		}
 	}
 }

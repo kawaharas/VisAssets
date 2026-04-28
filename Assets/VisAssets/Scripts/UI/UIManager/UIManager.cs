@@ -1,18 +1,18 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.XR;
-using UnityEngine.Experimental.XR.Interaction;
 using UnityEngine.SpatialTracking;
-using UnityEngine.XR.Interaction.Toolkit;
 using VisAssets.SciVis.Structured.StreamLines;
+
+#if UNITY_XR_MANAGEMENT
+using UnityEngine.XR.Management;
+#endif
 
 #if UNITY_EDITOR
 using UnityEditor;
-using UnityEditor.Compilation;
 #endif
 
 namespace VisAssets
@@ -58,7 +58,6 @@ namespace VisAssets
 			KEEP_PRESSING
 		}
 
-		GameObject[] go;
 		public Dictionary<string, int> moduleCounter = new Dictionary<string, int>();
 		public string debugString = "";
 		public GameObject cardboardButton;
@@ -97,9 +96,7 @@ namespace VisAssets
 				}
 			}
 
-//			XRState = XRSettings.enabled;
-
-			if (XRSettings.enabled)
+			if (IsXRActive)
 			{
 				var canvas = transform.Find("Canvas");
 				canvas.gameObject.SetActive(false);
@@ -128,53 +125,31 @@ namespace VisAssets
 			{
 				SetupDesktopCanvas();
 			}
-/*
-			supportedDevices = XRSettings.supportedDevices;
-			Debug.Log("XRSettings.supportedDevices = " + supportedDevices.Length);
-			for (int i = 0; i < supportedDevices.Length; i++)
+		}
+
+		public bool IsXRActive
+		{
+			get
 			{
-				Debug.Log("XRSettings.supportedDevices[" + i + "] = " + supportedDevices[i]);
+#if UNITY_XR_MANAGEMENT
+				if (XRGeneralSettings.Instance != null && XRGeneralSettings.Instance.Manager != null)
+				{
+					return XRGeneralSettings.Instance.Manager.isInitializationComplete;
+				}
+#endif
+				return false;
 			}
-*/
 		}
 
 		void Update()
 		{
-			if (XRSettings.enabled)
+			if (IsXRActive)
 			{
 				var canvas = transform.Find("Canvas");
 				var inputDevices = new List<InputDevice>();
 				InputDevices.GetDevicesAtXRNode(XRNode.RightHand, inputDevices);
 				foreach (var device in inputDevices)
 				{
-/*
-					// joystick
-					if (device.TryGetFeatureValue(CommonUsages.primary2DAxis, out Vector2 position))
-					{
-						GameObject[] gos = GameObject.FindGameObjectsWithTag("VisModule");
-						for (int i = 0; i < gos.Length; i++)
-						{
-							var activation = gos[i].GetComponent<Activation>();
-							if (activation != null)
-							{
-								if (activation.moduleType == ModuleTemplate.ModuleType.READING)
-								{
-									float rotX = 0;
-									float rotY = 0;
-									if (Mathf.Abs(position.x) >= 0.5)
-									{
-										rotX = position.x;
-									}
-									if (Mathf.Abs(position.y) >= 0.5)
-									{
-										rotY = position.y;
-									}
-									gos[i].transform.Rotate(new Vector3(rotY, -rotX, 0), Space.World);
-								}
-							}
-						}
-					}
-*/
 					// primary button (show VRUI)
 					if (device.TryGetFeatureValue(CommonUsages.primaryButton, out inputValue) && inputValue)
 					{
@@ -212,14 +187,13 @@ namespace VisAssets
 						{
 							if (ButtonTrigger != ButtonState.RELEASED)
 							{
-								if (currentModule.name.StartsWith("StreamLines"))
+								if (currentModule != null && currentModule.name.StartsWith("StreamLines"))
 								{
 									var streamLines = currentModule.GetComponent<StreamLines>();
 									if (streamLines != null)
 									{
 										if (tip != null)
 										{
-//											streamLines.AddSeed2(tip);
 											streamLines.AddSeed(tip);
 										}
 									}
@@ -233,7 +207,7 @@ namespace VisAssets
 				// toggle visible state of laser pointer
 				if (canvas.gameObject.activeSelf)
 				{
-					// for VRUI
+					// For VRUI
 					if (ButtonA == ButtonState.PRESSED)
 					{
 						laserPointer.SetActive(true);
@@ -251,7 +225,7 @@ namespace VisAssets
 						return;
 					}
 
-					// for streamline module
+					// For Streamline module
 					if (currentModule.name.StartsWith("StreamLines"))
 					{
 						if (ButtonTrigger == ButtonState.PRESSED)
@@ -275,21 +249,18 @@ namespace VisAssets
 				DrawPointer();
 			}
 
-			if (Application.platform == RuntimePlatform.Android)
-			{
-			}
-			else
+			if (Application.platform != RuntimePlatform.Android)
 			{
 				if (Input.GetKeyDown(KeyCode.F3))
 				{
-					if (XRSettings.enabled)
+					if (IsXRActive)
 					{
 						Debug.Log("Switch XR Mode to None.");
 						StartCoroutine(LoadDevice("None"));
 					}
 					else
 					{
-						StartCoroutine(LoadDevice("Oculus"));
+						StartCoroutine(LoadDevice("Enable"));
 					}
 				}
 			}
@@ -298,19 +269,20 @@ namespace VisAssets
 		private void SetupDesktopCanvas()
 		{
 			var canvasTransform = transform.Find("Canvas");
+
 			if (canvasTransform != null)
 			{
 				var canvas = canvasTransform.GetComponent<Canvas>();
+
 				if (canvas != null)
 				{
 					canvasTransform.gameObject.SetActive(true);
-
 					canvas.renderMode = RenderMode.ScreenSpaceCamera;
-
 					Camera mainCam = Camera.main;
+
 					if (mainCam != null)
 					{
-						canvas.worldCamera = mainCam;
+						canvas.worldCamera   = mainCam;
 						canvas.planeDistance = mainCam.nearClipPlane * 1.01f;
 					}
 				}
@@ -319,26 +291,33 @@ namespace VisAssets
 
 		IEnumerator LoadDevice(string device)
 		{
-			if (String.Compare(XRSettings.loadedDeviceName, device, true) != 0)
+#if UNITY_XR_MANAGEMENT
+			if (device == "None")
 			{
-				XRSettings.LoadDeviceByName(device);
-				yield return null;
-
-				if (device == "None")
+				if (IsXRActive)
 				{
-					XRSettings.enabled = false;
-					XRState = XRSettings.enabled;
-					SetupDesktopCanvas();
+					XRGeneralSettings.Instance.Manager.StopSubsystems();
+					XRGeneralSettings.Instance.Manager.DeinitializeLoader();
 				}
-				else
+				XRState = false;
+				SetupDesktopCanvas();
+			}
+			else
+			{
+				if (!IsXRActive)
 				{
-					if (XRSettings.loadedDeviceName != "None")
+					yield return XRGeneralSettings.Instance.Manager.InitializeLoader();
+
+					if (XRGeneralSettings.Instance.Manager.activeLoader != null)
 					{
-						XRSettings.enabled = true;
-						XRState = XRSettings.enabled;
+						XRGeneralSettings.Instance.Manager.StartSubsystems();
+						XRState = true;
 					}
 				}
 			}
+#else
+			yield return null;
+#endif
 		}
 
 		public void SetXRDevice(int deviceID)
@@ -350,20 +329,17 @@ namespace VisAssets
 
 		public void EnableXR()
 		{
-			XRSettings.enabled = true;
-			XRState = XRSettings.enabled;
+			StartCoroutine(LoadDevice("Enable"));
 		}
 
 		public void DisableXR()
 		{
-			XRSettings.enabled = false;
-			XRState = XRSettings.enabled;
-			SetupDesktopCanvas();
+			StartCoroutine(LoadDevice("None"));
 		}
 
 		public void ShowUIManager()
 		{
-			if (XRSettings.enabled)
+			if (IsXRActive)
 			{
 				var canvas = transform.Find("Canvas");
 				canvas.gameObject.SetActive(true);
