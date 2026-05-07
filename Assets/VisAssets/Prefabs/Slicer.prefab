@@ -78,8 +78,8 @@ MonoBehaviour:
     prev_axis: 0
     prev_slice: 0
     prev_value: 0
-  builtinCustomShader: {fileID: 4800000, guid: 0a384ccd55ac083488ee37646d97e837, type: 3}
-  sliceShader: {fileID: 4800000, guid: 0a384ccd55ac083488ee37646d97e837, type: 3}
+  builtinMaterial: {fileID: 2100000, guid: 41b393998cfc0744896ca9d917169f77, type: 2}
+  urpMaterial: {fileID: 2100000, guid: 13ddd267d6bfedb45a7fbd555cd9190c, type: 2}
   alphaCutoff: 0.01
   filterMode: 0
   shift: 0

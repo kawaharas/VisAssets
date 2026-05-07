@@ -83,6 +83,8 @@ MonoBehaviour:
   syncScale: 1
   type: 0
   shader: {fileID: 4800000, guid: 2a0b09d4c7444a44e927e714ef791dde, type: 3}
+  builtinMaterial: {fileID: 2100000, guid: aee36963d8da2264fb062782ad1d67ed, type: 2}
+  urpMaterial: {fileID: 2100000, guid: b61e4d56c6657c9488bb3add8d296f97, type: 2}
 --- !u!33 &4825853266222043754
 MeshFilter:
   m_ObjectHideFlags: 0

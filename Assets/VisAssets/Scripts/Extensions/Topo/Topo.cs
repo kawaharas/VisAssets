@@ -31,12 +31,13 @@ namespace VisAssets.Extensions.Topo
 		SerializedProperty type;
 		SerializedProperty groundScale;
 		SerializedProperty seafloorScale;
-		SerializedProperty shader;
 		SerializedProperty autoFetchBounds;
 		SerializedProperty north;
 		SerializedProperty south;
 		SerializedProperty west;
 		SerializedProperty east;
+		SerializedProperty builtinMaterial;
+		SerializedProperty urpMaterial;
 
 		private void OnEnable()
 		{
@@ -44,12 +45,13 @@ namespace VisAssets.Extensions.Topo
 			type            = serializedObject.FindProperty("type");
 			groundScale     = serializedObject.FindProperty("groundScale");
 			seafloorScale   = serializedObject.FindProperty("seafloorScale");
-			shader          = serializedObject.FindProperty("shader");
 			autoFetchBounds = serializedObject.FindProperty("autoFetchBounds");
 			north           = serializedObject.FindProperty("north");
 			south           = serializedObject.FindProperty("south");
 			west            = serializedObject.FindProperty("west");
 			east            = serializedObject.FindProperty("east");
+			builtinMaterial = serializedObject.FindProperty("builtinMaterial");
+			urpMaterial     = serializedObject.FindProperty("urpMaterial");
 		}
 
 		public override void OnInspectorGUI()
@@ -113,7 +115,11 @@ namespace VisAssets.Extensions.Topo
 
 			EditorGUI.EndDisabledGroup();
 
-			EditorGUILayout.PropertyField(shader, new GUIContent("Shader"));
+			EditorGUILayout.PropertyField(builtinMaterial, new GUIContent("Built-in Material"));
+
+			GUILayout.Space(5f);
+
+			EditorGUILayout.PropertyField(urpMaterial, new GUIContent("URP Material"));
 
 			GUILayout.Space(5f);
 
@@ -154,19 +160,21 @@ namespace VisAssets.Extensions.Topo
 		public TopoType type = TopoType.TOPO_NONE;
 		private TopoType type_prev;
 
-		public Shader shader;
-		private Material topoMaterial;
-
 		private MeshFilter filter;
 		private Coroutine loadCoroutine;
 
 		private double prev_west = -999.0, prev_east = -999.0, prev_south = -999.0, prev_north = -999.0;
-		private float prev_groundScale = -999.0f;
-		private float prev_seafloorScale = -999.0f;
-		private bool prev_syncScale = false;
-		private bool prev_autoFetch = false;
+		private float  prev_groundScale = -999.0f;
+		private float  prev_seafloorScale = -999.0f;
+		private bool   prev_syncScale = false;
+		private bool   prev_autoFetch = false;
 
-		private bool needsLoad = false;
+		private bool   needsLoad = false;
+
+		[SerializeField]
+		private Material builtinMaterial;
+		[SerializeField]
+		private Material urpMaterial;
 
 		/// <summary>
 		/// Initializes module components such as MeshFilter.
@@ -239,7 +247,7 @@ namespace VisAssets.Extensions.Topo
 			}
 
 			if (west == prev_west && east == prev_east && south == prev_south && north == prev_north &&
-				Mathf.Approximately(groundScale, prev_groundScale) &&
+				Mathf.Approximately(groundScale,   prev_groundScale) &&
 				Mathf.Approximately(seafloorScale, prev_seafloorScale) &&
 				syncScale == prev_syncScale &&
 				autoFetchBounds == prev_autoFetch && filter.sharedMesh != null)
@@ -247,9 +255,14 @@ namespace VisAssets.Extensions.Topo
 				return false;
 			}
 
-			prev_west = west; prev_east = east; prev_south = south; prev_north = north;
-			prev_groundScale = groundScale; prev_seafloorScale = seafloorScale;
-			prev_syncScale = syncScale; prev_autoFetch = autoFetchBounds;
+			prev_west  = west;
+			prev_east  = east;
+			prev_south = south;
+			prev_north = north;
+			prev_groundScale   = groundScale;
+			prev_seafloorScale = seafloorScale;
+			prev_syncScale = syncScale;
+			prev_autoFetch = autoFetchBounds;
 
 			return true;
 		}
@@ -659,45 +672,14 @@ namespace VisAssets.Extensions.Topo
 		/// </summary>
 		private void SetupMaterial()
 		{
-			bool isURP = UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline != null;
-			string expectedShader = isURP ? "Universal Render Pipeline/Particles/Lit" : "VisAssets/Isosurface";
+			var pipeline = UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline ?? UnityEngine.QualitySettings.renderPipeline;
+			bool isURP = pipeline != null;
 
-			if (shader == null || shader.name != expectedShader)
+			Material targetMaterial = isURP ? urpMaterial : builtinMaterial;
+
+			if (TryGetComponent<MeshRenderer>(out var renderer))
 			{
-				shader = Shader.Find(expectedShader);
-
-				if (shader == null && !isURP)
-				{
-					shader = Shader.Find("Standard");
-				}
-			}
-
-			if (shader != null)
-			{
-				if (topoMaterial == null || topoMaterial.shader != shader)
-				{
-					topoMaterial = new Material(shader);
-
-					if (isURP)
-					{
-						if (topoMaterial.HasProperty("_Smoothness"))
-						{
-							topoMaterial.SetFloat("_Smoothness", 0f);
-						}
-
-						if (topoMaterial.HasProperty("_Cull"))
-						{
-							topoMaterial.SetFloat("_Cull", 0f); // 0 = Off
-						}
-
-						topoMaterial.doubleSidedGI = true;
-					}
-				}
-
-				if (TryGetComponent<MeshRenderer>(out var renderer))
-				{
-					renderer.sharedMaterial = topoMaterial;
-				}
+				renderer.sharedMaterial = targetMaterial;
 			}
 		}
 

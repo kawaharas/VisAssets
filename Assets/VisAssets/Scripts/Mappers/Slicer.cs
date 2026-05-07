@@ -25,18 +25,18 @@ namespace VisAssets.SciVis.Structured.Slicer
 		SerializedProperty slice;
 		SerializedProperty shift;
 		SerializedProperty alphaCutoff;
-		SerializedProperty builtinCustomShaderProp;
-		SerializedProperty sliceShaderProp;
+		SerializedProperty builtinMaterial;
+		SerializedProperty urpMaterial;
 
 		private void OnEnable()
 		{
-			mode        = serializedObject.FindProperty("filterMode");
-			axis        = serializedObject.FindProperty("sliceHelper.axis");
-			slice       = serializedObject.FindProperty("sliceHelper.slice");
-			shift       = serializedObject.FindProperty("shift");
-			alphaCutoff = serializedObject.FindProperty("alphaCutoff");
-			builtinCustomShaderProp = serializedObject.FindProperty("builtinCustomShader");
-			sliceShaderProp         = serializedObject.FindProperty("sliceShader");
+			mode            = serializedObject.FindProperty("filterMode");
+			axis            = serializedObject.FindProperty("sliceHelper.axis");
+			slice           = serializedObject.FindProperty("sliceHelper.slice");
+			shift           = serializedObject.FindProperty("shift");
+			alphaCutoff     = serializedObject.FindProperty("alphaCutoff");
+			builtinMaterial = serializedObject.FindProperty("builtinMaterial");
+			urpMaterial     = serializedObject.FindProperty("urpMaterial");
 		}
 
 		public override void OnInspectorGUI()
@@ -116,7 +116,7 @@ namespace VisAssets.SciVis.Structured.Slicer
 			{
 				Undo.RecordObject(target, "Slicer");
 				serializedObject.ApplyModifiedProperties();
-				slicer.UpdateMaterialShader();
+				slicer.UpdateAlphaCutoff();
 				EditorUtility.SetDirty(target);
 			}
 
@@ -124,14 +124,11 @@ namespace VisAssets.SciVis.Structured.Slicer
 
 			EditorGUI.BeginChangeCheck();
 
-			// Built-in environment shader registration slot
-			EditorGUILayout.PropertyField(builtinCustomShaderProp, new GUIContent("Built-in Custom Shader"));
+			EditorGUILayout.PropertyField(builtinMaterial, new GUIContent("Built-in Material"));
 
 			GUILayout.Space(5f);
 
-			EditorGUI.BeginDisabledGroup(true);
-			EditorGUILayout.PropertyField(sliceShaderProp, new GUIContent("Current Render Shader"));
-			EditorGUI.EndDisabledGroup();
+			EditorGUILayout.PropertyField(urpMaterial, new GUIContent("URP Material"));
 
 			if (EditorGUI.EndChangeCheck())
 			{
@@ -172,8 +169,8 @@ namespace VisAssets.SciVis.Structured.Slicer
 		[SerializeField]
 		public SliceHelper sliceHelper = new SliceHelper();
 
-		[SerializeField] public Shader builtinCustomShader;
-		public Shader sliceShader;
+		[SerializeField] private Material builtinMaterial;
+		[SerializeField] private Material urpMaterial;
 
 		[Range(0f, 1f)]
 		public float alphaCutoff = 0.01f;
@@ -192,7 +189,7 @@ namespace VisAssets.SciVis.Structured.Slicer
 		List<Color>   colors;
 		List<int>     triangles;
 		List<Vector2> texture_uv;
-		Material      material;
+		private Material instancedMaterial;
 
 		Texture2D texture;
 		Color[]   texcolor;
@@ -202,36 +199,6 @@ namespace VisAssets.SciVis.Structured.Slicer
 		protected override void Reset()
 		{
 			base.Reset();
-
-			EnsureCorrectShader();
-		}
-#endif
-
-		/// <summary>
-		/// Automatically determines the current render pipeline (Built-in or URP) and assigns the appropriate shader.
-		/// Prevents compilation errors by using Unity's standard unlit shader for URP,
-		/// and a custom pre-assigned shader for the Built-in Render Pipeline to avoid build stripping.
-		/// </summary>
-#if UNITY_EDITOR
-		private void EnsureCorrectShader()
-		{
-			bool isURP = GraphicsSettings.renderPipelineAsset != null;
-
-			if (isURP)
-			{
-				string expectedShaderName = "Universal Render Pipeline/Unlit";
-				if (sliceShader == null || sliceShader.name != expectedShaderName)
-				{
-					sliceShader = Shader.Find(expectedShaderName);
-				}
-			}
-			else
-			{
-				if (sliceShader == null || sliceShader != builtinCustomShader)
-				{
-					sliceShader = builtinCustomShader;
-				}
-			}
 		}
 #endif
 
@@ -292,15 +259,12 @@ namespace VisAssets.SciVis.Structured.Slicer
 
 		private void OnDestroy()
 		{
-			if (material != null) Destroy(material);
+			if (instancedMaterial != null) Destroy(instancedMaterial);
 			if (texture != null) Destroy(texture);
 		}
 
 		void OnValidate()
 		{
-#if UNITY_EDITOR
-			EnsureCorrectShader();
-#endif
 			if (!IsDataLoadedToParent()) return;
 
 			if (sliceHelper != null) sliceHelper.Validate();
@@ -311,62 +275,59 @@ namespace VisAssets.SciVis.Structured.Slicer
 		}
 
 		/// <summary>
-		/// Updates or creates the shared material used by the Slicer.
-		/// Dynamically configures material properties (Cutout, Culling) for URP compatibility.
+		/// Updates or creates the shared material used by the Slicer based on the active render pipeline.
+		/// Clones the target material so that dynamic texture assignment doesn't affect the project asset.
 		/// </summary>
 		public void UpdateMaterialShader()
 		{
 			var meshRenderer = GetComponent<MeshRenderer>();
 			if (meshRenderer == null) return;
 
-#if UNITY_EDITOR
-			EnsureCorrectShader();
-#endif
+			var pipeline = UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline ?? UnityEngine.QualitySettings.renderPipeline;
+			bool isURP = pipeline != null;
 
-			if (sliceShader == null) return;
+			Material targetBaseMaterial = isURP ? urpMaterial : builtinMaterial;
 
-			if (material == null || material.shader != sliceShader)
+			if (targetBaseMaterial == null) return;
+
+			if (instancedMaterial != null)
 			{
-				if (material != null)
-				{
-					if (Application.isPlaying) Destroy(material);
-					else DestroyImmediate(material);
-				}
-
-				material = new Material(sliceShader);
-
-				bool isURP = GraphicsSettings.renderPipelineAsset != null;
-				if (isURP)
-				{
-					// Configure URP Unlit shader to act like a cutout double-sided shader
-					if (material.HasProperty("_Cull")) material.SetFloat("_Cull", 0); // Double-sided
-					if (material.HasProperty("_AlphaClip")) material.SetFloat("_AlphaClip", 1); // Enable Cutout
-				}
-
-				meshRenderer.sharedMaterial = material;
-				AssignTextureToMaterial();
+				if (Application.isPlaying) Destroy(instancedMaterial);
+				else DestroyImmediate(instancedMaterial);
 			}
 
-			if (material != null)
+			instancedMaterial = new Material(targetBaseMaterial);
+			meshRenderer.sharedMaterial = instancedMaterial;
+
+			UpdateAlphaCutoff();
+			AssignTextureToMaterial();
+		}
+
+		/// <summary>
+		/// Updates only the alpha cutoff value of the instanced material.
+		/// </summary>
+		public void UpdateAlphaCutoff()
+		{
+			if (instancedMaterial != null && instancedMaterial.HasProperty("_Cutoff"))
 			{
-				if (material.HasProperty("_Cutoff")) material.SetFloat("_Cutoff", alphaCutoff);
+				instancedMaterial.SetFloat("_Cutoff", alphaCutoff);
 			}
 		}
 
 		/// <summary>
-		/// Assigns the generated dynamic texture to the material, handling URP's _BaseMap difference.
+		/// Assigns the generated dynamic texture to the instanced material, handling URP's _BaseMap difference.
 		/// </summary>
 		private void AssignTextureToMaterial()
 		{
-			if (material == null || texture == null) return;
+			if (instancedMaterial == null || texture == null) return;
 
-			material.mainTexture = texture;
-			material.mainTexture.wrapMode = TextureWrapMode.Clamp;
+			instancedMaterial.mainTexture = texture;
+			instancedMaterial.mainTexture.wrapMode = TextureWrapMode.Clamp;
 
 			// URP shaders use _BaseMap instead of _MainTex
-			if (material.HasProperty("_BaseMap"))
+			if (instancedMaterial.HasProperty("_BaseMap"))
 			{
-				material.SetTexture("_BaseMap", texture);
+				instancedMaterial.SetTexture("_BaseMap", texture);
 			}
 		}
 
@@ -558,7 +519,7 @@ namespace VisAssets.SciVis.Structured.Slicer
 			var meshFilter = GetComponent<MeshFilter>();
 			if (meshFilter != null) meshFilter.sharedMesh = CreatePlane();
 
-			AssignTextureToMaterial(); // ★ URP対応のテクスチャ割り当てメソッドを使用
+			AssignTextureToMaterial();
 		}
 
 		Mesh CreatePlane()

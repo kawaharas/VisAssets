@@ -1,4 +1,4 @@
-Shader "VisAssets/Isosurface"
+Shader "VisAssets/VertexColorLit"
 {
 	Properties
 	{

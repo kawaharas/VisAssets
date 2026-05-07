@@ -29,7 +29,8 @@ namespace VisAssets.SciVis.Structured.Isosurface
 	[CustomEditor(typeof(Isosurface))]
 	public class IsosurfaceEditor : Editor
 	{
-		SerializedProperty slider, threshold, min, max, shadingMode, useGPU, vramOptimization, triCount, shader, builtinCustomshader, renderShader;
+		SerializedProperty slider, threshold, min, max, shadingMode, useGPU, vramOptimization, triCount, shader;
+		SerializedProperty builtinMaterial, urpMaterial;
 
 		private void OnEnable()
 		{
@@ -42,8 +43,8 @@ namespace VisAssets.SciVis.Structured.Isosurface
 			useGPU      = serializedObject.FindProperty("useGPU");
 			vramOptimization = serializedObject.FindProperty("vramOptimization");
 			shader      = serializedObject.FindProperty("shader");
-			builtinCustomshader = serializedObject.FindProperty("builtinCustomShader");
-			renderShader = serializedObject.FindProperty("renderShader");
+			builtinMaterial = serializedObject.FindProperty("builtinMaterial");
+			urpMaterial     = serializedObject.FindProperty("urpMaterial");
 		}
 
 		public override void OnInspectorGUI()
@@ -70,19 +71,21 @@ namespace VisAssets.SciVis.Structured.Isosurface
 
 			GUILayout.Space(5f);
 
+			EditorGUI.BeginDisabledGroup(!useGPU.boolValue);
+			EditorGUI.indentLevel++;
 			vramOptimization.boolValue = EditorGUILayout.ToggleLeft("Enable VRAM Optimization (4-float mode)", vramOptimization.boolValue);
+			EditorGUI.indentLevel--;
+			EditorGUI.EndDisabledGroup();
 
 			EditorGUI.EndDisabledGroup();
 
+			GUILayout.Space(10f);
+
+			EditorGUILayout.PropertyField(builtinMaterial, new GUIContent("Built-in Material"));
+
 			GUILayout.Space(5f);
 
-			EditorGUILayout.PropertyField(builtinCustomshader, new GUIContent("Built-in Custom Shader"));
-
-			GUILayout.Space(5f);
-
-			EditorGUI.BeginDisabledGroup(true);
-			EditorGUILayout.PropertyField(renderShader, new GUIContent("Current Render Shader"));
-			EditorGUI.EndDisabledGroup();
+			EditorGUILayout.PropertyField(urpMaterial, new GUIContent("URP Material"));
 
 			GUILayout.Space(5f);
 
@@ -146,8 +149,8 @@ namespace VisAssets.SciVis.Structured.Isosurface
 		[SerializeField] public SHADING_MODE shadingMode;
 		[SerializeField] public int triCount;
 
-		[SerializeField] public Shader builtinCustomShader;
-		public Shader renderShader;
+		[SerializeField] private Material builtinMaterial;
+		[SerializeField] private Material urpMaterial;
 
 		int cell_i, cell_j, cell_k;
 
@@ -157,7 +160,6 @@ namespace VisAssets.SciVis.Structured.Isosurface
 		List<Color>   colors;
 		int[] indices;
 
-		private Material material;
 		public ComputeShader shader = null;
 		ComputeBuffer  tablesBuffer;
 
@@ -189,21 +191,6 @@ namespace VisAssets.SciVis.Structured.Isosurface
 		protected override void Reset()
 		{
 			base.Reset();
-			EnsureCorrectShader();
-		}
-
-		private void EnsureCorrectShader()
-		{
-			bool isURP = GraphicsSettings.renderPipelineAsset != null;
-			if (isURP)
-			{
-				string expectedShaderName = "Universal Render Pipeline/Particles/Lit";
-				if (renderShader == null || renderShader.name != expectedShaderName) renderShader = Shader.Find(expectedShaderName);
-			}
-			else
-			{
-				if (renderShader == null || renderShader != builtinCustomShader) renderShader = builtinCustomShader;
-			}
 		}
 #endif
 
@@ -319,38 +306,19 @@ namespace VisAssets.SciVis.Structured.Isosurface
 				renderer.sharedMaterial = null;
 			}
 
-			if (material != null) Destroy(material);
-
 			DisposeBuffers();
 		}
 
 		public void UpdateMaterialShader()
 		{
-#if UNITY_EDITOR
-			EnsureCorrectShader();
-#endif
+			var pipeline = UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline ?? UnityEngine.QualitySettings.renderPipeline;
+			bool isURP = pipeline != null;
 
-			if (material == null || (renderShader != null && material.shader != renderShader))
+			Material targetMaterial = isURP ? urpMaterial : builtinMaterial;
+
+			if (TryGetComponent<MeshRenderer>(out var renderer))
 			{
-				if (material != null)
-				{
-					if (Application.isPlaying) Destroy(material);
-					else DestroyImmediate(material);
-				}
-
-				material = (renderShader != null) ? new Material(renderShader) : new Material(Shader.Find("Standard"));
-
-				if (GraphicsSettings.renderPipelineAsset != null && material.HasProperty("_Cull"))
-				{
-					material.SetFloat("_Cull", 0);
-					material.SetFloat("_ReceiveShadows", 1);
-					material.SetFloat("_Surface", 0);
-				}
-
-				if (TryGetComponent<MeshRenderer>(out var renderer))
-				{
-					renderer.sharedMaterial = material;
-				}
+				renderer.sharedMaterial = targetMaterial;
 			}
 		}
 

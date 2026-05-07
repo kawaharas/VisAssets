@@ -26,6 +26,8 @@ namespace VisAssets.SciVis.Structured.Arrows
 		SerializedProperty normalize;
 		SerializedProperty useMagnitudeColor;
 		SerializedProperty arrowPrefab;
+		SerializedProperty builtinMaterial;
+		SerializedProperty urpMaterial;
 
 		private void OnEnable()
 		{
@@ -36,6 +38,8 @@ namespace VisAssets.SciVis.Structured.Arrows
 			normalize         = serializedObject.FindProperty("normalize");
 			useMagnitudeColor = serializedObject.FindProperty("useMagnitudeColor");
 			arrowPrefab       = serializedObject.FindProperty("arrowPrefab");
+			builtinMaterial   = serializedObject.FindProperty("builtinMaterial");
+			urpMaterial       = serializedObject.FindProperty("urpMaterial");
 		}
 
 		public override void OnInspectorGUI()
@@ -109,14 +113,19 @@ namespace VisAssets.SciVis.Structured.Arrows
 			GUILayout.Space(5f);
 
 			EditorGUI.BeginChangeCheck();
+
 			if (normalize != null)
 			{
 				EditorGUILayout.PropertyField(normalize, new GUIContent("Normalize"));
 			}
+
+			GUILayout.Space(5f);
+
 			if (useMagnitudeColor != null)
 			{
 				EditorGUILayout.PropertyField(useMagnitudeColor, new GUIContent("Use Magnitude Color"));
 			}
+
 			if (EditorGUI.EndChangeCheck())
 			{
 				Undo.RecordObject(target, "Arrows");
@@ -133,6 +142,24 @@ namespace VisAssets.SciVis.Structured.Arrows
 			{
 				EditorGUILayout.PropertyField(arrowPrefab, new GUIContent("Arrow Prefab"));
 			}
+			if (EditorGUI.EndChangeCheck())
+			{
+				Undo.RecordObject(target, "Arrows");
+				serializedObject.ApplyModifiedProperties();
+				arrows.UpdatePrefab();
+				EditorUtility.SetDirty(target);
+			}
+
+			GUILayout.Space(5f);
+
+			EditorGUI.BeginChangeCheck();
+
+			EditorGUILayout.PropertyField(builtinMaterial, new GUIContent("Built-in Material"));
+
+			GUILayout.Space(5f);
+
+			EditorGUILayout.PropertyField(urpMaterial, new GUIContent("URP Material"));
+
 			if (EditorGUI.EndChangeCheck())
 			{
 				Undo.RecordObject(target, "Arrows");
@@ -191,7 +218,14 @@ namespace VisAssets.SciVis.Structured.Arrows
 		[SerializeField, ReadOnly]
 		public float variance;
 
+		[SerializeField]
+		private Material builtinMaterial;
+
+		[SerializeField]
+		private Material urpMaterial;
+
 		public GameObject arrowPrefab;
+
 		[SerializeField]
 		public float arrowscale;
 		public float scale_weight = 5.0f;
@@ -368,11 +402,17 @@ namespace VisAssets.SciVis.Structured.Arrows
 			return Matrix4x4.TRS(worldPos, worldRot, safeScale);
 		}
 
-		public override void IdleFunc() { }
+		public override void IdleFunc()
+		{
+		}
 
-		public override void SetParameters() { }
+		public override void SetParameters()
+		{
+		}
 
-		public override void GetParameters() { }
+		public override void GetParameters()
+		{
+		}
 
 		public override void ReSetParameters()
 		{
@@ -400,7 +440,9 @@ namespace VisAssets.SciVis.Structured.Arrows
 			}
 		}
 
-		public override void ResetUI() { }
+		public override void ResetUI()
+		{
+		}
 
 		void OnValidate()
 		{
@@ -748,45 +790,23 @@ namespace VisAssets.SciVis.Structured.Arrows
 			if (mf != null && mr != null && mf.sharedMesh != null)
 			{
 				// Clone the material and enable GPU instancing
-				Material instancedMaterial = new Material(mr.sharedMaterial) { enableInstancing = true };
+				var pipeline = UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline ?? UnityEngine.QualitySettings.renderPipeline;
+				bool isURP = pipeline != null;
+
+				Material targetMaterial = isURP ? urpMaterial : builtinMaterial;
+				Material baseMaterial = targetMaterial != null ? targetMaterial : mr.sharedMaterial;
+				Material instancedMaterial = new Material(baseMaterial) { enableInstancing = true };
 
 				// Determine the default color based on the material name
 				Color defColor = Color.white;
-				if (instancedMaterial.name.Contains("Cone"))
+				if (mr.sharedMaterial.name.Contains("Cone"))
 				{
 					defColor = new Color(1f, 1f, 0.5f);
 				}
-				else if (instancedMaterial.name.Contains("Cylinder"))
+				else if (mr.sharedMaterial.name.Contains("Cylinder"))
 				{
 					defColor = new Color(0f, 0.8f, 1f);
 				}
-
-				// --- Automatic shader conversion logic based on the active render pipeline ---
-				var pipelineAsset = UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline ?? UnityEngine.QualitySettings.renderPipeline;
-				bool isURP = pipelineAsset != null;
-
-				if (isURP)
-				{
-					// Upgrade to URP Lit if a Built-in shader (or error) is detected in a URP environment
-					if (instancedMaterial.shader.name == "Standard" ||
-					    instancedMaterial.shader.name == "Hidden/InternalErrorShader" ||
-					    instancedMaterial.shader.name.StartsWith("Legacy Shaders/"))
-					{
-						Shader urpShader = Shader.Find("Universal Render Pipeline/Lit");
-						if (urpShader != null) instancedMaterial.shader = urpShader;
-					}
-				}
-				else
-				{
-					// Downgrade to Standard if a URP shader is detected in a Built-in environment
-					if (instancedMaterial.shader.name.StartsWith("Universal Render Pipeline/"))
-					{
-						Shader standardShader = Shader.Find("Standard");
-						if (standardShader != null) instancedMaterial.shader = standardShader;
-					}
-				}
-				// -----------------------------------------------------------------------------
-
 				subMeshes.Add(new SubMeshInfo
 				{
 					mesh         = mf.sharedMesh,
