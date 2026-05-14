@@ -15,9 +15,22 @@ namespace VisAssets.SciVis.Structured.Volume
 	[CustomEditor(typeof(VolumeRenderer))]
 	public class VolumeRendererEditor : Editor
 	{
-		SerializedProperty transferFunction, density, numSteps, threshold, volumeShader, undefMapping;
-		SerializedProperty enableClipping, clipAxis, clipPosition, clipRotation1, clipRotation2, invertClip;
-		SerializedProperty enableLighting, ambient, diffuse;
+		SerializedProperty transferFunction;
+		SerializedProperty density;
+		SerializedProperty numSteps;
+		SerializedProperty threshold;
+		SerializedProperty undefMapping;
+		SerializedProperty enableClipping;
+		SerializedProperty clipAxis;
+		SerializedProperty clipPosition;
+		SerializedProperty clipRotation1;
+		SerializedProperty clipRotation2;
+		SerializedProperty invertClip;
+		SerializedProperty enableLighting;
+		SerializedProperty ambient;
+		SerializedProperty diffuse;
+		SerializedProperty builtinMaterial;
+		SerializedProperty urpMaterial;
 
 		/// <summary>
 		/// Initializes serialized properties when the object is selected in the Inspector.
@@ -25,22 +38,24 @@ namespace VisAssets.SciVis.Structured.Volume
 		private void OnEnable()
 		{
 			transferFunction = serializedObject.FindProperty("transferFunction");
-			density = serializedObject.FindProperty("density");
-			numSteps = serializedObject.FindProperty("numSteps");
-			threshold = serializedObject.FindProperty("threshold");
-			volumeShader = serializedObject.FindProperty("volumeShader");
-			undefMapping = serializedObject.FindProperty("undefMapping");
+			density          = serializedObject.FindProperty("density");
+			numSteps         = serializedObject.FindProperty("numSteps");
+			threshold        = serializedObject.FindProperty("threshold");
+			undefMapping     = serializedObject.FindProperty("undefMapping");
 
-			enableClipping = serializedObject.FindProperty("enableClipping");
-			clipAxis = serializedObject.FindProperty("clipAxis");
-			clipPosition = serializedObject.FindProperty("clipPosition");
-			clipRotation1 = serializedObject.FindProperty("clipRotation1");
-			clipRotation2 = serializedObject.FindProperty("clipRotation2");
-			invertClip = serializedObject.FindProperty("invertClip");
+			enableClipping   = serializedObject.FindProperty("enableClipping");
+			clipAxis         = serializedObject.FindProperty("clipAxis");
+			clipPosition     = serializedObject.FindProperty("clipPosition");
+			clipRotation1    = serializedObject.FindProperty("clipRotation1");
+			clipRotation2    = serializedObject.FindProperty("clipRotation2");
+			invertClip       = serializedObject.FindProperty("invertClip");
 
-			enableLighting = serializedObject.FindProperty("enableLighting");
-			ambient = serializedObject.FindProperty("ambient");
-			diffuse = serializedObject.FindProperty("diffuse");
+			enableLighting   = serializedObject.FindProperty("enableLighting");
+			ambient          = serializedObject.FindProperty("ambient");
+			diffuse          = serializedObject.FindProperty("diffuse");
+
+			builtinMaterial  = serializedObject.FindProperty("builtinMaterial");
+			urpMaterial      = serializedObject.FindProperty("urpMaterial");
 		}
 
 		/// <summary>
@@ -114,6 +129,7 @@ namespace VisAssets.SciVis.Structured.Volume
 			if (enableLighting.boolValue)
 			{
 				EditorGUI.indentLevel++;
+
 				EditorGUILayout.Slider(ambient, 0f, 1f, new GUIContent("Ambient Light"));
 
 				GUILayout.Space(5f);
@@ -125,7 +141,11 @@ namespace VisAssets.SciVis.Structured.Volume
 				EditorGUI.indentLevel--;
 			}
 
-			EditorGUILayout.PropertyField(volumeShader, new GUIContent("Volume Shader"));
+			EditorGUILayout.PropertyField(builtinMaterial, new GUIContent("Built-in Material"));
+
+			GUILayout.Space(5f);
+
+			EditorGUILayout.PropertyField(urpMaterial, new GUIContent("URP Material"));
 
 			GUILayout.Space(5f);
 
@@ -140,8 +160,12 @@ namespace VisAssets.SciVis.Structured.Volume
 
 				if (EditorApplication.isPlaying && mapper != null)
 				{
+					mapper.UpdateMaterialShader();
 					mapper.UpdateMaterialProperties();
-					if(mapper.activation != null) mapper.activation.SetParameterChanged(ModuleState.PARAMETER_CHANGED);
+					if(mapper.activation != null)
+					{
+						mapper.activation.SetParameterChanged(ModuleState.PARAMETER_CHANGED);
+					}
 				}
 			}
 			serializedObject.ApplyModifiedProperties();
@@ -154,19 +178,45 @@ namespace VisAssets.SciVis.Structured.Volume
 	// =========================================================================
 	public class VolumeRenderer : MapperModuleTemplate, IColormapReceiver
 	{
-		public enum UndefMappingMode { MapTo0_Min, MapTo255_Max }
-		public enum ClipAxis { X, Y, Z }
+		public enum UndefMappingMode
+		{
+			MapTo0_Min,
+			MapTo255_Max
+		}
 
-		[HideInInspector] public bool enableClipping = false;
-		[HideInInspector] public ClipAxis clipAxis = ClipAxis.Z;
-		[HideInInspector] [Range(0f, 1f)] public float clipPosition = 0.5f;
-		[HideInInspector] [Range(-90f, 90f)] public float clipRotation1 = 0f;
-		[HideInInspector] [Range(-90f, 90f)] public float clipRotation2 = 0f;
-		[HideInInspector] public bool invertClip = false;
+		public enum ClipAxis
+		{
+			X,
+			Y,
+			Z
+		}
 
-		[HideInInspector] public bool enableLighting = false;
-		[HideInInspector] [Range(0f, 1f)] public float ambient = 0.5f;
-		[HideInInspector] [Range(0f, 2f)] public float diffuse = 1.0f;
+		[HideInInspector]
+		public bool enableClipping = false;
+
+		[HideInInspector]
+		public ClipAxis clipAxis = ClipAxis.Z;
+
+		[HideInInspector] [Range(0f, 1f)]
+		public float clipPosition = 0.5f;
+
+		[HideInInspector] [Range(-90f, 90f)]
+		public float clipRotation1 = 0f;
+
+		[HideInInspector] [Range(-90f, 90f)]
+		public float clipRotation2 = 0f;
+
+		[HideInInspector]
+		public bool invertClip = false;
+
+		[HideInInspector]
+		public bool enableLighting = false;
+
+		[HideInInspector] [Range(0f, 1f)]
+		public float ambient = 0.5f;
+
+		[HideInInspector] [Range(0f, 2f)]
+		public float diffuse = 1.0f;
 
 		[System.Serializable]
 		public class ClipSettings
@@ -177,18 +227,33 @@ namespace VisAssets.SciVis.Structured.Volume
 		}
 
 		[HideInInspector]
-		public ClipSettings[] savedClipSettings = new ClipSettings[3] {
-			new ClipSettings(), new ClipSettings(), new ClipSettings()
-		};
+		public ClipSettings[] savedClipSettings =
+			new ClipSettings[3] {
+				new ClipSettings(),
+				new ClipSettings(),
+				new ClipSettings()
+			};
 
-		[HideInInspector]
-		[SerializeField] private ClipAxis lastClipAxis = ClipAxis.Z;
+		[HideInInspector] [SerializeField]
+		private ClipAxis lastClipAxis = ClipAxis.Z;
 
-		public Shader volumeShader;
+		[SerializeField]
+		private Material builtinMaterial;
+
+		[SerializeField]
+		private Material urpMaterial;
+
 		public Gradient transferFunction;
-		[Range(0f, 50f)] public float density = 10.0f;
-		[Range(32, 256)] public int numSteps = 128;
-		[Range(0f, 1f)] public float threshold = 0.01f;
+
+		[Range(0f, 50f)]
+		public float density = 10.0f;
+
+		[Range(32, 256)]
+		public int numSteps = 128;
+
+		[Range(0f, 1f)]
+		public float threshold = 0.01f;
+
 		public UndefMappingMode undefMapping = UndefMappingMode.MapTo0_Min;
 
 		private DataElement element;
@@ -208,6 +273,7 @@ namespace VisAssets.SciVis.Structured.Volume
 
 		[HideInInspector]
 		public bool useExternalColormap = false;
+
 		[HideInInspector]
 		public Color[] externalTransferColors = new Color[256];
 
@@ -238,6 +304,7 @@ namespace VisAssets.SciVis.Structured.Volume
 		private void InitializeDefaultGradient()
 		{
 			if (transferFunction == null) transferFunction = new Gradient();
+
 			transferFunction.SetKeys(
 				new GradientColorKey[] {
 					new GradientColorKey(new Color(0f, 0f, 1f), 0f),
@@ -289,9 +356,14 @@ namespace VisAssets.SciVis.Structured.Volume
 		{
 			dims = new int[3];
 
-			if (Camera.main != null) Camera.main.depthTextureMode |= DepthTextureMode.Depth;
+			if (Camera.main != null)
+			{
+				Camera.main.depthTextureMode |= DepthTextureMode.Depth;
+			}
 
-			if (transferFunction == null || transferFunction.colorKeys == null || transferFunction.colorKeys.Length == 0)
+			if (transferFunction == null ||
+				transferFunction.colorKeys == null ||
+				transferFunction.colorKeys.Length == 0)
 			{
 				InitializeDefaultGradient();
 			}
@@ -307,11 +379,20 @@ namespace VisAssets.SciVis.Structured.Volume
 				if (pdf.elements[0].fieldType == DataElement.FieldType.IRREGULAR)
 				{
 					Debug.LogWarning("[VolumeRenderer] IRREGULAR data is not supported natively. Please insert a Remap module before VolumeRenderer.");
-					if (volumeObject != null) volumeObject.SetActive(false);
+
+					if (volumeObject != null)
+					{
+						volumeObject.SetActive(false);
+					}
+
 					return 0;
 				}
 
-				if (volumeObject != null) volumeObject.SetActive(true);
+				if (volumeObject != null)
+				{
+					volumeObject.SetActive(true);
+				}
+
 				SetupVolumeObject();
 				UpdateMaterialProperties();
 			}
@@ -345,9 +426,11 @@ namespace VisAssets.SciVis.Structured.Volume
 					dims[2] != pdf.elements[0].dims[2])
 				{
 					SoftRebuild();
+
 					return;
 				}
 			}
+
 			UpdateMaterialProperties();
 		}
 
@@ -357,8 +440,8 @@ namespace VisAssets.SciVis.Structured.Volume
 		private void SoftRebuild()
 		{
 			element = pdf.elements[0];
-			dims = element.dims;
-			values = element.values;
+			dims    = element.dims;
+			values  = element.values;
 
 			BuildVolumeTexture();
 			BuildLUTsIfNeeded();
@@ -374,8 +457,8 @@ namespace VisAssets.SciVis.Structured.Volume
 			if (!pdf.dataLoaded) return;
 
 			element = pdf.elements[0];
-			dims = element.dims;
-			values = element.values;
+			dims    = element.dims;
+			values  = element.values;
 
 			BuildVolumeTexture();
 			BuildLUTsIfNeeded();
@@ -402,7 +485,9 @@ namespace VisAssets.SciVis.Structured.Volume
 		/// <summary>
 		/// Resets the associated UI components to their default states.
 		/// </summary>
-		public override void ResetUI() { }
+		public override void ResetUI()
+		{
+		}
 
 		/// <summary>
 		/// Compiles the scalar scalar field data into a unified 3D Texture for GPU raymarching.
@@ -416,7 +501,7 @@ namespace VisAssets.SciVis.Structured.Volume
 			int depth = dims[2];
 
 			volumeTexture = new Texture3D(width, height, depth, TextureFormat.R8, false);
-			volumeTexture.wrapMode = TextureWrapMode.Clamp;
+			volumeTexture.wrapMode   = TextureWrapMode.Clamp;
 			volumeTexture.filterMode = FilterMode.Bilinear;
 
 			byte[] volumeData = new byte[width * height * depth];
@@ -424,10 +509,14 @@ namespace VisAssets.SciVis.Structured.Volume
 			float min = element.min;
 			float max = element.max;
 			float range = max - min;
-			if (range == 0) range = 1f;
+
+			if (range == 0)
+			{
+				range = 1f;
+			}
 
 			bool useUndef = element.useUndef;
-			float undef = element.undef;
+			float undef   = element.undef;
 
 			for (int i = 0; i < values.Length; i++)
 			{
@@ -487,13 +576,16 @@ namespace VisAssets.SciVis.Structured.Volume
 			float minCoord = isAscending ? coords[0] : coords[numCoords - 1];
 			float maxCoord = isAscending ? coords[numCoords - 1] : coords[0];
 			float range = maxCoord - minCoord;
-			if (range == 0) range = 1f;
+
+			if (range == 0)
+			{
+				range = 1f;
+			}
 
 			for (int x = 0; x < resolution; x++)
 			{
 				float t = (float)x / (resolution - 1);
 				float physVal = minCoord + t * range;
-
 				float mappedUV = 0f;
 
 				for (int i = 0; i < numCoords - 1; i++)
@@ -505,15 +597,19 @@ namespace VisAssets.SciVis.Structured.Volume
 						(!isAscending && physVal <= c1 && physVal >= c2))
 					{
 						float localFraction = (physVal - c1) / (c2 - c1);
+
 						mappedUV = (i + localFraction) / (numCoords - 1);
+
 						break;
 					}
 				}
+
 				pixels[x] = new Color(mappedUV, 0, 0, 1);
 			}
 
 			lut.SetPixels(pixels);
 			lut.Apply();
+
 			return lut;
 		}
 
@@ -529,8 +625,7 @@ namespace VisAssets.SciVis.Structured.Volume
 				volumeObject.transform.SetParent(this.transform, false);
 				Destroy(volumeObject.GetComponent<BoxCollider>());
 
-				if (volumeShader != null) volumeMaterial = new Material(volumeShader);
-				volumeObject.GetComponent<MeshRenderer>().sharedMaterial = volumeMaterial;
+				UpdateMaterialShader();
 			}
 
 			var scale = transform.localScale;
@@ -539,6 +634,44 @@ namespace VisAssets.SciVis.Structured.Volume
 
 			volumeObject.transform.localPosition = v0 + (v1 - v0) / 2f;
 			volumeObject.transform.localScale = v1 - v0;
+		}
+
+		/// <summary>
+		/// Detects the active render pipeline, instantiates the appropriate base material, 
+		/// and assigns it to the volume object.
+		/// </summary>
+		public void UpdateMaterialShader()
+		{
+			if (volumeObject == null) return;
+
+			var meshRenderer = volumeObject.GetComponent<MeshRenderer>();
+			if (meshRenderer == null) return;
+
+			var pipeline = UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline ?? UnityEngine.QualitySettings.renderPipeline;
+			bool isURP = pipeline != null;
+
+			Material baseMaterial = isURP ? urpMaterial : builtinMaterial;
+			if (baseMaterial == null) return;
+
+			// Destroy the old instanced material to prevent memory leaks
+			if (volumeMaterial != null)
+			{
+				if (Application.isPlaying)
+				{
+					Destroy(volumeMaterial);
+				}
+				else
+				{
+					DestroyImmediate(volumeMaterial);
+				}
+			}
+
+			// Instantiate the new material so parameters can be tweaked independently
+			volumeMaterial = new Material(baseMaterial);
+			meshRenderer.sharedMaterial = volumeMaterial;
+
+			// Re-apply properties (textures, density, etc.) to the new instance
+			UpdateMaterialProperties();
 		}
 
 		/// <summary>
@@ -575,7 +708,11 @@ namespace VisAssets.SciVis.Structured.Volume
 
 				// Determine normal vector (invert logic flips the visible cut direction)
 				Vector3 localNormal = localRot * Vector3.back;
-				if (invertClip) localNormal = -localNormal;
+
+				if (invertClip)
+				{
+					localNormal = -localNormal;
+				}
 
 				// Offset parameters back to [0, 1] normalized UV space for the shader
 				volumeMaterial.SetVector("_ClipPlanePos", localPos + new Vector3(0.5f, 0.5f, 0.5f));
@@ -622,9 +759,11 @@ namespace VisAssets.SciVis.Structured.Volume
 				if (undefMapping == UndefMappingMode.MapTo0_Min)
 				{
 					transferColors[0] = new Color(0f, 0f, 0f, 0f);
+
 					for (int i = 1; i <= 255; i++)
 					{
 						float t = (i - 1) / 254f;
+
 						transferColors[i] = transferFunction.Evaluate(t);
 					}
 				}
@@ -633,8 +772,10 @@ namespace VisAssets.SciVis.Structured.Volume
 					for (int i = 0; i <= 254; i++)
 					{
 						float t = i / 254f;
+
 						transferColors[i] = transferFunction.Evaluate(t);
 					}
+
 					transferColors[255] = new Color(0f, 0f, 0f, 0f);
 				}
 
@@ -642,7 +783,11 @@ namespace VisAssets.SciVis.Structured.Volume
 				transferTexture.Apply();
 			}
 
-			if (volumeTexture != null) volumeMaterial.SetTexture("_VolumeTex", volumeTexture);
+			if (volumeTexture != null)
+			{
+				volumeMaterial.SetTexture("_VolumeTex", volumeTexture);
+			}
+
 			if (transferTexture != null) volumeMaterial.SetTexture("_TransferTex", transferTexture);
 
 			if (element != null && element.fieldType == DataElement.FieldType.RECTILINEAR && lutTextureX != null)

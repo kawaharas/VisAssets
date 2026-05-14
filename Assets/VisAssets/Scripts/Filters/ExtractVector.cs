@@ -15,28 +15,21 @@ namespace VisAssets.SciVis.Structured.ExtractVector
 	[CustomEditor(typeof(ExtractVector))]
 	public class ExtractVectorEditor : Editor
 	{
-		SerializedProperty activeChannelNum;
-		bool[] channelStates;
-		int[]  channels;
-		int[]  selectedChannels;
-
-		public void OnEnable()
-		{
-			channelStates = new bool[3];
-			channels = new int[3];
-			selectedChannels = new int[3];
-			for (int i = 0; i < 3; i++)
-			{
-				channelStates[i] = false;
-				channels[i] = 0;
-				selectedChannels[i] = 0;
-			}
-			activeChannelNum = serializedObject.FindProperty("activeChannelNum");
-		}
-
 		public override void OnInspectorGUI()
 		{
 			var extractVector = target as ExtractVector;
+
+			if (extractVector == null) return;
+
+			if (extractVector.channels == null || extractVector.channels.Length < 3)
+			{
+				extractVector.channels = new int[3] { 0, 0, 0 };
+			}
+
+			if (extractVector.channelStates == null || extractVector.channelStates.Length < 3)
+			{
+				extractVector.channelStates = new bool[3] { false, false, false };
+			}
 
 			serializedObject.Update();
 
@@ -44,29 +37,59 @@ namespace VisAssets.SciVis.Structured.ExtractVector
 
 			EditorStyles.popup.fontSize = 11;
 			EditorStyles.popup.fixedHeight = 18f;
-			EditorStyles.popup.alignment = TextAnchor.MiddleLeft;
 //			EditorStyles.popup.margin = new RectOffset(0, 0, 5, 5);
 			EditorStyles.label.fontSize = 11;
 			EditorStyles.label.fixedHeight = 18f;
-			EditorStyles.label.alignment = TextAnchor.MiddleLeft;
-
-			for (int i = 0; i < extractVector.channelStates.Length; ++i)
-			{
-				channelStates[i] = extractVector.channelStates[i];
-				channels[i]      = extractVector.channels[i];
-			}
 
 			GUILayout.Space(10f);
 
+			string[] displayedNames = (extractVector.varNames != null && extractVector.varNames.Length > 0)
+				? extractVector.varNames
+				: new string[] { "No Data Loaded" };
+
+			bool[] newStates   = new bool[3];
+			int[]  newChannels = new int[3];
+
 			for (int i = 0; i < 3; ++i)
 			{
-				var label = new GUIContent("Channel " + i);
 				EditorGUILayout.BeginHorizontal();
-				channelStates[i] = EditorGUILayout.ToggleLeft(label, channelStates[i], GUILayout.Width(95f));
-				EditorGUI.BeginDisabledGroup(!channelStates[i]);
-				selectedChannels[i] = EditorGUILayout.Popup("", extractVector.channels[i], extractVector.varNames);
+
+				// Toggle
+				newStates[i] = EditorGUILayout.ToggleLeft($"Channel {i}", extractVector.channelStates[i], GUILayout.Width(80f));
+
+				EditorGUI.BeginDisabledGroup(!newStates[i]);
+
+				// Dropdown
+				int currentIdx;
+				if (extractVector.varNames != null && extractVector.varNames.Length > 0)
+				{
+					currentIdx = Mathf.Clamp(extractVector.channels[i], 0, extractVector.varNames.Length - 1);
+				}
+				else
+				{
+					currentIdx = 0;
+				}
+
+				int selectedIdx = EditorGUILayout.Popup("", currentIdx, displayedNames);
+
+				newChannels[i] = extractVector.channels[i];
+
+				if (extractVector.varNames != null && extractVector.varNames.Length > 0)
+				{
+					if (selectedIdx != currentIdx)
+					{
+						newChannels[i] = selectedIdx;
+					}
+				}
+
+				// IntField (Direct Input)
+				newChannels[i] = EditorGUILayout.IntField(newChannels[i], GUILayout.Width(40f));
+				newChannels[i] = Mathf.Max(0, newChannels[i]);
+
 				EditorGUI.EndDisabledGroup();
+
 				EditorGUILayout.EndHorizontal();
+
 				GUILayout.Space(10f);
 			}
 
@@ -80,11 +103,15 @@ namespace VisAssets.SciVis.Structured.ExtractVector
 
 			if (EditorGUI.EndChangeCheck())
 			{
+				Undo.RecordObject(target, "ExtractVector");
+
 				for (int i = 0; i < 3; i++)
 				{
-					extractVector.SetChannel(i, selectedChannels[i]);
-					extractVector.SetActive(i, channelStates[i]);
+					extractVector.SetChannel(i, newChannels[i]);
+					extractVector.SetActive(i, newStates[i]);
 				}
+
+				EditorUtility.SetDirty(target);
 			}
 
 			serializedObject.ApplyModifiedProperties();
@@ -98,42 +125,49 @@ namespace VisAssets.SciVis.Structured.ExtractVector
 	[DisallowMultipleComponent]
 	public class ExtractVector : FilterModuleTemplate
 	{
-		public bool[]   channelStates;
-		public int[]    channels;
+		[SerializeField]
+		public bool[] channelStates = new bool[3] { false, false, false };
+
+		[SerializeField]
+		public int[]  channels      = new int[3] { 0, 0, 0 };
 
 		[ReadOnly]
 		public string[] varNames = { };
 
-		private bool[] previousChannelStates;
-		private int[]  previousChannels;
 		private List<int> activeChannels;
 
 		[SerializeField]
-		private int activeChannelNum; // for EditorGUI
+		private int activeChannelNum;
 
-		/// <summary>
-		/// Initializes internal arrays and creates three data elements (U, V, W) in the DataField.
-		/// </summary>
+#if UNITY_EDITOR
+		protected override void Reset()
+		{
+			base.Reset();
+
+			channelStates = new bool[3] { false, false, false };
+			channels      = new int[3] { 0, 0, 0 };
+		}
+#endif
+
 		public override void InitModule()
 		{
-			channels         = new int[3] { 0, 0, 0 };
-			channelStates    = new bool[3] { false, false, false };
 			activeChannels   = new List<int>();
 			activeChannelNum = 0;
-			previousChannels = new int[3] { 0, 0, 0 };
-			previousChannelStates = new bool[3] { false, false, false };
 
 			df.CreateElements(3);
 		}
 
-		/// <summary>
-		/// Extracts the selected channels and strictly validates their compatibility as a vector field.
-		/// </summary>
 		public override int BodyFunc()
 		{
+			if (pdf == null || pdf.elements == null) return 0;
+
 			for (int i = 0; i < 3; i++)
 			{
-				df.elements[i] = pdf.elements[channels[i]].Clone();
+				// Prevent out-of-bounds error if a preset channel exceeds loaded data
+				if (channels[i] < pdf.elements.Length)
+				{
+					df.elements[i] = pdf.elements[channels[i]].Clone();
+				}
 			}
 			df.coordinateSystem = pdf.coordinateSystem;
 			df.upAxis = pdf.upAxis;
@@ -145,12 +179,10 @@ namespace VisAssets.SciVis.Structured.ExtractVector
 			return 1;
 		}
 
-		/// <summary>
-		/// Reinitializes variable names when the parent dataset structure changes.
-		/// </summary>
-		public override void ReSetParameters() // runs when parent was updated
+		public override void ReSetParameters()
 		{
-			// create a string list of variable names (for UI)
+			if (pdf == null || pdf.elements == null) return;
+
 			int varNum = pdf.elements.Length;
 			varNames = new string[varNum];
 
@@ -158,73 +190,69 @@ namespace VisAssets.SciVis.Structured.ExtractVector
 			{
 				var varName = pdf.elements[i].varName;
 
-				varNames[i] = !string.IsNullOrEmpty(varName) ? varName : $"variable {i}";
-/*
-				if (varName.Length != 0)
+				if (!string.IsNullOrEmpty(varName))
 				{
 					varNames[i] = varName;
 				}
 				else
 				{
-					varNames[i] = "variable " + i.ToString();
+					varNames[i] = $"variable {i}";
 				}
-*/
 			}
 		}
 
-		public override void SetParameters() // runs when parameters were updated
+		public override void SetParameters()
 		{
 		}
 
-		/// <summary>
-		/// Validates inspector changes and triggers updates.
-		/// </summary>
-		void OnValidate()
+		public override void ResetUI()
 		{
-			if (!IsDataLoadedToParent()) return;
+			if (UIPanel == null) return;
 
-			bool changed = false;
-
-			for (int i = 0; i < 3; i++)
+			for (int n = 0; n < 3; n++)
 			{
-				if (previousChannels[i] != channels[i])
-				{
-					previousChannels[i] = channels[i];
-					SetChannel(i, channels[i]);
-					changed = true;
-				}
-			}
+				char axis = (char)('U' + n);
+				var toggleObj   = UIPanel.transform.Find($"Channels/Toggle {axis}");
+				var dropdownObj = UIPanel.transform.Find($"Channel{n}/Dropdown");
 
-			for (int i = 0; i < 3; i++)
-			{
-				if (previousChannelStates[i] != channelStates[i])
-				{
-					previousChannelStates[i] = channelStates[i];
-					SetActive(i, channelStates[i]);
-					changed = true;
-				}
-			}
+				if (toggleObj == null || dropdownObj == null) continue;
 
-			if (changed) ParameterChanged();
+				var toggle   = toggleObj.GetComponent<Toggle>();
+				var dropdown = dropdownObj.GetComponent<Dropdown>();
+
+				dropdown.ClearOptions();
+
+				for (int i = 0; i < pdf.elements.Length; i++)
+				{
+					var varName = pdf.elements[i].varName;
+
+					if (!string.IsNullOrEmpty(varName))
+					{
+						dropdown.options.Add(new Dropdown.OptionData { text = varName });
+					}
+					else
+					{
+						dropdown.options.Add(new Dropdown.OptionData { text = $"variable #{i}" });
+					}
+				}
+
+				dropdown.interactable = toggle.isOn;
+				dropdown.RefreshShownValue();
+			}
 		}
 
 		public void SetChannel(int channel_id, int element_id)
 		{
-			if (!IsDataLoadedToParent()) return;
+			channels[channel_id] = Mathf.Max(0, element_id);
 
-			channels[channel_id] = element_id;
-			df.elements[channel_id] = pdf.elements[element_id].Clone();
-
-			ParameterChanged();
+			if (IsDataLoadedToParent()) ParameterChanged();
 		}
 
 		public void SetActive(int channel_id, bool state)
 		{
-			if (!IsDataLoadedToParent()) return;
-
 			channelStates[channel_id] = state;
 
-			ParameterChanged();
+			if (IsDataLoadedToParent()) ParameterChanged();
 		}
 
 		/// <summary>
@@ -235,11 +263,15 @@ namespace VisAssets.SciVis.Structured.ExtractVector
 		{
 			// deactivates all selected elements and make a list of active elements
 			activeChannelNum = 0;
+			if (activeChannels == null) activeChannels = new List<int>();
 			activeChannels.Clear();
 
 			for (int i = 0; i < 3; i++)
 			{
-				df.elements[i].isActive = false;
+				if (df.elements[i] != null)
+				{
+					df.elements[i].isActive = false;
+				}
 
 				if (channelStates[i])
 				{
@@ -251,9 +283,11 @@ namespace VisAssets.SciVis.Structured.ExtractVector
 
 			// check if all active elements have the same dimension
 			bool isCompatible = true;
-			int[] dims = new int[3] { -1, -1, -1};
+			int[] dims = new int[3] { -1, -1, -1 };
+
 			// get variables in the first active element
 			int idx = activeChannels[0];
+			if (df.elements[idx] == null) return;
 
 			for (int i = 0; i < 3; i++)
 			{
@@ -268,6 +302,11 @@ namespace VisAssets.SciVis.Structured.ExtractVector
 			for (int i = 1; i < activeChannels.Count; i++)
 			{
 				idx = activeChannels[i];
+				if (df.elements[idx] == null)
+				{
+					isCompatible = false;
+					break;
+				}
 
 				for (int n = 0; n < 3; n++)
 				{
@@ -281,19 +320,6 @@ namespace VisAssets.SciVis.Structured.ExtractVector
 				{
 					isCompatible = false;
 				}
-/*
-				if (useUndef == df.elements[idx].useUndef)
-				{
-					if (undef != df.elements[idx].undef)
-					{
-						isCompatible = false;
-					}
-				}
-				else
-				{
-					isCompatible = false;
-				}
-*/
 			}
 
 			// activate elements of the selected channels
@@ -306,57 +332,6 @@ namespace VisAssets.SciVis.Structured.ExtractVector
 				}
 
 				activeChannelNum = activeChannels.Count;
-			}
-		}
-
-		/// <summary>
-		/// Resets the associated uGUI toggles and dropdowns.
-		/// </summary>
-		public override void ResetUI()
-		{
-			for (int n = 0; n < 3; n++)
-			{
-				char axis = (char)('U' + n);
-				var toggleObj   = UIPanel.transform.Find($"Channels/Toggle {axis}");
-				var dropdownObj = UIPanel.transform.Find($"Channel{n}/Dropdown");
-
-				if (toggleObj == null || dropdownObj == null) continue;
-/*
-				string obj_name = "Channels/Toggle " + axis.ToString();
-				var toggle = UIPanel.transform.Find(obj_name).GetComponent<Toggle>();
-//				toggle.isOn = false;
-
-				obj_name = "Channel" + n.ToString() + "/Dropdown";
-				var dropdown = UIPanel.transform.Find(obj_name).GetComponent<Dropdown>();
-*/
-
-				var toggle   = toggleObj.GetComponent<Toggle>();
-				var dropdown = dropdownObj.GetComponent<Dropdown>();
-
-				dropdown.ClearOptions();
-
-				for (int i = 0; i < pdf.elements.Length; i++)
-				{
-					string optText = string.IsNullOrEmpty(pdf.elements[i].varName)
-						? $"variable #{i}"
-						: pdf.elements[i].varName;
-					dropdown.options.Add(new Dropdown.OptionData { text = optText });
-/*
-					if (pdf.elements[i].varName == "")
-					{
-						dropdown.options.Add(new Dropdown.OptionData { text = "variable #" + i.ToString() });
-					}
-					else
-					{
-						dropdown.options.Add(new Dropdown.OptionData { text = pdf.elements[i].varName });
-
-					}
-*/
-				}
-
-//				dropdown.interactable = true;
-				dropdown.interactable = toggle.isOn;
-				dropdown.RefreshShownValue();
 			}
 		}
 	}

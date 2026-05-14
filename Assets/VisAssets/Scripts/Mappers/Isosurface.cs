@@ -102,6 +102,9 @@ namespace VisAssets.SciVis.Structured.Isosurface
 				Undo.RecordObject(target, "Isosurface");
 				if (isosurface != null)
 				{
+					var prop = serializedObject.FindProperty("isThresholdInitialized");
+					if (prop != null) prop.boolValue = true;
+
 					if (_threshold != threshold.floatValue) isosurface.SetValue(_threshold);
 					isosurface.UpdateMaterialShader();
 				}
@@ -183,6 +186,9 @@ namespace VisAssets.SciVis.Structured.Isosurface
 		int     currentVolumeSize = -1;
 		private bool isCalculating = false;
 		private bool needsRecalculation = false;
+
+		[SerializeField, HideInInspector]
+		private bool isThresholdInitialized = false;
 
 		[SerializeField] public bool useGPU;
 		[SerializeField] public bool vramOptimization = true;
@@ -707,9 +713,16 @@ namespace VisAssets.SciVis.Structured.Isosurface
 
 		private void InitLevel()
 		{
-			threshold = element.average + element.variance * 3f;
 			min = element.min;
 			max = element.max;
+
+			if (!isThresholdInitialized)
+			{
+				threshold = element.average + element.variance * 3f;
+				isThresholdInitialized = true;
+			}
+
+			threshold = Mathf.Clamp(threshold, min, max);
 			slider = (max > min) ? (threshold - min) / (max - min) : 0f;
 		}
 

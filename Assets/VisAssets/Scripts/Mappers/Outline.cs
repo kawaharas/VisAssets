@@ -22,14 +22,16 @@ namespace VisAssets.SciVis.Structured.Outline
 		SerializedProperty color;
 		SerializedProperty drawOuterMesh;
 		SerializedProperty drawInnerMesh;
-		SerializedProperty lineShader;
+		SerializedProperty builtinMaterial;
+		SerializedProperty urpMaterial;
 
 		private void OnEnable()
 		{
-			color         = serializedObject.FindProperty("color");
-			drawOuterMesh = serializedObject.FindProperty("drawOuterMesh");
-			drawInnerMesh = serializedObject.FindProperty("drawInnerMesh");
-			lineShader    = serializedObject.FindProperty("lineShader");
+			color           = serializedObject.FindProperty("color");
+			drawOuterMesh   = serializedObject.FindProperty("drawOuterMesh");
+			drawInnerMesh   = serializedObject.FindProperty("drawInnerMesh");
+			builtinMaterial = serializedObject.FindProperty("builtinMaterial");
+			urpMaterial     = serializedObject.FindProperty("urpMaterial");
 		}
 
 		public override void OnInspectorGUI()
@@ -54,10 +56,11 @@ namespace VisAssets.SciVis.Structured.Outline
 
 			GUILayout.Space(5f);
 
-			if (lineShader != null)
-			{
-				EditorGUILayout.PropertyField(lineShader, new GUIContent("Material Shader"));
-			}
+			EditorGUILayout.PropertyField(builtinMaterial, new GUIContent("Built-in Material"));
+
+			GUILayout.Space(5f);
+
+			EditorGUILayout.PropertyField(urpMaterial, new GUIContent("URP Material"));
 
 			GUILayout.Space(5f);
 
@@ -84,6 +87,7 @@ namespace VisAssets.SciVis.Structured.Outline
 					outline.SetStateOuterMesh(drawOuterMesh.boolValue);
 					outline.SetStateInnerMesh(drawInnerMesh.boolValue);
 				}
+				outline.UpdateMaterialShader();
 
 				EditorUtility.SetDirty(target);
 			}
@@ -113,7 +117,10 @@ namespace VisAssets.SciVis.Structured.Outline
 		public Color color = new Color(1f, 1f, 1f, 0.3f);
 
 		[SerializeField]
-		public Shader lineShader;
+		private Material builtinMaterial;
+
+		[SerializeField]
+		private Material urpMaterial;
 
 		[SerializeField]
 		public bool drawOuterMesh;
@@ -125,50 +132,14 @@ namespace VisAssets.SciVis.Structured.Outline
 		protected override void Reset()
 		{
 			base.Reset();
-
-			EnsureCorrectShader();
 		}
 #endif
-
-#if UNITY_EDITOR
-		/// <summary>
-		/// Automatically detects the current Render Pipeline and returns the appropriate default shader.
-		/// </summary>
-		private void EnsureCorrectShader()
-		{
-			bool isURP = UnityEngine.Rendering.GraphicsSettings.renderPipelineAsset != null;
-			string expectedShaderName = isURP ? "Universal Render Pipeline/Unlit" : "Sprites/Default";
-
-			if (lineShader == null || lineShader.name != expectedShaderName)
-			{
-				lineShader = Shader.Find(expectedShaderName);
-			}
-		}
-#endif
-
-		private void OnValidate()
-		{
-#if UNITY_EDITOR
-			EnsureCorrectShader();
-#endif
-		}
 
 		public override void InitModule()
 		{
 			vertices = new List<Vector3>();
 			colors   = new List<Color>();
 			indices  = new List<int>();
-
-#if UNITY_EDITOR
-			EnsureCorrectShader();
-#else
-			if (lineShader == null)
-			{
-				bool isURP = UnityEngine.Rendering.GraphicsSettings.renderPipelineAsset != null;
-				lineShader = Shader.Find(isURP ? "Universal Render Pipeline/Unlit" : "Sprites/Default");
-			}
-#endif
-			material = new Material(lineShader);
 
 			mesh = new Mesh();
 			mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
@@ -178,8 +149,9 @@ namespace VisAssets.SciVis.Structured.Outline
 			meshFilter.hideFlags = HideFlags.HideInInspector;
 
 			var meshRenderer = GetComponent<MeshRenderer>();
-			meshRenderer.material = material;
 			meshRenderer.hideFlags = HideFlags.HideInInspector;
+
+			UpdateMaterialShader();
 		}
 
 		public override int BodyFunc()
@@ -337,6 +309,25 @@ namespace VisAssets.SciVis.Structured.Outline
 			indices.Add(vertexCount);
 			indices.Add(vertexCount + 1);
 			vertexCount += 2;
+		}
+
+		/// <summary>
+		/// Detects the active render pipeline and applies the appropriate material.
+		/// </summary>
+		public void UpdateMaterialShader()
+		{
+			var meshRenderer = GetComponent<MeshRenderer>();
+			if (meshRenderer == null) return;
+
+			var pipeline = UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline ?? UnityEngine.QualitySettings.renderPipeline;
+			bool isURP = pipeline != null;
+
+			Material targetMaterial = isURP ? urpMaterial : builtinMaterial;
+
+			if (targetMaterial != null)
+			{
+				meshRenderer.sharedMaterial = targetMaterial;
+			}
 		}
 	}
 }

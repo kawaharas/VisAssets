@@ -3,7 +3,6 @@ using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 using UnityEngine;
 #if UNITY_EDITOR
 using UnityEditor;
@@ -22,6 +21,8 @@ namespace VisAssets.SciVis.Structured.DataLoader
 	public class ReadV5Editor : ReadModuleTemplateEditor
 	{
 		SerializedProperty logicalFields;
+		SerializedProperty currentStep;
+		SerializedProperty enableMemoryCache;
 
 		/// <summary>
 		/// Overrides the base class method. Initializes serialized properties.
@@ -31,6 +32,39 @@ namespace VisAssets.SciVis.Structured.DataLoader
 			base.OnEnable();
 
 			logicalFields = serializedObject.FindProperty("logicalFields");
+			currentStep   = serializedObject.FindProperty("currentStep");
+			enableMemoryCache = serializedObject.FindProperty("enableMemoryCache");
+		}
+
+		protected override void DrawDataSourceSettingsExtension()
+		{
+			ReadV5 mod = (ReadV5)target;
+
+			enableMemoryCache.boolValue = EditorGUILayout.ToggleLeft(
+				new GUIContent("Enable Memory Cache",
+				"Caches loaded timesteps in RAM for instant playback. Disable if experiencing Out-Of-Memory on mobile/VR."), enableMemoryCache.boolValue);
+
+			GUILayout.Space(5f);
+
+			if (mod.ParsedNTime > 1)
+			{
+				EditorGUILayout.LabelField("[Time Control]", EditorStyles.boldLabel);
+				GUILayout.Space(5f);
+
+				if (currentStep != null)
+				{
+					EditorGUI.BeginDisabledGroup(mod.HasAnimator);
+					EditorGUI.BeginChangeCheck();
+					EditorGUILayout.IntSlider(currentStep, 0, mod.ParsedNTime - 1, new GUIContent("Time Step"));
+
+					if (EditorGUI.EndChangeCheck())
+					{
+						serializedObject.ApplyModifiedProperties();
+						if (Application.isPlaying) mod.SetData(currentStep.intValue);
+					}
+					EditorGUI.EndDisabledGroup();
+				}
+			}
 		}
 
 		/// <summary>
@@ -67,13 +101,33 @@ namespace VisAssets.SciVis.Structured.DataLoader
 		public bool IsVector;
 		public int[] ElementIndices;
 	}
-	
+
 	// =========================================================================
 	// Main Class
 	// =========================================================================
 	public class ReadV5 : ReadModuleTemplate
 	{
 		public List<LogicalFieldInfo> logicalFields = new List<LogicalFieldInfo>();
+		public int ParsedNTime { get; private set; } = 1;
+
+		[Tooltip("If true, loaded timesteps are kept in RAM. Playback becomes extremely fast but consumes more memory.")]
+		public bool enableMemoryCache = true;
+
+		private V5Metadata meta;
+		private List<float>[] coords;
+		private int currentParsedStep = -1;
+		private string cachedDataSource = "";
+		private bool isGeometryInitialized = false;
+
+		private class StepCache
+		{
+			public float[][] values;
+			public float[] mins;
+			public float[] maxs;
+			public float[] averages;
+			public float[] variances;
+		}
+		private StepCache[] stepCaches;
 
 #if UNITY_EDITOR
 		/// <summary>
@@ -91,6 +145,9 @@ namespace VisAssets.SciVis.Structured.DataLoader
 			precision         = Precision.DOUBLE;
 			useByteswapMenu   = true;
 			useHeaderSkipMenu = true;
+			currentParsedStep = -1;
+			cachedDataSource  = "";
+			enableMemoryCache = true;
 		}
 #endif
 
@@ -107,6 +164,17 @@ namespace VisAssets.SciVis.Structured.DataLoader
 		public override int BodyFunc()
 		{
 			if (string.IsNullOrEmpty(dataSource)) return 0;
+
+			if (dataSource == cachedDataSource && meta.dims != null)
+			{
+				SetData(currentStep);
+
+				return 1;
+			}
+
+			cachedDataSource = dataSource;
+			currentParsedStep = -1;
+			isGeometryInitialized = false;
 
 			StartCoroutine(Load());
 
@@ -127,23 +195,23 @@ namespace VisAssets.SciVis.Structured.DataLoader
 
 			if (hasError || string.IsNullOrEmpty(v5Text)) yield break;
 
-			V5Metadata meta = ParseV5Metadata(v5Text);
+			meta = ParseV5Metadata(v5Text);
+			ParsedNTime = meta.ntime;
 
 			if (meta.dims[0] * meta.dims[1] * meta.dims[2] == 0) yield break;
 
-			List<float>[] coords = new List<float>[4];
+			stepCaches = new StepCache[meta.ntime];
 
+			coords = new List<float>[4];
 			for (int i = 0; i < 4; i++)
 			{
 				coords[i] = new List<float>();
 			}
-			
+
 			for (int i = 0; i < 3; i++)
 			{
 				if (string.IsNullOrEmpty(meta.coordFiles[i])) continue;
-				
-				Debug.Log($"[ReadV5] Loading Coordinate Data ({i}): {meta.coordFiles[i]}");
-				
+
 				byte[] coordBytes = null;
 
 				yield return StartCoroutine(FetchBinaryRoutine(meta.coordFiles[i], (data) => { coordBytes = data; }));
@@ -153,7 +221,7 @@ namespace VisAssets.SciVis.Structured.DataLoader
 					coords[i] = ParseBinaryToFloatList(coordBytes, meta.dims[i], precision, byteswap, skipHeader, headerBytes);
 				}
 			}
-			
+
 			for (int k = 0; k < meta.dims[2]; k++)
 			{
 				for (int j = 0; j < meta.dims[1]; j++)
@@ -171,8 +239,8 @@ namespace VisAssets.SciVis.Structured.DataLoader
 			df.CreateElements(totalElements);
 			df.upAxis = DataField.UpAxis.Z;
 
-			int totalGridSize = meta.dims[0] * meta.dims[1] * meta.dims[2];
 			int elementCounter = 0;
+			logicalFields.Clear();
 
 			List<LogicalFieldDef> allFields = new List<LogicalFieldDef>();
 			allFields.AddRange(meta.scalars.Values);
@@ -185,14 +253,11 @@ namespace VisAssets.SciVis.Structured.DataLoader
 
 				if (!def.isVector)
 				{
-					Debug.Log($"[ReadV5] Loading Scalar Data [{def.label}]: {def.files[0]}");
-
-					yield return StartCoroutine(FetchAndParseBinaryRoutine(
-						def.files[0], totalGridSize, precision, byteswap, skipHeader, headerBytes,
-						onSuccess: (values) => { SetElementData(elementCounter, meta.dims, coords, values, def.label); },
-						onError: (err) => { Debug.LogError($"[ReadV5] Error: {err}"); }
-					));
-
+					df.elements[elementCounter].SetDims(new List<int>(meta.dims));
+					df.elements[elementCounter].SetCoords(coords);
+					df.elements[elementCounter].SetFieldType(FieldType.RECTILINEAR);
+					df.elements[elementCounter].varName = def.label.Replace("\\n", " ");
+					df.elements[elementCounter].SetSteps(meta.ntime);
 					fieldInfo.ElementIndices[0] = elementCounter;
 					elementCounter++;
 				}
@@ -202,16 +267,11 @@ namespace VisAssets.SciVis.Structured.DataLoader
 
 					for (int i = 0; i < 3; i++)
 					{
-						if (string.IsNullOrEmpty(def.files[i])) continue;
-
-						Debug.Log($"[ReadV5] Loading Vector Data [{def.label}{axisNames[i]}]: {def.files[i]}");
-
-						yield return StartCoroutine(FetchAndParseBinaryRoutine(
-							def.files[i], totalGridSize, precision, byteswap, skipHeader, headerBytes,
-							onSuccess: (values) => { SetElementData(elementCounter, meta.dims, coords, values, def.label + axisNames[i]); },
-							onError: (err) => { Debug.LogError($"[ReadV5] Error: {err}"); }
-						));
-
+						df.elements[elementCounter].SetDims(new List<int>(meta.dims));
+						df.elements[elementCounter].SetCoords(coords);
+						df.elements[elementCounter].SetFieldType(FieldType.RECTILINEAR);
+						df.elements[elementCounter].varName = (def.label + axisNames[i]).Replace("\\n", " ");
+						df.elements[elementCounter].SetSteps(meta.ntime);
 						fieldInfo.ElementIndices[i] = elementCounter;
 						elementCounter++;
 					}
@@ -220,44 +280,221 @@ namespace VisAssets.SciVis.Structured.DataLoader
 				logicalFields.Add(fieldInfo);
 			}
 
-			yield return StartCoroutine(CalcStatsForCurrentElementsRoutine());
+			InitAnimator();
 
-			Debug.Log("[ReadV5] All data successfully loaded!");
+			int initialStep = currentStep > 0 ? currentStep : 0;
+			yield return StartCoroutine(SetDataAsync(initialStep));
+
+			if (enableMemoryCache)
+			{
+				Debug.Log("[ReadV5] Starting background cache preload...");
+				StartCoroutine(PreloadAllCachesRoutine());
+			}
+		}
+
+		/// <summary>
+		/// Asynchronously preloads uncached timesteps in the background.
+		/// </summary>
+		private IEnumerator PreloadAllCachesRoutine()
+		{
+			for (int s = 0; s < meta.ntime; s++)
+			{
+				if (stepCaches[s] != null) continue;
+
+				yield return StartCoroutine(BuildCacheForStepAsync(s));
+			}
+
+			Debug.Log("[ReadV5] Background cache preload completed.");
+		}
+
+		public override void SetData(int step)
+		{
+			if (meta.dims == null || df.elements == null) return;
+			if (step == currentParsedStep) return;
+
+			StartCoroutine(SetDataAsync(step));
+		}
+
+		/// <summary>
+		/// Asynchronously sets the data for a specific timestep, utilizing the memory cache if available.
+		/// </summary>
+		private IEnumerator SetDataAsync(int step)
+		{
+			if (step < 0 || step >= meta.ntime) yield break;
+
+			currentParsedStep = step;
+			df.dataLoaded = false;
+
+			if (enableMemoryCache && stepCaches != null && stepCaches[step] != null)
+			{
+				StepCache cache = stepCaches[step];
+				for (int i = 0; i < df.elements.Length; i++)
+				{
+					df.elements[i].values = cache.values[i];
+					df.elements[i].min = cache.mins[i];
+					df.elements[i].max = cache.maxs[i];
+					df.elements[i].average = cache.averages[i];
+					df.elements[i].variance = cache.variances[i];
+					df.elements[i].SetActive(true);
+				}
+
+				ApplyLoadedData();
+				yield break;
+			}
+
+			yield return StartCoroutine(BuildCacheForStepAsync(step));
+
+			if (stepCaches[step] != null)
+			{
+				StepCache cache = stepCaches[step];
+				for (int i = 0; i < df.elements.Length; i++)
+				{
+					df.elements[i].values = cache.values[i];
+					df.elements[i].min = cache.mins[i];
+					df.elements[i].max = cache.maxs[i];
+					df.elements[i].average = cache.averages[i];
+					df.elements[i].variance = cache.variances[i];
+					df.elements[i].SetActive(true);
+				}
+			}
 
 			ApplyLoadedData();
 		}
 
 		/// <summary>
-		/// Sets the parsed dimensions, coordinates, and values to a specific DataElement.
+		/// Builds a memory cache for a specific timestep using the optimized parallel routine.
 		/// </summary>
-		private void SetElementData(int index, int[] dims, List<float>[] coords, List<float> values, string varName)
+		private IEnumerator BuildCacheForStepAsync(int step)
 		{
-			df.elements[index].SetDims(new List<int>(dims));
-			df.elements[index].SetCoords(coords);
-			df.elements[index].SetValues(values);
-			df.elements[index].SetFieldType(FieldType.RECTILINEAR);
-			df.elements[index].varName = varName.Replace("\\n", " ");
-			df.elements[index].SetActive(true);
+			int totalGridSize = meta.dims[0] * meta.dims[1] * meta.dims[2];
+
+			List<LogicalFieldDef> allFields = new List<LogicalFieldDef>();
+			allFields.AddRange(meta.scalars.Values);
+			allFields.AddRange(meta.vectors.Values);
+			allFields.Sort((a, b) => a.sequence.CompareTo(b.sequence));
+
+			string[] absolutePaths = new string[df.elements.Length];
+
+			int elementCounter = 0;
+			for (int i = 0; i < allFields.Count; i++)
+			{
+				var def = allFields[i];
+				int numComps = def.isVector ? 3 : 1;
+
+				for (int c = 0; c < numComps; c++)
+				{
+					absolutePaths[elementCounter] = def.files[step][c];
+					elementCounter++;
+				}
+			}
+
+			bool useWebRequest = Application.platform == RuntimePlatform.Android ||
+			                     Application.platform == RuntimePlatform.WebGLPlayer ||
+			                     dataSource.StartsWith("http://") || dataSource.StartsWith("https://");
+
+			for (int i = 0; i < df.elements.Length; i++)
+			{
+				string path = absolutePaths[i];
+
+				if (!string.IsNullOrEmpty(path))
+				{
+					if (!useWebRequest)
+					{
+						if (path.StartsWith("file://"))
+						{
+							path = new System.Uri(path).LocalPath;
+						}
+						else if (!Path.IsPathRooted(path))
+						{
+							path = Path.Combine(Application.streamingAssetsPath, path);
+						}
+
+						absolutePaths[i] = path.Replace('\\', '/');
+					}
+				}
+			}
+
+			float[][] parsedValues = new float[df.elements.Length][];
+
+			// Delegate the heavy lifting to the shared parallel routine in ReadModuleTemplate
+			yield return StartCoroutine(FetchParseAndCalcStatsParallelRoutine(
+				absolutePaths,
+				totalGridSize,
+				df.elements,
+				parsedValues,
+				precision,
+				byteswap,
+				skipHeader,
+				headerBytes,
+				useWebRequest
+			));
+
+			StepCache newCache = new StepCache
+			{
+				values    = new float[df.elements.Length][],
+				mins      = new float[df.elements.Length],
+				maxs      = new float[df.elements.Length],
+				averages  = new float[df.elements.Length],
+				variances = new float[df.elements.Length]
+			};
+
+			bool cacheIsValid = false;
+
+			for (int i = 0; i < df.elements.Length; i++)
+			{
+				if (parsedValues[i] != null)
+				{
+					newCache.values[i]    = parsedValues[i];
+					newCache.mins[i]      = df.elements[i].min;
+					newCache.maxs[i]      = df.elements[i].max;
+					newCache.averages[i]  = df.elements[i].average;
+					newCache.variances[i] = df.elements[i].variance;
+					cacheIsValid = true;
+				}
+			}
+
+			if (cacheIsValid && enableMemoryCache)
+			{
+				stepCaches[step] = newCache;
+			}
 		}
 
-		// --- Helper Structures and Parsing Logic ---
+		protected override void ApplyLoadedData()
+		{
+			if (!isGeometryInitialized)
+			{
+				base.ApplyLoadedData();
+				isGeometryInitialized = true;
+			}
+			else
+			{
+				df.dataLoaded = true;
+				SetParentChangedIntoAllChildren();
+			}
+		}
 
 		private class LogicalFieldDef
 		{
 			public int sequence;
 			public bool isVector;
 			public string label = "Unknown";
-			public string[] files;
+			public string[][] files; // [timeStep][component]
 
-			public LogicalFieldDef(int size, bool vector)
+			public LogicalFieldDef(int ntime, bool vector)
 			{
-				files = new string[size];
 				isVector = vector;
+				files = new string[ntime][];
+
+				for (int i = 0; i < ntime; i++)
+				{
+					files[i] = new string[vector ? 3 : 1];
+				}
 			}
 		}
 
 		private struct V5Metadata
 		{
+			public int ntime;
 			public int[] dims;
 			public string[] coordFiles;
 			public SortedDictionary<int, LogicalFieldDef> scalars;
@@ -265,6 +502,7 @@ namespace VisAssets.SciVis.Structured.DataLoader
 
 			public V5Metadata(int dummy)
 			{
+				ntime = 1;
 				dims = new int[3];
 				coordFiles = new string[3];
 				scalars = new SortedDictionary<int, LogicalFieldDef>();
@@ -273,14 +511,36 @@ namespace VisAssets.SciVis.Structured.DataLoader
 		}
 
 		/// <summary>
-		/// Parses the VFIVE metadata text to extract grid dimensions, coordinate files, and variable fields.
+		/// Parses the VFIVE metadata text. Extracts time dimension first, then variables.
 		/// </summary>
 		private V5Metadata ParseV5Metadata(string text)
 		{
 			V5Metadata meta = new V5Metadata(0);
 			string filePath = Path.GetDirectoryName(dataSource);
+
+			// Pre-pass to find NTIME
+			using (StringReader reader = new StringReader(text))
+			{
+				string line;
+				while ((line = reader.ReadLine()) != null)
+				{
+					if (line.TrimStart().StartsWith("#")) continue;
+
+					string[] tokens = line.Split(new char[0], StringSplitOptions.RemoveEmptyEntries);
+
+					if (tokens.Length == 0) continue;
+
+					if (tokens[0].ToUpper() == "NTIME")
+					{
+						meta.ntime = Convert.ToInt32(tokens[1]);
+						break;
+					}
+				}
+			}
+
 			int sequenceCounter = 0;
 
+			// Second pass to parse everything
 			using (StringReader reader = new StringReader(text))
 			{
 				string line;
@@ -326,51 +586,73 @@ namespace VisAssets.SciVis.Structured.DataLoader
 					{
 						meta.coordFiles[2] = GetAdjustedPath(filePath, tokens[1]);
 					}
-					else if (keyword.StartsWith("SCAL") && keyword != "SCALE" && keyword != "NSCAL")
+
+					// Parse labels like SCAL0_LABEL or VECT0_LABEL
+					Match mLabel = Regex.Match(keyword, @"^(SCAL|VECT)(\d+)_LABEL$");
+					if (mLabel.Success)
 					{
-						int idx = int.Parse(Regex.Match(keyword, @"\d+").Value);
+						string type = mLabel.Groups[1].Value;
+						int idx = int.Parse(mLabel.Groups[2].Value);
 
-						if (!meta.scalars.ContainsKey(idx))
+						if (type == "SCAL")
 						{
-							meta.scalars[idx] = new LogicalFieldDef(1, false) { sequence = sequenceCounter++ };
-						}
-
-						if (keyword.Contains("_LABEL"))
-						{
+							if (!meta.scalars.ContainsKey(idx))
+							{
+								meta.scalars[idx] = new LogicalFieldDef(meta.ntime, false) { sequence = sequenceCounter++ };
+							}
 							meta.scalars[idx].label = tokens[1];
 						}
-						else if (!keyword.Contains("MIN") && !keyword.Contains("MAX"))
+						else if (type == "VECT")
 						{
-							meta.scalars[idx].files[0] = GetAdjustedPath(filePath, tokens[1]);
-						}
-					}
-					else if (keyword.StartsWith("VECT") && keyword != "NVEC")
-					{
-						int idx = int.Parse(Regex.Match(keyword, @"\d+").Value);
-
-						if (!meta.vectors.ContainsKey(idx))
-						{
-							meta.vectors[idx] = new LogicalFieldDef(3, true) { sequence = sequenceCounter++ };
-						}
-
-						if (keyword.Contains("_LABEL"))
-						{
+							if (!meta.vectors.ContainsKey(idx))
+							{
+								meta.vectors[idx] = new LogicalFieldDef(meta.ntime, true) { sequence = sequenceCounter++ };
+							}
 							meta.vectors[idx].label = tokens[1];
 						}
-						else if (!keyword.Contains("MIN") && !keyword.Contains("MAX"))
+						continue;
+					}
+
+					// Parse data files like SCAL0, SCAL0T1, VECT0X, VECT0XT1
+					Match mData = Regex.Match(keyword, @"^(SCAL|VECT)(\d+)(X|Y|Z)?(?:T(\d+))?$");
+
+					if (mData.Success && keyword != "SCALE" && keyword != "NSCAL" && keyword != "NVEC")
+					{
+						string type = mData.Groups[1].Value;
+						int idx = int.Parse(mData.Groups[2].Value);
+						string comp = mData.Groups[3].Value;
+						int tStep = mData.Groups[4].Success ? int.Parse(mData.Groups[4].Value) : 0;
+
+						if (tStep >= meta.ntime) continue;
+
+						if (type == "SCAL")
 						{
-							if (keyword.EndsWith("X"))
+							if (!meta.scalars.ContainsKey(idx))
 							{
-								meta.vectors[idx].files[0] = GetAdjustedPath(filePath, tokens[1]);
+								meta.scalars[idx] = new LogicalFieldDef(meta.ntime, false) { sequence = sequenceCounter++ };
 							}
-							else if (keyword.EndsWith("Y"))
+
+							meta.scalars[idx].files[tStep][0] = GetAdjustedPath(filePath, tokens[1]);
+						}
+						else if (type == "VECT")
+						{
+							if (!meta.vectors.ContainsKey(idx))
 							{
-								meta.vectors[idx].files[1] = GetAdjustedPath(filePath, tokens[1]);
+								meta.vectors[idx] = new LogicalFieldDef(meta.ntime, true) { sequence = sequenceCounter++ };
 							}
-							else if (keyword.EndsWith("Z"))
+
+							int compIdx = 0;
+
+							if (comp == "Y")
 							{
-								meta.vectors[idx].files[2] = GetAdjustedPath(filePath, tokens[1]);
+								compIdx = 1;
 							}
+							else if (comp == "Z")
+							{
+								compIdx = 2;
+							}
+
+							meta.vectors[idx].files[tStep][compIdx] = GetAdjustedPath(filePath, tokens[1]);
 						}
 					}
 				}

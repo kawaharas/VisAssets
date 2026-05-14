@@ -78,7 +78,8 @@ MonoBehaviour:
     prev_axis: 0
     prev_slice: 0
     prev_value: 0
-  flowShader: {fileID: 10753, guid: 0000000000000000f000000000000000, type: 0}
+  builtinMaterial: {fileID: 2100000, guid: 1b893e6bbf0027d4bb1bc349f5fcc986, type: 2}
+  urpMaterial: {fileID: 2100000, guid: cf7460ec0c9e8cf419f522ec0cc16c5d, type: 2}
   restrictToSlice: 1
   zOffset: 0.001
   useMagnitudeColor: 0
@@ -114,8 +115,8 @@ MonoBehaviour:
     m_NumAlphaKeys: 2
   flowColor: {r: 1, g: 1, b: 1, a: 0.6}
   integrationMethod: 0
-  particleCount: 10000
-  speedScale: 20
+  particleCount: 1000
+  speedScale: 1
   trailLength: 1
 --- !u!33 &1207682893321264301
 MeshFilter:
@@ -145,7 +146,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 0}
+  - {fileID: 2100000, guid: 1b893e6bbf0027d4bb1bc349f5fcc986, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0

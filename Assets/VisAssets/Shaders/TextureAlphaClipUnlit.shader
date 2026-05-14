@@ -1,4 +1,4 @@
-Shader "VisAssets/UnlitAlphaClip"
+Shader "VisAssets/TextureAlphaClipUnlit"
 {
 	Properties
 	{

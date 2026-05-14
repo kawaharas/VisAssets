@@ -75,6 +75,10 @@ namespace VisAssets.SciVis.Structured.Arrows
 			if (EditorGUI.EndChangeCheck())
 			{
 				Undo.RecordObject(target, "Arrows");
+
+				var prop = serializedObject.FindProperty("isScaleInitialized");
+				if (prop != null) prop.boolValue = true;
+
 				serializedObject.ApplyModifiedProperties();
 				arrows.SetSlice(slice.floatValue);
 				EditorUtility.SetDirty(target);
@@ -249,6 +253,9 @@ namespace VisAssets.SciVis.Structured.Arrows
 		private const int COLOR_BINS = 64;
 		private List<int>[] colorBins    = new List<int>[COLOR_BINS];
 		private Matrix4x4[] matrixBuffer = new Matrix4x4[1023]; // Reusable buffer for DrawMeshInstanced
+
+		[SerializeField, HideInInspector]
+		private bool isScaleInitialized = false;
 
 		public override void InitModule()
 		{
@@ -548,33 +555,43 @@ namespace VisAssets.SciVis.Structured.Arrows
 
 			if (maxMagnitude == 0f) maxMagnitude = 1f;
 
-			if (elements[activeElements[0]].fieldType == FieldType.RECTILINEAR ||
-				elements[activeElements[0]].fieldType == FieldType.UNIFORM)
+			if (!isScaleInitialized)
 			{
-				float dmin = float.MaxValue;
-
-				for (int n = 0; n < 3; n++)
+				if (elements[activeElements[0]].fieldType == FieldType.RECTILINEAR ||
+					elements[activeElements[0]].fieldType == FieldType.UNIFORM)
 				{
-					float[] coord = elements[activeElements[0]].coords[n];
+					float dmin = float.MaxValue;
 
-					for (int i = 0; i < dims[n] - 1; i++)
+					for (int n = 0; n < 3; n++)
 					{
-						dmin = Math.Min(dmin, Math.Abs(coord[i + 1] - coord[i]));
+						float[] coord = elements[activeElements[0]].coords[n];
+						for (int i = 0; i < dims[n] - 1; i++)
+						{
+							dmin = Math.Min(dmin, Math.Abs(coord[i + 1] - coord[i]));
+						}
 					}
+					arrowscale = (dmin / maxMagnitude) * 0.8f;
+				}
+				else if (elements[activeElements[0]].fieldType == FieldType.IRREGULAR)
+				{
+					arrowscale = (1f / maxMagnitude) * 0.8f;
 				}
 
-				arrowscale = (dmin / maxMagnitude) * 0.8f;
-			}
-			else if (elements[activeElements[0]].fieldType == FieldType.IRREGULAR)
-			{
-				arrowscale = (1f / maxMagnitude) * 0.8f;
-			}
+				isScaleInitialized = true;
 
+				maxArrowScale = arrowscale * 5f;
+			}
+/*
 			maxArrowScale = arrowscale * 5f;
 
 			if (maxArrowScale <= 0f)
 			{
 				maxArrowScale = 1f;
+			}
+*/
+			if (maxArrowScale < arrowscale * 1.2f)
+			{
+				maxArrowScale = arrowscale * 5.0f;
 			}
 		}
 

@@ -1,6 +1,6 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
---- !u!1 &5304810834932384432
+--- !u!1 &8457192023941955023
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -8,24 +8,24 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 5304810834932384434}
-  - component: {fileID: 5304810834932384435}
-  - component: {fileID: 5304810834932384433}
-  - component: {fileID: 5304810834932384444}
+  - component: {fileID: 3305486821009402590}
+  - component: {fileID: 4223781356310470042}
+  - component: {fileID: 131374947676528879}
+  - component: {fileID: 8501465424580388778}
   m_Layer: 0
-  m_Name: ExtractScalar
+  m_Name: VectorMagnitude
   m_TagString: VisModule
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!4 &5304810834932384434
+--- !u!4 &3305486821009402590
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5304810834932384432}
+  m_GameObject: {fileID: 8457192023941955023}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
@@ -34,13 +34,13 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &5304810834932384435
+--- !u!114 &4223781356310470042
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5304810834932384432}
+  m_GameObject: {fileID: 8457192023941955023}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: ddeb0049803ed404ba907c4860b87946, type: 3}
@@ -48,39 +48,40 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   moduleType: 3
   parent_changed: 0
-  parameter_changed: 0
---- !u!114 &5304810834932384433
+  parameter_changed: 1
+--- !u!114 &131374947676528879
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5304810834932384432}
+  m_GameObject: {fileID: 8457192023941955023}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 621973219bf8cc046a94d438d2f51061, type: 3}
+  m_Script: {fileID: 11500000, guid: 1f656fcc17abcf0409ffd5faf8f19f3b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   UIPanel: {fileID: 0}
   FixedModuleName: 
-  UIPrefab: {fileID: 8288204197248746562, guid: e6d57d3c750969f41ae84e9473b01fdf, type: 3}
+  UIPrefab: {fileID: 0}
   activation: {fileID: 0}
   df: {fileID: 0}
   pdf: {fileID: 0}
-  channel: 0
+  channelStates: 000000
+  channels: 000000000000000000000000
   varNames: []
   dataMin: 0
   dataMax: 1
   useOverrideRange: 0
   overrideMin: 0
   overrideMax: 1
---- !u!114 &5304810834932384444
+--- !u!114 &8501465424580388778
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5304810834932384432}
+  m_GameObject: {fileID: 8457192023941955023}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: a48bb59cb1bf60742b482dfdc9008cdb, type: 3}

@@ -29,7 +29,9 @@ namespace VisAssets.SciVis.Structured.ParticleTracer
 		SerializedProperty integrationMethod;
 		SerializedProperty speedScale;
 		SerializedProperty trailLength;
-		SerializedProperty flowShader;
+//		SerializedProperty flowShader;
+		SerializedProperty builtinMaterial;
+		SerializedProperty urpMaterial;
 
 		private void OnEnable()
 		{
@@ -44,7 +46,9 @@ namespace VisAssets.SciVis.Structured.ParticleTracer
 			integrationMethod = serializedObject.FindProperty("integrationMethod");
 			speedScale        = serializedObject.FindProperty("speedScale");
 			trailLength       = serializedObject.FindProperty("trailLength");
-			flowShader        = serializedObject.FindProperty("flowShader");
+//			flowShader        = serializedObject.FindProperty("flowShader");
+			builtinMaterial   = serializedObject.FindProperty("builtinMaterial");
+			urpMaterial       = serializedObject.FindProperty("urpMaterial");
 		}
 
 		public override void OnInspectorGUI()
@@ -148,7 +152,7 @@ namespace VisAssets.SciVis.Structured.ParticleTracer
 				flow.ReSetParameters();
 				EditorUtility.SetDirty(target);
 			}
-
+/*
 			GUILayout.Space(5f);
 
 			EditorGUI.BeginChangeCheck();
@@ -157,6 +161,24 @@ namespace VisAssets.SciVis.Structured.ParticleTracer
 			{
 				EditorGUILayout.PropertyField(flowShader, new GUIContent("Flow Shader"));
 			}
+			if (EditorGUI.EndChangeCheck())
+			{
+				Undo.RecordObject(target, "ParticleTracer");
+				serializedObject.ApplyModifiedProperties();
+				flow.UpdateMaterial();
+				EditorUtility.SetDirty(target);
+			}
+*/
+			GUILayout.Space(5f);
+
+			EditorGUI.BeginChangeCheck();
+
+			EditorGUILayout.PropertyField(builtinMaterial, new GUIContent("Built-in Material"));
+
+			GUILayout.Space(5f);
+
+			EditorGUILayout.PropertyField(urpMaterial, new GUIContent("URP Material"));
+
 			if (EditorGUI.EndChangeCheck())
 			{
 				Undo.RecordObject(target, "ParticleTracer");
@@ -201,7 +223,9 @@ namespace VisAssets.SciVis.Structured.ParticleTracer
 		}
 
 		[SerializeField] public SliceHelper sliceHelper = new SliceHelper();
-		[SerializeField] public Shader flowShader;
+//		[SerializeField] public Shader flowShader;
+		[SerializeField] private Material builtinMaterial;
+		[SerializeField] private Material urpMaterial;
 
 		public bool  restrictToSlice = true;
 		public float zOffset         = 0.001f;
@@ -240,7 +264,7 @@ namespace VisAssets.SciVis.Structured.ParticleTracer
 		{
 			base.Reset();
 
-			EnsureCorrectShader();
+//			EnsureCorrectShader();
 
 			magnitudeGradient = new Gradient();
 
@@ -252,7 +276,7 @@ namespace VisAssets.SciVis.Structured.ParticleTracer
 			BuildGradientLut();
 		}
 #endif
-
+/*
 #if UNITY_EDITOR
 		/// <summary>
 		/// Automatically determines the current render pipeline (Built-in or URP) and assigns the appropriate shader.
@@ -269,7 +293,7 @@ namespace VisAssets.SciVis.Structured.ParticleTracer
 			}
 		}
 #endif
-
+*/
 		public override void InitModule()
 		{
 			if (sliceHelper == null)
@@ -424,7 +448,7 @@ namespace VisAssets.SciVis.Structured.ParticleTracer
 
 		public override void ReSetParameters()
 		{
-			if (pdf == null || pdf.elements == null)
+			if (pdf == null || pdf.elements == null || pdf.elements.Length < 3)
 			{
 				activeElements.Clear();
 
@@ -470,7 +494,7 @@ namespace VisAssets.SciVis.Structured.ParticleTracer
 		private void OnValidate()
 		{
 #if UNITY_EDITOR
-			EnsureCorrectShader();
+//			EnsureCorrectShader();
 			BuildGradientLut();
 #endif
 			if (IsDataLoadedToParent())
@@ -520,6 +544,7 @@ namespace VisAssets.SciVis.Structured.ParticleTracer
 		/// </summary>
 		public void UpdateMaterial()
 		{
+/*
 #if UNITY_EDITOR
 			EnsureCorrectShader();
 #endif
@@ -540,7 +565,17 @@ namespace VisAssets.SciVis.Structured.ParticleTracer
 			{
 				meshRenderer.sharedMaterial = sharedMaterial;
 			}
-		}
+*/
+			var pipeline = UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline ?? UnityEngine.QualitySettings.renderPipeline;
+			bool isURP = pipeline != null;
+
+			Material targetMaterial = isURP ? urpMaterial : builtinMaterial;
+
+			if (targetMaterial != null && TryGetComponent<MeshRenderer>(out var renderer))
+			{
+				renderer.sharedMaterial = targetMaterial;
+			}
+	}
 
 		/// <summary>
 		/// Initializes the particle array and creates the dynamic mesh structures.

@@ -20,12 +20,14 @@ namespace VisAssets.SciVis.Structured.Bounds
 	public class BoundsEditor : Editor
 	{
 		SerializedProperty color;
-		SerializedProperty lineShader;
+		SerializedProperty builtinMaterial;
+		SerializedProperty urpMaterial;
 
 		private void OnEnable()
 		{
-			color      = serializedObject.FindProperty("color");
-			lineShader = serializedObject.FindProperty("lineShader");
+			color           = serializedObject.FindProperty("color");
+			builtinMaterial = serializedObject.FindProperty("builtinMaterial");
+			urpMaterial     = serializedObject.FindProperty("urpMaterial");
 		}
 
 		public override void OnInspectorGUI()
@@ -42,10 +44,11 @@ namespace VisAssets.SciVis.Structured.Bounds
 
 			GUILayout.Space(5f);
 
-			if (lineShader != null)
-			{
-				EditorGUILayout.PropertyField(lineShader, new GUIContent("Material Shader"));
-			}
+			EditorGUILayout.PropertyField(builtinMaterial, new GUIContent("Built-in Material"));
+
+			GUILayout.Space(5f);
+
+			EditorGUILayout.PropertyField(urpMaterial, new GUIContent("URP Material"));
 
 			GUILayout.Space(5f);
 
@@ -68,6 +71,7 @@ namespace VisAssets.SciVis.Structured.Bounds
 				{
 					bounds.SetColor(color.colorValue);
 				}
+				bounds.UpdateMaterialShader();
 
 				EditorUtility.SetDirty(target);
 			}
@@ -94,7 +98,10 @@ namespace VisAssets.SciVis.Structured.Bounds
 		public Color  color = new Color(1f, 1f, 1f, 1f);
 
 		[SerializeField]
-		public Shader lineShader;
+		private Material builtinMaterial;
+
+		[SerializeField]
+		private Material urpMaterial;
 
 		int[] indices = new int[24]
 		{
@@ -107,24 +114,6 @@ namespace VisAssets.SciVis.Structured.Bounds
 		protected override void Reset()
 		{
 			base.Reset();
-
-			EnsureCorrectShader();
-		}
-#endif
-
-#if UNITY_EDITOR
-		/// <summary>
-		/// Automatically detects the current Render Pipeline and returns the appropriate default shader.
-		/// </summary>
-		private void EnsureCorrectShader()
-		{
-			bool isURP = UnityEngine.Rendering.GraphicsSettings.renderPipelineAsset != null;
-			string expectedShaderName = isURP ? "Universal Render Pipeline/Unlit" : "Sprites/Default";
-
-			if (lineShader == null || lineShader.name != expectedShaderName)
-			{
-				lineShader = Shader.Find(expectedShaderName);
-			}
 		}
 #endif
 
@@ -132,18 +121,6 @@ namespace VisAssets.SciVis.Structured.Bounds
 		{
 			vertices = new List<Vector3>();
 			colors   = new List<Color>();
-
-#if UNITY_EDITOR
-			EnsureCorrectShader();
-#else
-			if (lineShader == null)
-			{
-				bool isURP = UnityEngine.Rendering.GraphicsSettings.renderPipelineAsset != null;
-				lineShader = Shader.Find(isURP ? "Universal Render Pipeline/Unlit" : "Sprites/Default");
-			}
-#endif
-
-			material = new Material(lineShader);
 
 			mesh = new Mesh();
 			mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
@@ -153,8 +130,9 @@ namespace VisAssets.SciVis.Structured.Bounds
 			meshFilter.hideFlags = HideFlags.HideInInspector;
 
 			var meshRenderer = GetComponent<MeshRenderer>();
-			meshRenderer.material  = material;
 			meshRenderer.hideFlags = HideFlags.HideInInspector;
+
+			UpdateMaterialShader();
 		}
 
 		public override int BodyFunc()
@@ -247,13 +225,6 @@ namespace VisAssets.SciVis.Structured.Bounds
 			mesh.RecalculateBounds();
 		}
 
-		private void OnValidate()
-		{
-#if UNITY_EDITOR
-			EnsureCorrectShader();
-#endif
-		}
-
 		/// <summary>
 		/// Updates the color of the bounds and triggers a parameter change event.
 		/// </summary>
@@ -273,6 +244,25 @@ namespace VisAssets.SciVis.Structured.Bounds
 			int index = dims[1] * dims[0] * k + dims[0] * j + i;
 
 			return index;
+		}
+
+		/// <summary>
+		/// Detects the active render pipeline and applies the appropriate material.
+		/// </summary>
+		public void UpdateMaterialShader()
+		{
+			var meshRenderer = GetComponent<MeshRenderer>();
+			if (meshRenderer == null) return;
+
+			var pipeline = UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline ?? UnityEngine.QualitySettings.renderPipeline;
+			bool isURP = pipeline != null;
+
+			Material targetMaterial = isURP ? urpMaterial : builtinMaterial;
+
+			if (targetMaterial != null)
+			{
+				meshRenderer.sharedMaterial = targetMaterial;
+			}
 		}
 	}
 }

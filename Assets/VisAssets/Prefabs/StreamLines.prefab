@@ -66,11 +66,13 @@ MonoBehaviour:
   moduleType: 2
   activation: {fileID: 0}
   pdf: {fileID: 0}
-  lineShader: {fileID: 10753, guid: 0000000000000000f000000000000000, type: 0}
-  sphereShader: {fileID: 46, guid: 0000000000000000f000000000000000, type: 0}
+  builtinLineMaterial: {fileID: 2100000, guid: 1b893e6bbf0027d4bb1bc349f5fcc986, type: 2}
+  urpLineMaterial: {fileID: 2100000, guid: cf7460ec0c9e8cf419f522ec0cc16c5d, type: 2}
+  builtinSphereMaterial: {fileID: 2100000, guid: aee36963d8da2264fb062782ad1d67ed, type: 2}
+  urpSphereMaterial: {fileID: 2100000, guid: b61e4d56c6657c9488bb3add8d296f97, type: 2}
   drawMode: 0
   ribbonWidth: 0.05
-  UseMagnitude: 0
+  useMagnitudeColor: 0
   lineColor: {r: 0, g: 1, b: 1, a: 1}
   sphereColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
   p0:

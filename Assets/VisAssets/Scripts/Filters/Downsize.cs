@@ -22,18 +22,12 @@ namespace VisAssets.SciVis.Structured.Downsize
 		SerializedProperty targetDims, androidMaxDim;
 		private bool pendingUpdate = false;
 
-		/// <summary>
-		/// Initializes serialized properties when the object is selected in the Inspector.
-		/// </summary>
 		private void OnEnable()
 		{
 			targetDims = serializedObject.FindProperty("targetDims");
 			androidMaxDim = serializedObject.FindProperty("androidMaxDim");
 		}
 
-		/// <summary>
-		/// Renders the custom Inspector GUI for the Downsize module.
-		/// </summary>
 		public override void OnInspectorGUI()
 		{
 			var downsize = target as Downsize;
@@ -41,7 +35,7 @@ namespace VisAssets.SciVis.Structured.Downsize
 			serializedObject.Update();
 
 			EditorGUI.BeginChangeCheck();
-
+/*
 			int maxX = 100; int maxY = 100; int maxZ = 100;
 
 			// Dynamically determine the maximum allowed dimensions based on the loaded data field
@@ -64,6 +58,17 @@ namespace VisAssets.SciVis.Structured.Downsize
 				maxZ = Mathf.Min(maxZ, downsize.androidMaxDim);
 #endif
 			}
+*/
+			// ★修正：ロード状態に依存せず、モジュールが記憶している最大値を常に使用するストッパー
+			int maxX = downsize.maxDataDims.x;
+			int maxY = downsize.maxDataDims.y;
+			int maxZ = downsize.maxDataDims.z;
+
+#if UNITY_ANDROID
+			maxX = Mathf.Min(maxX, downsize.androidMaxDim);
+			maxY = Mathf.Min(maxY, downsize.androidMaxDim);
+			maxZ = Mathf.Min(maxZ, downsize.androidMaxDim);
+#endif
 
 			Vector3Int currentDims = targetDims.vector3IntValue;
 
@@ -133,6 +138,7 @@ namespace VisAssets.SciVis.Structured.Downsize
 		public int androidMaxDim = 100;
 
 		[HideInInspector] public List<int> activeElements = new List<int>();
+		[HideInInspector] public Vector3Int maxDataDims = new Vector3Int(100, 100, 100);
 
 		// ==========================================================
 		// uGUI Compatibility Properties & Methods
@@ -147,21 +153,11 @@ namespace VisAssets.SciVis.Structured.Downsize
 			set { targetDims = value; }
 		}
 
-		// ==========================================================
-		// Core Module Logic
-		// ==========================================================
-
-		/// <summary>
-		/// Initializes module-specific internal variables.
-		/// </summary>
 		public override void InitModule()
 		{
 			activeElements = new List<int>();
 		}
 
-		/// <summary>
-		/// The main execution function of the module that triggers the downsize processing.
-		/// </summary>
 		public override int BodyFunc()
 		{
 			if (activeElements.Count > 0)
@@ -171,12 +167,10 @@ namespace VisAssets.SciVis.Structured.Downsize
 					ProcessElement(activeElements[i]);
 				}
 			}
+
 			return 1;
 		}
 
-		/// <summary>
-		/// Resets and prepares the local DataField elements based on the parent data field.
-		/// </summary>
 		public override void ReSetParameters()
 		{
 			df.DisposeElements();
@@ -191,19 +185,19 @@ namespace VisAssets.SciVis.Structured.Downsize
 			df.scale = pdf.scale;
 			df.offset = pdf.offset;
 
+			// ★追加：新しいデータを受け取った時だけ最大サイズを更新して記憶する
+			if (pdf.elements.Length > 0 && pdf.elements[0].dims != null && pdf.elements[0].dims.Length >= 3)
+			{
+				maxDataDims = new Vector3Int(pdf.elements[0].dims[0], pdf.elements[0].dims[1], pdf.elements[0].dims[2]);
+			}
+
 			CheckActiveElements();
 		}
 
-		/// <summary>
-		/// Applies parameter changes from the UI. (Empty in this module as updates are handled dynamically)
-		/// </summary>
 		public override void SetParameters()
 		{
 		}
 
-		/// <summary>
-		/// Resets the associated uGUI components (sliders and input fields) to their default states based on the current data dimensions.
-		/// </summary>
 		public override void ResetUI()
 		{
 			if (UIPanel == null || pdf == null || pdf.elements == null || pdf.elements.Length == 0) return;
@@ -237,7 +231,7 @@ namespace VisAssets.SciVis.Structured.Downsize
 		public void SetDims(int[] ndims)
 		{
 			if (ndims == null || ndims.Length < 3) return;
-
+/*
 			int maxX = int.MaxValue; int maxY = int.MaxValue; int maxZ = int.MaxValue;
 
 			if (pdf != null && pdf.dataLoaded && pdf.elements != null && pdf.elements.Length > 0)
@@ -254,6 +248,10 @@ namespace VisAssets.SciVis.Structured.Downsize
 			targetDims.x = Mathf.Clamp(ndims[0], 1, maxX);
 			targetDims.y = Mathf.Clamp(ndims[1], 1, maxY);
 			targetDims.z = Mathf.Clamp(ndims[2], 1, maxZ);
+*/
+			targetDims.x = Mathf.Clamp(ndims[0], 1, maxDataDims.x);
+			targetDims.y = Mathf.Clamp(ndims[1], 1, maxDataDims.y);
+			targetDims.z = Mathf.Clamp(ndims[2], 1, maxDataDims.z);
 
 			if (activation != null)
 			{
@@ -387,7 +385,9 @@ namespace VisAssets.SciVis.Structured.Downsize
 							float z0 = src.coords[2][za];
 							float z1 = src.coords[2][zb];
 
-							int sx = oDims[0]; int sy = oDims[1];
+							int sx = oDims[0];
+							int sy = oDims[1];
+
 							float v0 = src.values[(za * sx * sy) + (ya * sx) + xa];
 							float v1 = src.values[(za * sx * sy) + (ya * sx) + xb];
 							float v2 = src.values[(zb * sx * sy) + (ya * sx) + xa];
@@ -442,15 +442,22 @@ namespace VisAssets.SciVis.Structured.Downsize
 				float ratioY = (nDims[1] > 1) ? (float)(oDims[1] - 1) / (nDims[1] - 1) : 0;
 				float ratioZ = (nDims[2] > 1) ? (float)(oDims[2] - 1) / (nDims[2] - 1) : 0;
 
-				int sx = oDims[0]; int sy = oDims[1];
+				int sx = oDims[0];
+				int sy = oDims[1];
 
 				for (int k = 0; k < nDims[2]; k++)
 				{
-					float srcZ = k * ratioZ; int za = (int)Mathf.Floor(srcZ); int zb = Mathf.Min(za + 1, oDims[2] - 1); float r = srcZ - za;
+					float srcZ = k * ratioZ;
+					int za = (int)Mathf.Floor(srcZ);
+					int zb = Mathf.Min(za + 1, oDims[2] - 1);
+					float r = srcZ - za;
 
 					for (int j = 0; j < nDims[1]; j++)
 					{
-						float srcY = j * ratioY; int ya = (int)Mathf.Floor(srcY); int yb = Mathf.Min(ya + 1, oDims[1] - 1); float q = srcY - ya;
+						float srcY = j * ratioY;
+						int ya = (int)Mathf.Floor(srcY);
+						int yb = Mathf.Min(ya + 1, oDims[1] - 1);
+						float q = srcY - ya;
 
 						for (int i = 0; i < nDims[0]; i++)
 						{
@@ -479,7 +486,9 @@ namespace VisAssets.SciVis.Structured.Downsize
 							float v6 = src.values[idx6];
 							float v7 = src.values[idx7];
 
-							bool isUndef = false; float undef = src.undef;
+							bool isUndef = false;
+							float undef = src.undef;
+
 							if (src.useUndef && (v0 == undef || v1 == undef || v2 == undef || v3 == undef ||
 								v4 == undef || v5 == undef || v6 == undef || v7 == undef))
 							{
@@ -499,7 +508,7 @@ namespace VisAssets.SciVis.Structured.Downsize
 									v3 *      p  * (1 - q) *      r  +
 									v4 * (1 - p) *      q  * (1 - r) +
 									v5 *      p  *      q  * (1 - r) +
-									v6 * (1 - p) *      q  *      r +
+									v6 * (1 - p) *      q  *      r  +
 									v7 *      p  *      q  *      r;
 
 								newValues.Add(Mathf.Clamp((float)ans, src.min, src.max));

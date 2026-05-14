@@ -88,7 +88,8 @@ MonoBehaviour:
     rotation1: 0
     rotation2: 0
   lastClipAxis: 2
-  volumeShader: {fileID: 4800000, guid: ac58b199fce20fb4894e00fb97fb6194, type: 3}
+  builtinMaterial: {fileID: 2100000, guid: 0355e18e98a732044b7ee15acf374f49, type: 2}
+  urpMaterial: {fileID: 2100000, guid: f78988e263956b244955b6f4387a5656, type: 2}
   transferFunction:
     serializedVersion: 2
     key0: {r: 0, g: 0, b: 1, a: 0}

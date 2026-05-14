@@ -24,9 +24,11 @@ namespace VisAssets.SciVis.Structured.StreamLines
 		SerializedProperty lineColor;
 		SerializedProperty sphereColor;
 		SerializedProperty activeSeeds;
-		SerializedProperty lineShader;
-		SerializedProperty sphereShader;
 		SerializedProperty linePrefab;
+		SerializedProperty builtinLineMaterial;
+		SerializedProperty urpLineMaterial;
+		SerializedProperty builtinSphereMaterial;
+		SerializedProperty urpSphereMaterial;
 
 		private void OnEnable()
 		{
@@ -37,9 +39,11 @@ namespace VisAssets.SciVis.Structured.StreamLines
 			lineColor    = serializedObject.FindProperty("lineColor");
 			sphereColor  = serializedObject.FindProperty("sphereColor");
 			activeSeeds  = serializedObject.FindProperty("activeSeeds");
-			lineShader   = serializedObject.FindProperty("lineShader");
-			sphereShader = serializedObject.FindProperty("sphereShader");
 			linePrefab   = serializedObject.FindProperty("linePrefab");
+			builtinLineMaterial   = serializedObject.FindProperty("builtinLineMaterial");
+			urpLineMaterial       = serializedObject.FindProperty("urpLineMaterial");
+			builtinSphereMaterial = serializedObject.FindProperty("builtinSphereMaterial");
+			urpSphereMaterial     = serializedObject.FindProperty("urpSphereMaterial");
 		}
 
 		public override void OnInspectorGUI()
@@ -130,17 +134,19 @@ namespace VisAssets.SciVis.Structured.StreamLines
 
 			EditorGUI.BeginChangeCheck();
 
-			if (lineShader != null)
-			{
-				EditorGUILayout.PropertyField(lineShader, new GUIContent("Line/Ribbon Shader"));
-			}
+			EditorGUILayout.PropertyField(builtinLineMaterial, new GUIContent("Built-in Line Material"));
 
 			GUILayout.Space(5f);
 
-			if (sphereShader != null)
-			{
-				EditorGUILayout.PropertyField(sphereShader, new GUIContent("Sphere Shader"));
-			}
+			EditorGUILayout.PropertyField(urpLineMaterial, new GUIContent("URP Line Material"));
+
+			GUILayout.Space(5f);
+
+			EditorGUILayout.PropertyField(builtinSphereMaterial, new GUIContent("Built-in Sphere Material"));
+
+			GUILayout.Space(5f);
+
+			EditorGUILayout.PropertyField(urpSphereMaterial, new GUIContent("URP Sphere Material"));
 
 			if (EditorGUI.EndChangeCheck())
 			{
@@ -182,10 +188,16 @@ namespace VisAssets.SciVis.Structured.StreamLines
 		}
 
 		[SerializeField]
-		public Shader lineShader;
+		private Material builtinLineMaterial;
 
 		[SerializeField]
-		public Shader sphereShader;
+		private Material urpLineMaterial;
+
+		[SerializeField]
+		private Material builtinSphereMaterial;
+
+		[SerializeField]
+		private Material urpSphereMaterial;
 
 		[SerializeField]
 		public DrawMode drawMode = DrawMode.LINE;
@@ -237,55 +249,6 @@ namespace VisAssets.SciVis.Structured.StreamLines
 		protected override void Reset()
 		{
 			base.Reset();
-
-			EnsureCorrectShader();
-		}
-#endif
-
-#if UNITY_EDITOR
-		/// <summary>
-		/// Automatically detects the current Render Pipeline and returns the appropriate default shaders.
-		/// </summary>
-		private void EnsureCorrectShader()
-		{
-			var pipelineAsset = UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline ?? UnityEngine.QualitySettings.renderPipeline;
-			bool isURP = pipelineAsset != null;
-
-			string expectedLineShader   = isURP ? "Universal Render Pipeline/Particles/Unlit" : "Sprites/Default";
-			string expectedSphereShader = isURP ? "Universal Render Pipeline/Lit" : "Standard";
-
-			string wrongLineShader   = isURP ? "Sprites/Default" : "Universal Render Pipeline/Particles/Unlit";
-			string wrongSphereShader = isURP ? "Standard" : "Universal Render Pipeline/Lit";
-
-			if (lineShader == null || 
-			    lineShader.name == wrongLineShader || 
-			    lineShader.name == "Universal Render Pipeline/Unlit" || 
-			    lineShader.name == "Hidden/InternalErrorShader")
-			{
-				lineShader = Shader.Find(expectedLineShader);
-			}
-
-			if (sphereShader == null || 
-			    sphereShader.name == wrongSphereShader || 
-			    sphereShader.name == "Hidden/InternalErrorShader")
-			{
-				sphereShader = Shader.Find(expectedSphereShader);
-			}
-/*
-			bool isURP = UnityEngine.Rendering.GraphicsSettings.renderPipelineAsset != null;
-			string expectedLineShader   = isURP ? "Universal Render Pipeline/Unlit" : "Sprites/Default";
-			string expectedSphereShader = isURP ? "Universal Render Pipeline/Lit" : "Standard";
-
-			if (lineShader == null)
-			{
-				lineShader = Shader.Find(expectedLineShader);
-			}
-
-			if (sphereShader == null)
-			{
-				sphereShader = Shader.Find(expectedSphereShader);
-			}
-*/
 		}
 #endif
 
@@ -295,10 +258,6 @@ namespace VisAssets.SciVis.Structured.StreamLines
 			{
 				p0[i] = 0;
 			}
-
-#if UNITY_EDITOR
-			EnsureCorrectShader();
-#endif
 
 			guideMesh = new Mesh();
 			guideMesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
@@ -385,67 +344,56 @@ namespace VisAssets.SciVis.Structured.StreamLines
 		/// </summary>
 		private void OnValidate()
 		{
-#if UNITY_EDITOR
-			EnsureCorrectShader();
-#endif
 			if (!IsDataLoadedToParent()) return;
+
 			activation.SetParameterChanged(ModuleState.PARAMETER_CHANGED);
 		}
 
 		/// <summary>
-		/// Updates the shared materials based on the selected shaders and synchronizes all streamlines.
+		/// Updates the shared materials based on the active render pipeline and synchronizes all streamlines.
 		/// </summary>
 		public void UpdateMaterial()
 		{
-			if (lineShader == null || sphereShader == null) return;
+			var pipeline = UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline ?? UnityEngine.QualitySettings.renderPipeline;
+			bool isURP = pipeline != null;
+
+			Material targetLineMat   = isURP ? urpLineMaterial : builtinLineMaterial;
+			Material targetSphereMat = isURP ? urpSphereMaterial : builtinSphereMaterial;
 
 			// Line/Ribbon Material
-			if (sharedMaterial == null || sharedMaterial.shader != lineShader)
+			if (targetLineMat != null)
 			{
 				if (sharedMaterial != null)
 				{
-					if (Application.isPlaying)
-					{
-						Destroy(sharedMaterial);
-					}
-					else
-					{
-						DestroyImmediate(sharedMaterial);
-					}
+					if (Application.isPlaying) Destroy(sharedMaterial);
+					else DestroyImmediate(sharedMaterial);
 				}
 
-				sharedMaterial = new Material(lineShader);
+				sharedMaterial = new Material(targetLineMat);
 				sharedMaterial.SetInt("_Cull", (int)UnityEngine.Rendering.CullMode.Off);
 			}
 
 			// Sphere Material (Lit)
-			if (sharedSphereMaterial == null || sharedSphereMaterial.shader != sphereShader)
+			if (targetSphereMat != null)
 			{
 				if (sharedSphereMaterial != null)
 				{
-					if (Application.isPlaying)
-					{
-						Destroy(sharedSphereMaterial);
-					}
-					else
-					{
-						DestroyImmediate(sharedSphereMaterial);
-					}
+					if (Application.isPlaying) Destroy(sharedSphereMaterial);
+					else DestroyImmediate(sharedSphereMaterial);
 				}
 
-				sharedSphereMaterial = new Material(sphereShader);
+				sharedSphereMaterial = new Material(targetSphereMat);
 			}
 
 			var meshRenderer = GetComponent<MeshRenderer>();
-
-			if (meshRenderer != null)
+			if (meshRenderer != null && sharedMaterial != null)
 			{
 				meshRenderer.sharedMaterial = sharedMaterial;
 			}
 
 			foreach (var line in linePool)
 			{
-				if (line != null)
+				if (line != null && sharedMaterial != null && sharedSphereMaterial != null)
 				{
 					line.SetMaterial(sharedMaterial, sharedSphereMaterial);
 				}

@@ -69,6 +69,8 @@ MonoBehaviour:
   activation: {fileID: 0}
   pdf: {fileID: 0}
   color: {r: 1, g: 1, b: 1, a: 1}
+  builtinMaterial: {fileID: 2100000, guid: 1b893e6bbf0027d4bb1bc349f5fcc986, type: 2}
+  urpMaterial: {fileID: 2100000, guid: cf7460ec0c9e8cf419f522ec0cc16c5d, type: 2}
   drawOuterMesh: 0
   drawInnerMesh: 0
 --- !u!33 &4863152827960026777
@@ -99,7 +101,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 0}
+  - {fileID: 2100000, guid: 1b893e6bbf0027d4bb1bc349f5fcc986, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0

@@ -338,7 +338,7 @@ namespace VisAssets
 
 			// --- Component Reordering Logic ---
 			Component[] components = GetComponents<Component>();
-			
+
 			int myIndex = System.Array.IndexOf(components, this);
 			int dataFieldIndex = System.Array.IndexOf(components, GetComponent<DataField>());
 
@@ -394,6 +394,9 @@ namespace VisAssets
 		/// </summary>
 		void Start()
 		{
+			// Enable depth texture for all cameras at startup
+			EnableDepthTextureGlobal();
+
 			GetParameters();
 			InitModule();
 			SetupUI();
@@ -484,73 +487,7 @@ namespace VisAssets
 				SetStep(step);
 			}
 		}
-/*
-		/// <summary>
-		/// Calculates offsets and scale to center and optionally normalize the loaded data within the scene.
-		/// </summary>
-		public void Centering(bool normalize = false)
-		{
-			// Calculate offsets and scale for normalization
-			if (!df.dataLoaded) return;
 
-			float[] offset = new float[3];
-			float[] min = new float[3];
-			float[] max = new float[3];
-			float maxDist = float.MinValue;
-
-			for (int i = 0; i < 3; i++)
-			{
-				min[i] = float.MaxValue;
-				max[i] = float.MinValue;
-			}
-
-			for (int n = 0; n < df.elements.Length; n++)
-			{
-				DataElement element = df.elements[n];
-
-				for (int i = 0; i < 3; i++)
-				{
-					float startVal = element.coords[i][0];
-					float endVal = element.coords[i][element.dims[i] - 1];
-					min[i] = Mathf.Min(min[i], Mathf.Min(startVal, endVal));
-					max[i] = Mathf.Max(max[i], Mathf.Max(startVal, endVal));
-				}
-			}
-
-			for (int i = 0; i < 3; i++)
-			{
-				maxDist = Mathf.Max(maxDist, max[i] - min[i]);
-				offset[i] = min[i] + (max[i] - min[i]) / 2f;
-				df.offset[i] = offset[i];
-			}
-
-			if (centering)
-			{
-				foreach (Transform child in transform)
-				{
-					child.gameObject.transform.localPosition =
-						new Vector3(-offset[0], -offset[1], -offset[2]);
-				}
-			}
-			else
-			{
-				foreach (Transform child in transform)
-				{
-					child.gameObject.transform.localPosition = Vector3.zero;
-				}
-			}
-
-			if (normalize)
-			{
-				float scale = 1f / maxDist * 10f;
-				transform.localScale = new Vector3(scale, scale, scale);
-			}
-			else
-			{
-				transform.localScale = Vector3.one;
-			}
-		}
-*/
 		/// <summary>
 		/// Calculates offsets and scale to center and optionally normalize the loaded data within the scene.
 		/// </summary>
@@ -809,6 +746,130 @@ namespace VisAssets
 		}
 
 		/// <summary>
+		/// Asynchronously fetches, parses, and calculates statistics for multiple binary files in parallel.
+		/// This shared routine handles both local file I/O (via background threads) and web requests (via coroutines),
+		/// maximizing multi-core CPU usage.
+		/// </summary>
+		protected IEnumerator FetchParseAndCalcStatsParallelRoutine(
+			string[] absolutePaths,
+			int totalGridSize,
+			DataElement[] targetElements,
+			float[][] outputValues,
+			Precision precision,
+			bool byteswap,
+			bool skipHeader,
+			int headerBytes,
+			bool useWebRequest)
+		{
+			int numFiles = absolutePaths.Length;
+			byte[][] allFileBytes = new byte[numFiles][];
+
+			// 1. Fetch data via WebRequest if needed (Coroutines must run on the main thread)
+			if (useWebRequest)
+			{
+				Coroutine[] loadCoroutines = new Coroutine[numFiles];
+				for (int i = 0; i < numFiles; i++)
+				{
+					if (!string.IsNullOrEmpty(absolutePaths[i]))
+					{
+						int captureIndex = i;
+						loadCoroutines[i] = StartCoroutine(FetchBinaryRoutine(absolutePaths[i], (data) => { allFileBytes[captureIndex] = data; }));
+					}
+				}
+
+				for (int i = 0; i < loadCoroutines.Length; i++)
+				{
+					if (loadCoroutines[i] != null) yield return loadCoroutines[i];
+				}
+			}
+
+			// 2. Parallel Processing: Local I/O (if applicable), Parsing, and Statistics Calculation
+			System.Threading.Tasks.Task processTask = System.Threading.Tasks.Task.Run(() =>
+			{
+				System.Threading.Tasks.Parallel.For(0, numFiles, i =>
+				{
+					string path = absolutePaths[i];
+
+					if (string.IsNullOrEmpty(path)) return;
+
+					byte[] fileBytes = null;
+
+					// Background thread direct disk I/O (Fastest for local files)
+					if (!useWebRequest)
+					{
+						try
+						{
+							if (File.Exists(path))
+							{
+								fileBytes = File.ReadAllBytes(path);
+							}
+						}
+						catch (Exception e)
+						{
+							Debug.LogError($"[FetchParseAndCalcStats] IO Error: {e.Message}");
+						}
+					}
+					else
+					{
+						fileBytes = allFileBytes[i];
+					}
+
+					if (fileBytes != null && fileBytes.Length > 0)
+					{
+						// Parse binary to float list
+						var parsedList = ParseBinaryToFloatList(fileBytes, totalGridSize, precision, byteswap, skipHeader, headerBytes);
+
+						if (parsedList != null && parsedList.Count > 0)
+						{
+							float min = float.MaxValue;
+							float max = float.MinValue;
+							double sum = 0;
+							double sumSq = 0;
+							int count = 0;
+
+							bool checkUndef = targetElements[i].useUndef;
+							float undefVal = targetElements[i].undef;
+
+							float[] valArray = new float[parsedList.Count];
+							for (int n = 0; n < parsedList.Count; n++)
+							{
+								float v = parsedList[n];
+								valArray[n] = v;
+
+								if (checkUndef && v == undefVal) continue;
+								if (v < min) min = v;
+								if (v > max) max = v;
+								sum += v;
+								sumSq += v * v;
+								count++;
+							}
+
+							// Store parsed array
+							outputValues[i] = valArray;
+
+							// Calculate and store stats directly into the DataElement
+							if (count > 0)
+							{
+								targetElements[i].min = min;
+								targetElements[i].max = max;
+								targetElements[i].average = (float)(sum / count);
+								targetElements[i].variance = (float)((sumSq / count) - (targetElements[i].average * targetElements[i].average));
+							}
+						}
+					}
+				});
+			});
+
+			// Wait for all background tasks to complete without freezing the main thread
+			yield return new WaitUntil(() => processTask.IsCompleted);
+
+			if (processTask.Exception != null)
+			{
+				Debug.LogError($"[FetchParseAndCalcStats] Parallel Process Error: {processTask.Exception.InnerException?.Message}");
+			}
+		}
+
+		/// <summary>
 		/// Asynchronously loads binary data via platform-specific methods and parses it into a list of floats.
 		/// </summary>
 		protected IEnumerator FetchAndParseBinaryRoutine(
@@ -875,7 +936,7 @@ namespace VisAssets
 		{
 #if ENABLE_PROFILING
 			System.Diagnostics.Stopwatch sw = System.Diagnostics.Stopwatch.StartNew();
-#endif // ENABLE_PROFILING
+#endif
 
 			List<float> result = new List<float>(dataCount);
 			int offset = doSkipHeader ? headerSize : 0;
@@ -911,7 +972,7 @@ namespace VisAssets
 #if ENABLE_PROFILING
 				sw.Stop();
 				UnityEngine.Debug.Log($"[Performance] MemoryMarshal Fast Path: {sw.Elapsed.TotalMilliseconds:F3} ms (DataCount: {dataCount})");
-#endif // ENABLE_PROFILING
+#endif
 
 				return result;
 			}
@@ -941,7 +1002,7 @@ namespace VisAssets
 #if ENABLE_PROFILING
 			sw.Stop();
 			UnityEngine.Debug.Log($"[Performance] BitShift Swap Path: {sw.Elapsed.TotalMilliseconds:F3} ms (DataCount: {dataCount})");
-#endif // ENABLE_PROFILING
+#endif
 
 			return result;
 		}
@@ -963,17 +1024,13 @@ namespace VisAssets
 					using (AndroidJavaObject currentActivity = unityPlayer.GetStatic<AndroidJavaObject>("currentActivity"))
 					using (AndroidJavaObject assetManager = currentActivity.Call<AndroidJavaObject>("getAssets"))
 					{
-						// Calls getAssets().list("folderPath").
 						string[] files = assetManager.Call<string[]>("list", folderPath);
 
 						if (files != null)
 						{
 							foreach (var file in files)
 							{
-								// Skip Unity meta files.
 								if (file.EndsWith(".meta")) continue;
-
-								// Append the folder path, as AssetManager.list() returns filenames only.
 								fileList.Add(Path.Combine(folderPath, file).Replace("\\", "/"));
 							}
 						}
@@ -984,12 +1041,10 @@ namespace VisAssets
 					Debug.LogError($"[GetFilesInDirectory] JNI Error: {e.Message}");
 				}
 #else
-				// Standard Directory API can be used for PC, Mac, iOS, etc.
 				string fullPath = Path.Combine(Application.streamingAssetsPath, folderPath);
 
 				if (Directory.Exists(fullPath))
 				{
-					// Normalize Windows backslashes to forward slashes and exclude .meta files.
 					var files = Directory.GetFiles(fullPath)
 						.Where(p => !p.EndsWith(".meta"))
 						.Select(p => p.Replace("\\", "/"));
@@ -1018,7 +1073,6 @@ namespace VisAssets
 				}
 			}
 
-			// Sort alphabetically for safety (to ensure order for numbered files, etc.).
 			fileList.Sort();
 
 			return fileList;
@@ -1081,15 +1135,8 @@ namespace VisAssets
 
 				if (useUndef && System.Math.Abs(val - undefVal) < 1e-4f) continue;
 
-				if (val < min)
-				{
-					min = val;
-				}
-
-				if (val > max)
-				{
-					max = val;
-				}
+				if (val < min) min = val;
+				if (val > max) max = val;
 
 				sum += val;
 				sumSq += (double)val * val;
@@ -1108,15 +1155,8 @@ namespace VisAssets
 
 				if (useUndef && System.Math.Abs(val - undefVal) < 1e-4f) continue;
 
-				if (val < min)
-				{
-					min = val;
-				}
-
-				if (val > max)
-				{
-					max = val;
-				}
+				if (val < min) min = val;
+				if (val > max) max = val;
 
 				sum += val;
 				sumSq += (double)val * val;
@@ -1128,52 +1168,58 @@ namespace VisAssets
 		// Public methods for external UI events (e.g., Unity UI Dropdown, Toggle)
 		// ==========================================================
 
-		/// <summary>
-		/// Sets the precision of the binary data (0: Single, 1: Double).
-		/// Designed to be called from a Unity UI Dropdown's OnValueChanged event.
-		/// </summary>
 		public void SetPrecision(int mode)
 		{
 			precision = (Precision)mode;
 		}
 
-		/// <summary>
-		/// Sets whether byte swapping (endianness conversion) is applied.
-		/// Designed to be called from a Unity UI Toggle's OnValueChanged event.
-		/// </summary>
 		public void SetByteSwap(bool flag)
 		{
 			byteswap = flag;
 		}
 
-		/// <summary>
-		/// Sets whether to skip the header (or Fortran record markers).
-		/// Designed to be called from a Unity UI Toggle's OnValueChanged event.
-		/// </summary>
 		public void SetSkipHeader(bool flag)
 		{
 			skipHeader = flag;
 		}
 
-		/// <summary>
-		/// Sets whether to exclude specific undefined values.
-		/// Designed to be called from a Unity UI Toggle's OnValueChanged event.
-		/// </summary>
 		public void SetUseUndef(bool flag)
 		{
 			useUndef = flag;
 		}
 
-		/// <summary>
-		/// Sets the specific undefined value to be excluded.
-		/// Designed to be called from a Unity UI InputField's OnEndEdit event.
-		/// </summary>
 		public void SetUndefValue(string valueStr)
 		{
 			if (float.TryParse(valueStr, System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out float val))
 			{
 				undef = val;
 			}
+		}
+
+		/// <summary>
+		/// Automatically enables depth texture generation for all cameras in the scene,
+		/// including Scene View and VR cameras.
+		/// This is essential for Early Ray Termination in VolumeRenderer and proper depth sorting.
+		/// </summary>
+		protected void EnableDepthTextureGlobal()
+		{
+			foreach (Camera cam in Camera.allCameras)
+			{
+				if (cam != null)
+				{
+					cam.depthTextureMode |= DepthTextureMode.Depth;
+				}
+			}
+
+#if UNITY_EDITOR
+			foreach (UnityEditor.SceneView sceneView in UnityEditor.SceneView.sceneViews)
+			{
+				if (sceneView != null && sceneView.camera != null)
+				{
+					sceneView.camera.depthTextureMode |= DepthTextureMode.Depth;
+				}
+			}
+#endif
 		}
 	}
 }
