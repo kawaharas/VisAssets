@@ -287,7 +287,7 @@ namespace VisAssets.SciVis.Structured.ExtractVector
 
 			// get variables in the first active element
 			int idx = activeChannels[0];
-			if (df.elements[idx] == null) return;
+			if (df.elements[idx] == null || df.elements[idx].dims == null || df.elements[idx].dims.Length < 3) return;
 
 			for (int i = 0; i < 3; i++)
 			{
@@ -302,7 +302,7 @@ namespace VisAssets.SciVis.Structured.ExtractVector
 			for (int i = 1; i < activeChannels.Count; i++)
 			{
 				idx = activeChannels[i];
-				if (df.elements[idx] == null)
+				if (df.elements[idx] == null || df.elements[idx].dims == null || df.elements[idx].dims.Length < 3)
 				{
 					isCompatible = false;
 					break;
