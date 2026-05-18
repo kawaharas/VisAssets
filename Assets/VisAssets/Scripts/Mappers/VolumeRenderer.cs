@@ -160,7 +160,6 @@ namespace VisAssets.SciVis.Structured.Volume
 
 				if (EditorApplication.isPlaying && mapper != null)
 				{
-					mapper.UpdateMaterialShader();
 					mapper.UpdateMaterialProperties();
 					if(mapper.activation != null)
 					{
