@@ -163,6 +163,9 @@ namespace VisAssets.SciVis.Structured.ExtractVector
 
 			for (int i = 0; i < 3; i++)
 			{
+				// Prevent out-of-bounds if df.elements is temporarily smaller than 3
+				if (df.elements == null || i >= df.elements.Length) break;
+
 				// Prevent out-of-bounds error if a preset channel exceeds loaded data
 				if (channels[i] < pdf.elements.Length)
 				{
@@ -266,7 +269,12 @@ namespace VisAssets.SciVis.Structured.ExtractVector
 			if (activeChannels == null) activeChannels = new List<int>();
 			activeChannels.Clear();
 
-			for (int i = 0; i < 3; i++)
+			// Safety guard for null or empty elements array
+			if (df.elements == null || df.elements.Length == 0) return;
+
+			int limit = Mathf.Min(3, df.elements.Length);
+			for (int i = 0; i < limit; i++)
+//			for (int i = 0; i < 3; i++)
 			{
 				if (df.elements[i] != null)
 				{
@@ -287,7 +295,8 @@ namespace VisAssets.SciVis.Structured.ExtractVector
 
 			// get variables in the first active element
 			int idx = activeChannels[0];
-			if (df.elements[idx] == null || df.elements[idx].dims == null || df.elements[idx].dims.Length < 3) return;
+//			if (df.elements[idx] == null || df.elements[idx].dims == null || df.elements[idx].dims.Length < 3) return;
+			if (idx >= df.elements.Length || df.elements[idx] == null || df.elements[idx].dims == null || df.elements[idx].dims.Length < 3) return;
 
 			for (int i = 0; i < 3; i++)
 			{
@@ -302,7 +311,8 @@ namespace VisAssets.SciVis.Structured.ExtractVector
 			for (int i = 1; i < activeChannels.Count; i++)
 			{
 				idx = activeChannels[i];
-				if (df.elements[idx] == null || df.elements[idx].dims == null || df.elements[idx].dims.Length < 3)
+//				if (df.elements[idx] == null || df.elements[idx].dims == null || df.elements[idx].dims.Length < 3)
+				if (idx >= df.elements.Length || df.elements[idx] == null || df.elements[idx].dims == null || df.elements[idx].dims.Length < 3)
 				{
 					isCompatible = false;
 					break;
@@ -328,7 +338,12 @@ namespace VisAssets.SciVis.Structured.ExtractVector
 				for (int i = 0; i < activeChannels.Count; i++)
 				{
 					idx = activeChannels[i];
-					df.elements[idx].isActive = true;
+//					df.elements[idx].isActive = true;
+					// Safety check before activation
+					if (idx < df.elements.Length && df.elements[idx] != null)
+					{
+						df.elements[idx].isActive = true;
+					}
 				}
 
 				activeChannelNum = activeChannels.Count;
