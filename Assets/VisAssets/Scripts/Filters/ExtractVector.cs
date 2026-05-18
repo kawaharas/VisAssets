@@ -154,6 +154,11 @@ namespace VisAssets.SciVis.Structured.ExtractVector
 			activeChannels   = new List<int>();
 			activeChannelNum = 0;
 
+			// Ensure arrays are perfectly initialized to a length of 3 at runtime,
+			// without relying on the Editor Inspector being active.
+			if (channelStates == null || channelStates.Length < 3) channelStates = new bool[3] { false, false, false };
+			if (channels == null || channels.Length < 3) channels = new int[3] { 0, 0, 0 };
+
 			df.CreateElements(3);
 		}
 
@@ -272,7 +277,8 @@ namespace VisAssets.SciVis.Structured.ExtractVector
 			// Safety guard for null or empty elements array
 			if (df.elements == null || df.elements.Length == 0) return;
 
-			int limit = Mathf.Min(3, df.elements.Length);
+//			int limit = Mathf.Min(3, df.elements.Length);
+			int limit = Mathf.Min(3, Mathf.Min(df.elements.Length, channelStates.Length));
 			for (int i = 0; i < limit; i++)
 //			for (int i = 0; i < 3; i++)
 			{
