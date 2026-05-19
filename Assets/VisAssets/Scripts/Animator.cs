@@ -23,6 +23,10 @@ namespace VisAssets
 			maximumSteps = animator.maximumSteps - 1;
 
 			serializedObject.Update();
+
+			EditorGUILayout.PropertyField(
+				serializedObject.FindProperty("UIPrefab"), new GUIContent("UI Prefab"));
+
 			EditorGUI.BeginChangeCheck();
 
 			EditorGUILayout.Space();

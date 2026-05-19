@@ -27,13 +27,13 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2076989066879425117}
+  serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
-  m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &2076989066879425105
 MonoBehaviour:
@@ -64,10 +64,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   UIPanel: {fileID: 0}
   FixedModuleName: 
+  UIPrefab: {fileID: 5041007953014720868, guid: 342b4ba7db05ab04487dbf5987814f3f, type: 3}
   moduleType: 2
   activation: {fileID: 0}
   pdf: {fileID: 0}
   color: {r: 1, g: 1, b: 1, a: 1}
+  builtinMaterial: {fileID: 2100000, guid: 1b893e6bbf0027d4bb1bc349f5fcc986, type: 2}
+  urpMaterial: {fileID: 2100000, guid: cf7460ec0c9e8cf419f522ec0cc16c5d, type: 2}
 --- !u!33 &2076989066879425104
 MeshFilter:
   m_ObjectHideFlags: 0
@@ -96,7 +99,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 0}
+  - {fileID: 2100000, guid: 1b893e6bbf0027d4bb1bc349f5fcc986, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0

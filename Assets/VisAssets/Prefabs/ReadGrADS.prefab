@@ -10,9 +10,9 @@ GameObject:
   m_Component:
   - component: {fileID: 8298286323118869099}
   - component: {fileID: 3941402407774582902}
-  - component: {fileID: 8298286323118869100}
+  - component: {fileID: 5716963401368562221}
   - component: {fileID: 8519707624033109254}
-  - component: {fileID: 422397411343476683}
+  - component: {fileID: 1310547228582432162}
   m_Layer: 0
   m_Name: ReadGrADS
   m_TagString: VisModule
@@ -27,12 +27,13 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 8298286323118869101}
+  serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
-  m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &3941402407774582902
 MonoBehaviour:
@@ -49,7 +50,7 @@ MonoBehaviour:
   moduleType: 3
   parent_changed: 0
   parameter_changed: 0
---- !u!114 &8298286323118869100
+--- !u!114 &5716963401368562221
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -58,27 +59,36 @@ MonoBehaviour:
   m_GameObject: {fileID: 8298286323118869101}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2c255a2602b069140b272c20de78e245, type: 3}
+  m_Script: {fileID: 11500000, guid: 2ab9ed9e719d91944ada8a760390c1b9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   UIPanel: {fileID: 0}
   FixedModuleName: 
+  UIPrefab: {fileID: 6201456167639516696, guid: 95abe04d80333e24985cdbdbd8620d36, type: 3}
   activation: {fileID: 0}
   df: {fileID: 0}
   animator: {fileID: 0}
+  dataSource: 
+  sourceType: 0
+  precision: 0
+  byteswap: 0
+  skipHeader: 0
+  headerBytes: 4
+  useStreamingAssets: 1
   loadAtStartup: 1
+  centering: 1
+  autoResize: 1
+  useUndef: 0
+  undef: 0
+  useUndefMenu: 0
+  usePrecisionMenu: 0
+  useByteswapMenu: 0
+  useHeaderSkipMenu: 0
   currentStep: 0
+  upAxis: 1
   offsets: []
-  minx: 0
-  maxx: 0
-  miny: 0
-  maxy: 0
-  minz: 0
-  maxz: 0
-  filename: C:/Users/kawahara/Downloads/example/model.ctl
-  ctlfile: 
-  useEmbeddedData: 0
-  debugString: 
+  currentParsedStep: -1
+  logicalFields: []
 --- !u!114 &8519707624033109254
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -92,9 +102,13 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   dataType: 0
+  coordinateSystem: 0
+  upAxis: 0
+  scale: {x: 1, y: 1, z: 1}
+  offset: {x: 0, y: 0, z: 0}
   dataLoaded: 0
   elements: []
---- !u!114 &422397411343476683
+--- !u!114 &1310547228582432162
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -103,17 +117,14 @@ MonoBehaviour:
   m_GameObject: {fileID: 8298286323118869101}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f0e602d050608ef49b71de49b9ee04f5, type: 3}
+  m_Script: {fileID: 11500000, guid: 407970220f52c8e4fbc1b985dfc4b616, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  obj: {fileID: 8298286323118869101}
-  startPosition: {x: 0, y: 0}
-  tx: 0
-  ty: 0
-  minScale: 0.5
-  maxScale: 5
-  scale: 1
-  IsDrag: 0
-  sensitivity: 5
-  InitScaleSet: 0
-  active: 1
+  rotationSpeedMouse: 1200
+  rotationSpeedTouch: 15
+  scaleSpeedMouse: 0.1
+  scaleSpeedTouch: 0.005
+  minScale: 0.1
+  maxScale: 10
+  isActive: 1
+  isDragging: 0

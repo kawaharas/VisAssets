@@ -8,226 +8,284 @@ using UnityEditor;
 
 namespace VisAssets.SciVis.Structured.ExtractVector
 {
+	// =========================================================================
+	// Editor Extension
+	// =========================================================================
 #if UNITY_EDITOR
 	[CustomEditor(typeof(ExtractVector))]
 	public class ExtractVectorEditor : Editor
 	{
-		SerializedProperty activeChannelNum;
-		bool[] channelStates;
-		int[]  channels;
-		int[]  selectedChannels;
-
-		public void OnEnable()
-		{
-			channelStates = new bool[3];
-			channels = new int[3];
-			selectedChannels = new int[3];
-			for (int i = 0; i < 3; i++)
-			{
-				channelStates[i] = false;
-				channels[i] = 0;
-				selectedChannels[i] = 0;
-			}
-			activeChannelNum = serializedObject.FindProperty("activeChannelNum");
-		}
-
 		public override void OnInspectorGUI()
 		{
 			var extractVector = target as ExtractVector;
 
+			if (extractVector == null) return;
+
+			if (extractVector.channels == null || extractVector.channels.Length < 3)
+			{
+				extractVector.channels = new int[3] { 0, 0, 0 };
+			}
+
+			if (extractVector.channelStates == null || extractVector.channelStates.Length < 3)
+			{
+				extractVector.channelStates = new bool[3] { false, false, false };
+			}
+
 			serializedObject.Update();
+
 			EditorGUI.BeginChangeCheck();
 
 			EditorStyles.popup.fontSize = 11;
 			EditorStyles.popup.fixedHeight = 18f;
-			EditorStyles.popup.alignment = TextAnchor.MiddleLeft;
 //			EditorStyles.popup.margin = new RectOffset(0, 0, 5, 5);
 			EditorStyles.label.fontSize = 11;
 			EditorStyles.label.fixedHeight = 18f;
-			EditorStyles.label.alignment = TextAnchor.MiddleLeft;
-
-			for (int i = 0; i < extractVector.channelStates.Length; ++i)
-			{
-				channelStates[i] = extractVector.channelStates[i];
-				channels[i]      = extractVector.channels[i];
-			}
 
 			GUILayout.Space(10f);
+
+			string[] displayedNames = (extractVector.varNames != null && extractVector.varNames.Length > 0)
+				? extractVector.varNames
+				: new string[] { "No Data Loaded" };
+
+			bool[] newStates   = new bool[3];
+			int[]  newChannels = new int[3];
+
 			for (int i = 0; i < 3; ++i)
 			{
-				var label = new GUIContent("Channel " + i);
 				EditorGUILayout.BeginHorizontal();
-				channelStates[i] = EditorGUILayout.ToggleLeft(label, channelStates[i], GUILayout.Width(95f));
-				EditorGUI.BeginDisabledGroup(!channelStates[i]);
-				selectedChannels[i] = EditorGUILayout.Popup("", extractVector.channels[i], extractVector.varNames);
+
+				// Toggle
+				newStates[i] = EditorGUILayout.ToggleLeft($"Channel {i}", extractVector.channelStates[i], GUILayout.Width(80f));
+
+				EditorGUI.BeginDisabledGroup(!newStates[i]);
+
+				// Dropdown
+				int currentIdx;
+				if (extractVector.varNames != null && extractVector.varNames.Length > 0)
+				{
+					currentIdx = Mathf.Clamp(extractVector.channels[i], 0, extractVector.varNames.Length - 1);
+				}
+				else
+				{
+					currentIdx = 0;
+				}
+
+				int selectedIdx = EditorGUILayout.Popup("", currentIdx, displayedNames);
+
+				newChannels[i] = extractVector.channels[i];
+
+				if (extractVector.varNames != null && extractVector.varNames.Length > 0)
+				{
+					if (selectedIdx != currentIdx)
+					{
+						newChannels[i] = selectedIdx;
+					}
+				}
+
+				// IntField (Direct Input)
+				newChannels[i] = EditorGUILayout.IntField(newChannels[i], GUILayout.Width(40f));
+				newChannels[i] = Mathf.Max(0, newChannels[i]);
+
 				EditorGUI.EndDisabledGroup();
+
 				EditorGUILayout.EndHorizontal();
+
 				GUILayout.Space(10f);
 			}
 
-			var message = new GUIContent("All input elements must have the same number of grids.");
-			EditorGUILayout.BeginHorizontal(GUI.skin.box);
+			EditorGUILayout.HelpBox("Grid dimensions and coordinate topologies must match across all input elements.", MessageType.Info);
+
+			GUILayout.Space(10f);
+
+			EditorGUILayout.PropertyField(serializedObject.FindProperty("UIPrefab"), new GUIContent("UI Prefab"));
+
 			GUILayout.Space(5f);
-			GUIStyle style = new GUIStyle(GUI.skin.label);
-			style.alignment = TextAnchor.MiddleLeft;
-			style.wordWrap = true;
-			style.CalcSize(message);
-			if (activeChannelNum.intValue > 0)
-			{
-				EditorGUILayout.LabelField("", style);
-			}
-			else
-			{
-				EditorGUILayout.LabelField(message, style);
-			}
-			GUILayout.Space(5f);
-			EditorGUILayout.EndHorizontal();
-			GUILayout.Space(3f);
 
 			if (EditorGUI.EndChangeCheck())
 			{
+				Undo.RecordObject(target, "ExtractVector");
+
 				for (int i = 0; i < 3; i++)
 				{
-					extractVector.SetChannel(i, selectedChannels[i]);
-					extractVector.SetActive(i, channelStates[i]);
+					extractVector.SetChannel(i, newChannels[i]);
+					extractVector.SetActive(i, newStates[i]);
 				}
 
-//				EditorUtility.SetDirty(extractVector);
+				EditorUtility.SetDirty(target);
 			}
+
 			serializedObject.ApplyModifiedProperties();
 		}
 	}
 #endif
 
+	// =========================================================================
+	// Main Class
+	// =========================================================================
 	[DisallowMultipleComponent]
 	public class ExtractVector : FilterModuleTemplate
 	{
-		public bool[]   channelStates;
-		public int[]    channels;
+		[SerializeField]
+		public bool[] channelStates = new bool[3] { false, false, false };
+
+		[SerializeField]
+		public int[]  channels      = new int[3] { 0, 0, 0 };
+
 		[ReadOnly]
 		public string[] varNames = { };
 
-		bool[] previousChannelStates;
-		int[]  previousChannels;
+		private List<int> activeChannels;
 
-		List<int> activeChannels;
 		[SerializeField]
-		private int activeChannelNum; // for EditorGUI
+		private int activeChannelNum;
+
+#if UNITY_EDITOR
+		protected override void Reset()
+		{
+			base.Reset();
+
+			channelStates = new bool[3] { false, false, false };
+			channels      = new int[3] { 0, 0, 0 };
+		}
+#endif
 
 		public override void InitModule()
 		{
-			channels       = new int[3] { 0, 0, 0 };
-			channelStates  = new bool[3] { false, false, false };
-			activeChannels = new List<int>();
+			activeChannels   = new List<int>();
 			activeChannelNum = 0;
-			previousChannels = new int[] { 0, 0, 0 };
-			previousChannelStates = new bool[] { false, false, false };
+
+			// Ensure arrays are perfectly initialized to a length of 3 at runtime,
+			// without relying on the Editor Inspector being active.
+			if (channelStates == null || channelStates.Length < 3) channelStates = new bool[3] { false, false, false };
+			if (channels == null || channels.Length < 3) channels = new int[3] { 0, 0, 0 };
 
 			df.CreateElements(3);
 		}
 
 		public override int BodyFunc()
 		{
+			if (pdf == null || pdf.elements == null) return 0;
+
 			for (int i = 0; i < 3; i++)
 			{
-				df.elements[i] = pdf.elements[channels[i]].Clone();
+				// Prevent out-of-bounds if df.elements is temporarily smaller than 3
+				if (df.elements == null || i >= df.elements.Length) break;
+
+				// Prevent out-of-bounds error if a preset channel exceeds loaded data
+				if (channels[i] < pdf.elements.Length)
+				{
+					df.elements[i] = pdf.elements[channels[i]].Clone();
+				}
 			}
+			df.coordinateSystem = pdf.coordinateSystem;
+			df.upAxis = pdf.upAxis;
+			df.scale  = pdf.scale;
+			df.offset = pdf.offset;
 
 			CheckActiveElements();
 
 			return 1;
 		}
 
-		public override void ReSetParameters() // runs when parent was updated
+		public override void ReSetParameters()
 		{
-			// データセットが変更になった場合: channnel等の初期が必要
-			// タイムステップが変更になった場合: channnel等の初期は不要
-			// initialize variables
-/*
-			for (int i = 0; i < 3; i++)
-			{
-				channels[i] = 0;
-				channelStates[i] = false;
-				previousChannels[i] = 0;
-				previousChannelStates[i] = false;
-				df.elements[i] = pdf.elements[channels[i]].Clone();
-				df.elements[i].isActive = false;
-			}
-*/
-			// create a string list of variable names (for UI)
+			if (pdf == null || pdf.elements == null) return;
+
 			int varNum = pdf.elements.Length;
 			varNames = new string[varNum];
+
 			for (int i = 0; i < varNum; i++)
 			{
 				var varName = pdf.elements[i].varName;
-				if (varName.Length != 0)
+
+				if (!string.IsNullOrEmpty(varName))
 				{
 					varNames[i] = varName;
 				}
 				else
 				{
-					varNames[i] = "variable " + i.ToString();
+					varNames[i] = $"variable {i}";
 				}
 			}
 		}
 
-		public override void SetParameters() // runs when parameters were updated
+		public override void SetParameters()
 		{
 		}
 
-		void OnValidate()
+		public override void ResetUI()
 		{
-			if (!IsDataLoadedToParent()) return;
+			if (UIPanel == null) return;
 
-			for (int i = 0; i < 3; i++)
+			for (int n = 0; n < 3; n++)
 			{
-				if (previousChannels[i] != channels[i])
-				{
-					previousChannels[i] = channels[i];
-					SetChannel(i, channels[i]);
-					break;
-				}
-			}
-			for (int i = 0; i < 3; i++)
-			{
-				if (previousChannelStates[i] != channelStates[i])
-				{
-					previousChannelStates[i] = channelStates[i];
-					SetActive(i, channelStates[i]);
-					break;
-				}
-			}
+				char axis = (char)('U' + n);
+				var toggleObj   = UIPanel.transform.Find($"Channels/Toggle {axis}");
+				var dropdownObj = UIPanel.transform.Find($"Channel{n}/Dropdown");
 
-			ParameterChanged();
+				if (toggleObj == null || dropdownObj == null) continue;
+
+				var toggle   = toggleObj.GetComponent<Toggle>();
+				var dropdown = dropdownObj.GetComponent<Dropdown>();
+
+				dropdown.ClearOptions();
+
+				for (int i = 0; i < pdf.elements.Length; i++)
+				{
+					var varName = pdf.elements[i].varName;
+
+					if (!string.IsNullOrEmpty(varName))
+					{
+						dropdown.options.Add(new Dropdown.OptionData { text = varName });
+					}
+					else
+					{
+						dropdown.options.Add(new Dropdown.OptionData { text = $"variable #{i}" });
+					}
+				}
+
+				dropdown.interactable = toggle.isOn;
+				dropdown.RefreshShownValue();
+			}
 		}
 
 		public void SetChannel(int channel_id, int element_id)
 		{
-			if (!IsDataLoadedToParent()) return;
+			channels[channel_id] = Mathf.Max(0, element_id);
 
-			channels[channel_id] = element_id;
-			df.elements[channel_id] = pdf.elements[element_id].Clone();
-
-			ParameterChanged();
+			if (IsDataLoadedToParent()) ParameterChanged();
 		}
 
 		public void SetActive(int channel_id, bool state)
 		{
-			if (!IsDataLoadedToParent()) return;
-
 			channelStates[channel_id] = state;
 
-			ParameterChanged();
+			if (IsDataLoadedToParent()) ParameterChanged();
 		}
 
+		/// <summary>
+		/// Validates if all selected elements share the exact same dimensions and undefined value settings.
+		/// If validation fails, downstream modules will not receive active vector data.
+		/// </summary>
 		private void CheckActiveElements()
 		{
 			// deactivates all selected elements and make a list of active elements
 			activeChannelNum = 0;
+			if (activeChannels == null) activeChannels = new List<int>();
 			activeChannels.Clear();
-			for (int i = 0; i < 3; i++)
+
+			// Safety guard for null or empty elements array
+			if (df.elements == null || df.elements.Length == 0) return;
+
+//			int limit = Mathf.Min(3, df.elements.Length);
+			int limit = Mathf.Min(3, Mathf.Min(df.elements.Length, channelStates.Length));
+			for (int i = 0; i < limit; i++)
+//			for (int i = 0; i < 3; i++)
 			{
-				df.elements[i].isActive = false;
+				if (df.elements[i] != null)
+				{
+					df.elements[i].isActive = false;
+				}
 
 				if (channelStates[i])
 				{
@@ -235,84 +293,66 @@ namespace VisAssets.SciVis.Structured.ExtractVector
 				}
 			}
 
+			if (activeChannels.Count == 0) return;
+
 			// check if all active elements have the same dimension
-			if (activeChannels.Count > 0)
+			bool isCompatible = true;
+			int[] dims = new int[3] { -1, -1, -1 };
+
+			// get variables in the first active element
+			int idx = activeChannels[0];
+//			if (df.elements[idx] == null || df.elements[idx].dims == null || df.elements[idx].dims.Length < 3) return;
+			if (idx >= df.elements.Length || df.elements[idx] == null || df.elements[idx].dims == null || df.elements[idx].dims.Length < 3) return;
+
+			for (int i = 0; i < 3; i++)
 			{
-				bool check_result = true;
-				int[] dims = new int[3] { -1, -1, -1};
-				// get variables in the first active element
-				int idx = activeChannels[0];
-				for (int i = 0; i < 3; i++)
-				{
-					dims[i] = df.elements[idx].dims[i];
-				}
-				bool useUndef = df.elements[idx].useUndef;
-				float undef   = df.elements[idx].undef;
+				dims[i] = df.elements[idx].dims[i];
+			}
 
-				// compare variables in the first active element 
-				// with variables in other active elements
-				for (int i = 1; i < activeChannels.Count; i++)
+			bool useUndef = df.elements[idx].useUndef;
+			float undef   = df.elements[idx].undef;
+
+			// compare variables in the first active element 
+			// with variables in other active elements
+			for (int i = 1; i < activeChannels.Count; i++)
+			{
+				idx = activeChannels[i];
+//				if (df.elements[idx] == null || df.elements[idx].dims == null || df.elements[idx].dims.Length < 3)
+				if (idx >= df.elements.Length || df.elements[idx] == null || df.elements[idx].dims == null || df.elements[idx].dims.Length < 3)
 				{
-					idx = activeChannels[i];
-					for (int n = 0; n < 3; n++)
+					isCompatible = false;
+					break;
+				}
+
+				for (int n = 0; n < 3; n++)
+				{
+					if (dims[n] != df.elements[idx].dims[n])
 					{
-						if (dims[n] != df.elements[idx].dims[n])
-						{
-							check_result = false;
-						}
-					}
-					if (useUndef == df.elements[idx].useUndef)
-					{
-						if (undef != df.elements[idx].undef)
-						{
-							check_result = false;
-						}
-					}
-					else
-					{
-						check_result = false;
+						isCompatible = false;
 					}
 				}
 
-				// activate elements of the selected channels
-				if (check_result)
+				if (useUndef != df.elements[idx].useUndef || (useUndef && undef != df.elements[idx].undef))
 				{
-					for (int i = 0; i < activeChannels.Count; i++)
-					{
-						idx = activeChannels[i];
-						df.elements[idx].isActive = true;
-					}
-					activeChannelNum = activeChannels.Count;
+					isCompatible = false;
 				}
 			}
-		}
 
-		public override void ResetUI()
-		{
-			for (int n = 0; n < 3; n++)
+			// activate elements of the selected channels
+			if (isCompatible)
 			{
-				char axis = (char)('U' + n);
-				string obj_name = "Channels/Toggle " + axis.ToString();
-				var toggle = UIPanel.transform.Find(obj_name).GetComponent<Toggle>();
-//				toggle.isOn = false;
-
-				obj_name = "Channel" + n.ToString() + "/Dropdown";
-				var dropdown = UIPanel.transform.Find(obj_name).GetComponent<Dropdown>();
-				dropdown.ClearOptions();
-				for (int i = 0; i < pdf.elements.Length; i++)
+				for (int i = 0; i < activeChannels.Count; i++)
 				{
-					if (pdf.elements[i].varName == "")
+					idx = activeChannels[i];
+//					df.elements[idx].isActive = true;
+					// Safety check before activation
+					if (idx < df.elements.Length && df.elements[idx] != null)
 					{
-						dropdown.options.Add(new Dropdown.OptionData { text = "variable #" + i.ToString() });
-					}
-					else
-					{
-						dropdown.options.Add(new Dropdown.OptionData { text = pdf.elements[i].varName });
+						df.elements[idx].isActive = true;
 					}
 				}
-//				dropdown.interactable = true;
-				dropdown.interactable = toggle.isOn;
-				dropdown.RefreshShownValue();
+
+				activeChannelNum = activeChannels.Count;
 			}
 		}
 	}

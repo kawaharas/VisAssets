@@ -10,9 +10,9 @@ GameObject:
   m_Component:
   - component: {fileID: 4060278135098249124}
   - component: {fileID: 4060278135098249127}
-  - component: {fileID: 9172374516038432962}
+  - component: {fileID: 3892880486928626193}
   - component: {fileID: 9172374516038432963}
-  - component: {fileID: 247569396461327107}
+  - component: {fileID: 6884916235274268374}
   m_Layer: 0
   m_Name: ReadRAW
   m_TagString: VisModule
@@ -27,13 +27,13 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 4060278135098249112}
+  serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 10}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
-  m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &4060278135098249127
 MonoBehaviour:
@@ -50,7 +50,7 @@ MonoBehaviour:
   moduleType: 3
   parent_changed: 0
   parameter_changed: 0
---- !u!114 &9172374516038432962
+--- !u!114 &3892880486928626193
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -59,26 +59,34 @@ MonoBehaviour:
   m_GameObject: {fileID: 4060278135098249112}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: a960d5cf20a71fb458fb818e67138a06, type: 3}
+  m_Script: {fileID: 11500000, guid: dd182781e99238047b9411c49121ba7e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   UIPanel: {fileID: 0}
   FixedModuleName: 
+  UIPrefab: {fileID: 0}
   activation: {fileID: 0}
   df: {fileID: 0}
   animator: {fileID: 0}
-  loadAtStartup: 0
-  centering: 0
-  autoResize: 0
-  currentStep: 0
-  dims: {x: 0, y: 0, z: 0}
-  filename: 
-  varname: 
+  dataSource: 
+  sourceType: 0
   precision: 0
   byteswap: 0
-  header: 0
-  useEmbeddedData: 0
-  useDebugString: 0
+  skipHeader: 0
+  headerBytes: 4
+  useStreamingAssets: 1
+  loadAtStartup: 1
+  centering: 1
+  autoResize: 1
+  useUndef: 0
+  undef: 0
+  useUndefMenu: 1
+  usePrecisionMenu: 1
+  useByteswapMenu: 1
+  useHeaderSkipMenu: 1
+  currentStep: 0
+  dims: {x: 0, y: 0, z: 0}
+  varname: 
 --- !u!114 &9172374516038432963
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -92,9 +100,13 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   dataType: 0
+  coordinateSystem: 0
+  upAxis: 0
+  scale: {x: 1, y: 1, z: 1}
+  offset: {x: 0, y: 0, z: 0}
   dataLoaded: 0
   elements: []
---- !u!114 &247569396461327107
+--- !u!114 &6884916235274268374
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -103,14 +115,14 @@ MonoBehaviour:
   m_GameObject: {fileID: 4060278135098249112}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f0e602d050608ef49b71de49b9ee04f5, type: 3}
+  m_Script: {fileID: 11500000, guid: 407970220f52c8e4fbc1b985dfc4b616, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  obj: {fileID: 2236395068244410446, guid: 181ca4f4d435ec34e9c94598cf4769db, type: 3}
-  minScale: 0.5
-  maxScale: 5
-  scale: 1
-  IsDrag: 0
-  sensitivity: 5
-  InitScaleSet: 0
-  active: 1
+  rotationSpeedMouse: 1200
+  rotationSpeedTouch: 15
+  scaleSpeedMouse: 0.1
+  scaleSpeedTouch: 0.005
+  minScale: 0.1
+  maxScale: 10
+  isActive: 1
+  isDragging: 0

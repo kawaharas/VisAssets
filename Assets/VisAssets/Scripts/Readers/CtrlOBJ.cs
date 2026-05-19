@@ -1,117 +1,209 @@
-﻿using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.EventSystems;
+using System.Collections.Generic;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 namespace VisAssets
 {
+#if UNITY_EDITOR
+	[CustomEditor(typeof(CtrlOBJ))]
+	public class CtrlOBJEditor : Editor
+	{
+		public override void OnInspectorGUI()
+		{
+			serializedObject.Update();
+
+			SerializedProperty iterator = serializedObject.GetIterator();
+
+			bool enterChildren = true;
+
+			while (iterator.NextVisible(enterChildren))
+			{
+				enterChildren = false;
+
+				if (iterator.name == "m_Script") continue;
+
+				EditorGUILayout.PropertyField(iterator, true);
+			}
+
+			serializedObject.ApplyModifiedProperties();
+		}
+	}
+#endif
+
 	public class CtrlOBJ : MonoBehaviour
 	{
-		public GameObject obj;
+		[Header("Rotation Speeds")]
+		public float rotationSpeedMouse = 1200f;
+		public float rotationSpeedTouch = 15f;
 
-		// for rotation
-		Vector2    startPosition;  // screen position when touched
-		Quaternion startRotation;  // rotation when touched
-		float w, h, d;             // screen size
+		[Header("Scale Speeds")]
+		public float scaleSpeedMouse = 0.1f;
+		public float scaleSpeedTouch = 0.005f;
 
-		// for pinch-in and pinch-out
-		public float minScale = 0.5f;
-		public float maxScale = 5.0f;
-		float dist = 0.0f;
-		float prev_dist = 0.0f;
-		Vector3 initScale;
-		public float scale = 1.0f;
-		public bool IsDrag = false;
-		public float sensitivity = 5f;
-		public bool InitScaleSet = false;
-		public bool active = true;
+		[Header("Scale Limits")]
+		public float minScale = 0.1f;
+		public float maxScale = 10.0f;
+
+		[Header("Interaction Settings")]
+		public bool isActive = true;
+		[ReadOnly] public bool isDragging = false;
+
+		private float currentScaleRatio = 1.0f;
+		private DataField df;
+		private bool isLockUI = false;
 
 		void Start()
 		{
-			w = Screen.width;
-			h = Screen.height;
-			d = Mathf.Sqrt(Mathf.Pow(w, 2) + Mathf.Pow(h, 2));
-			obj = this.gameObject;
-			initScale = obj.transform.localScale;
+			df = GetComponent<DataField>();
 		}
 
 		void Update()
 		{
-			if (Application.platform != RuntimePlatform.Android)
+			if (Input.touchCount == 0 && !Input.GetMouseButton(0))
 			{
-				if (!active) return;
+				isLockUI = false;
+				isDragging = false;
 			}
 
-			var df = obj.GetComponent<DataField>();
+			if (!isActive) return;
+			if (df != null && !df.dataLoaded) return;
 
-			if (df != null)
+			HandleInput();
+		}
+
+		private void HandleInput()
+		{
+			if (Input.touchCount > 0)
 			{
-				if (df.dataLoaded)
+				HandleTouch();
+			}
+			else
+			{
+				HandleMouse();
+			}
+		}
+
+		private bool IsPointerOverUI(Vector2 screenPosition)
+		{
+			if (EventSystem.current == null) return false;
+
+			PointerEventData eventData = new PointerEventData(EventSystem.current);
+			eventData.position = screenPosition;
+			List<RaycastResult> results = new List<RaycastResult>();
+			EventSystem.current.RaycastAll(eventData, results);
+
+			return results.Count > 0;
+		}
+
+		private void HandleMouse()
+		{
+			if (Input.GetMouseButtonDown(0))
+			{
+				if (IsPointerOverUI(Input.mousePosition))
+//				if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
 				{
-					if (!InitScaleSet)
-					{
-						initScale = obj.transform.localScale;
-						InitScaleSet = true;
-					}
+					isLockUI = true;
+					return;
+				}
+				isLockUI = false;
+				isDragging = true;
+				return;
+			}
 
-					// for mouse operation
-					if (Input.GetMouseButtonDown(0))
-					{
-						startPosition = Input.mousePosition;
-						startRotation = obj.transform.rotation;
-						IsDrag = true;
-					}
-					if (Input.GetMouseButtonUp(0))
-					{
-						IsDrag = false;
-					}
-					if (IsDrag)
-					{
-						float tx = (Input.mousePosition.x - startPosition.x) / w * sensitivity;
-						float ty = (Input.mousePosition.y - startPosition.y) / h * sensitivity;
-						obj.transform.rotation = startRotation;
-						obj.transform.Rotate(new Vector3(90 * ty, -90 * tx, 0), Space.World);
-					}
-					scale += Input.mouseScrollDelta.y * 0.1f;
-					scale = Mathf.Clamp(scale, minScale, maxScale);
-					obj.transform.localScale = initScale * scale;
+			if (Input.GetMouseButtonUp(0))
+			{
+				isDragging = false;
+				isLockUI = false;
+			}
 
-					// for touch operation
-					if (Input.touchCount == 1)
-					{
-						Touch t1 = Input.GetTouch(0);
-						if (t1.phase == TouchPhase.Began)
-						{
-							startPosition = t1.position;
-							startRotation = obj.transform.rotation;
-						}
-						else if ((t1.phase == TouchPhase.Moved) || (t1.phase == TouchPhase.Stationary))
-						{
-							float tx = (t1.position.x - startPosition.x) / w * sensitivity;
-							float ty = (t1.position.y - startPosition.y) / h * sensitivity;
-							obj.transform.rotation = startRotation;
-							obj.transform.Rotate(new Vector3(90 * ty, -90 * tx, 0), Space.World);
-						}
-					}
-					else if (Input.touchCount >= 2)
-					{
-						Touch t1 = Input.GetTouch(0);
-						Touch t2 = Input.GetTouch(1);
+			if (isDragging && !isLockUI)
+			{
+				float mouseX = Input.GetAxis("Mouse X") * rotationSpeedMouse * Time.deltaTime;
+				float mouseY = Input.GetAxis("Mouse Y") * rotationSpeedMouse * Time.deltaTime;
+				RotateObject(mouseX, mouseY);
+			}
 
-						if (t2.phase == TouchPhase.Began)
-						{
-							prev_dist = Vector2.Distance(t1.position, t2.position);
-						}
-						else if (((t1.phase == TouchPhase.Moved) || (t1.phase == TouchPhase.Stationary)) &&
-								 ((t2.phase == TouchPhase.Moved) || (t2.phase == TouchPhase.Stationary)))
-						{
-							dist = Vector2.Distance(t1.position, t2.position);
-							scale += (dist - prev_dist) / d * 3f;
-							prev_dist = dist;
-							scale = Mathf.Clamp(scale, minScale, maxScale);
-							obj.transform.localScale = initScale * scale;
-						}
+			float scroll = Input.mouseScrollDelta.y;
+			if (scroll != 0 && !isLockUI)
+			{
+				if (IsPointerOverUI(Input.mousePosition)) return;
+//				if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
+				ApplyScale(scroll * scaleSpeedMouse);
+			}
+		}
+
+		private void HandleTouch()
+		{
+			for (int i = 0; i < Input.touchCount; i++)
+			{
+				Touch t = Input.GetTouch(i);
+				if (t.phase == TouchPhase.Began)
+				{
+					if (IsPointerOverUI(t.position))
+//					if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject(t.fingerId))
+					{
+						isLockUI = true;
 					}
 				}
+			}
+
+			if (isLockUI) return;
+
+			if (Input.touchCount == 1)
+			{
+				Touch touch = Input.GetTouch(0);
+				if (touch.phase == TouchPhase.Began) isDragging = true;
+				if (touch.phase == TouchPhase.Ended || touch.phase == TouchPhase.Canceled) isDragging = false;
+
+				if (touch.phase == TouchPhase.Moved && isDragging)
+				{
+					float touchX = touch.deltaPosition.x * rotationSpeedTouch * Time.deltaTime;
+					float touchY = touch.deltaPosition.y * rotationSpeedTouch * Time.deltaTime;
+					RotateObject(touchX, touchY);
+				}
+			}
+			else if (Input.touchCount == 2)
+			{
+				isDragging = false;
+				Touch touch0 = Input.GetTouch(0);
+				Touch touch1 = Input.GetTouch(1);
+
+				Vector2 touch0PrevPos = touch0.position - touch0.deltaPosition;
+				Vector2 touch1PrevPos = touch1.position - touch1.deltaPosition;
+
+				float prevTouchDeltaMag = (touch0PrevPos - touch1PrevPos).magnitude;
+				float touchDeltaMag = (touch0.position - touch1.position).magnitude;
+				float deltaMagnitudeDiff = touchDeltaMag - prevTouchDeltaMag;
+
+				if (Mathf.Abs(deltaMagnitudeDiff) > 0.01f)
+				{
+					ApplyScale(deltaMagnitudeDiff * scaleSpeedTouch);
+				}
+			}
+		}
+
+		private void RotateObject(float deltaX, float deltaY)
+		{
+			if (Camera.main != null)
+			{
+				transform.Rotate(Camera.main.transform.up, -deltaX, Space.World);
+				transform.Rotate(Camera.main.transform.right, deltaY, Space.World);
+			}
+		}
+
+		private void ApplyScale(float deltaScale)
+		{
+			float prevRatio = currentScaleRatio;
+			currentScaleRatio += deltaScale;
+			currentScaleRatio = Mathf.Clamp(currentScaleRatio, minScale, maxScale);
+
+			if (prevRatio > 0)
+			{
+				float multiplier = currentScaleRatio / prevRatio;
+				transform.localScale *= multiplier;
 			}
 		}
 	}

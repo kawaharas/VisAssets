@@ -25,19 +25,19 @@ namespace VisAssets.SciVis.Structured.Arrows.UI
 			{
 				var selectedLabel =
 					this.GetComponentsInChildren<Text>().First(t => t.name == "Label").text;
-				var arrows = target.GetComponent<Arrows>();
-				if (arrows != null)
+				var component = target.GetComponent<Arrows>();
+				if (component != null)
 				{
 					switch (selectedLabel)
 					{
 						case "I":
-							arrows.SetAxis(0);
+							component.SetAxis(0);
 							break;
 						case "J":
-							arrows.SetAxis(1);
+							component.SetAxis(1);
 							break;
 						case "K":
-							arrows.SetAxis(2);
+							component.SetAxis(2);
 							break;
 						default:
 							break;

@@ -1,59 +1,113 @@
-﻿using System;
+//
+// The part of Marching Cubes in this code was ported from VFIVE (isosurf.cpp).
+// https://www.jamstec.go.jp/ceist/aeird/avcrg/vfive.ja.html
+// The original code was written by Akira Kageyama (Kobe University) and Nobuaki Ohno (University of Hyogo).
+//
+// An implementation of graphics buffers was referenced from the code written by Keijiro Takahashi (Unity Technologies Japan).
+// https://github.com/keijiro/ComputeMarchingCubes
+//
+using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
+using System.Runtime.InteropServices;
+using System.Threading.Tasks;
 using UnityEngine;
+using UnityEngine.Rendering;
 using UnityEngine.UI;
-using UnityEngine.Events;
 #if UNITY_EDITOR
 using UnityEditor;
-using UnityEditor.Compilation;
 #endif
 
 namespace VisAssets.SciVis.Structured.Isosurface
 {
+	using ModuleState = Activation.ModuleState;
+
+	// =========================================================================
+	// Editor Extension
+	// =========================================================================
 #if UNITY_EDITOR
 	[CustomEditor(typeof(Isosurface))]
 	public class IsosurfaceEditor : Editor
 	{
-		SerializedProperty slider;
-		SerializedProperty threshold;
-		SerializedProperty min;
-		SerializedProperty max;
-		SerializedProperty shadingMode;
+		SerializedProperty slider, threshold, min, max, shadingMode, useGPU, vramOptimization, triCount, shader;
+		SerializedProperty builtinMaterial, urpMaterial;
 
 		private void OnEnable()
 		{
-			slider = serializedObject.FindProperty("slider");
-			threshold = serializedObject.FindProperty("threshold");
-			min = serializedObject.FindProperty("min");
-			max = serializedObject.FindProperty("max");
+			slider      = serializedObject.FindProperty("slider");
+			threshold   = serializedObject.FindProperty("threshold");
+			min         = serializedObject.FindProperty("min");
+			max         = serializedObject.FindProperty("max");
 			shadingMode = serializedObject.FindProperty("shadingMode");
+			triCount    = serializedObject.FindProperty("triCount");
+			useGPU      = serializedObject.FindProperty("useGPU");
+			vramOptimization = serializedObject.FindProperty("vramOptimization");
+			shader      = serializedObject.FindProperty("shader");
+			builtinMaterial = serializedObject.FindProperty("builtinMaterial");
+			urpMaterial     = serializedObject.FindProperty("urpMaterial");
 		}
 
 		public override void OnInspectorGUI()
 		{
-//			base.DrawDefaultInspector();
-
 			var isosurface = target as Isosurface;
 
 			serializedObject.Update();
+
 			EditorGUI.BeginChangeCheck();
 
 			GUILayout.Space(10f);
-			var label = new GUIContent("Shading Mode: ");
-			EditorGUILayout.PropertyField(shadingMode, label, true);
-			GUILayout.Space(6f);
+
 			var _threshold = EditorGUILayout.Slider("Threshold: ", threshold.floatValue, min.floatValue, max.floatValue);
-			GUILayout.Space(6f);
-			var _color = EditorGUILayout.ColorField("Color: ", isosurface.color);
-			GUILayout.Space(3f);
+
+			GUILayout.Space(5f);
+
+			EditorGUILayout.LabelField("Triangles : " + (triCount.intValue).ToString());
+
+			GUILayout.Space(5f);
+
+			EditorGUI.BeginDisabledGroup(EditorApplication.isPlaying);
+
+			useGPU.boolValue = EditorGUILayout.ToggleLeft("Enable GPU Acceleration", useGPU.boolValue);
+
+			GUILayout.Space(5f);
+
+			EditorGUI.BeginDisabledGroup(!useGPU.boolValue);
+			EditorGUI.indentLevel++;
+			vramOptimization.boolValue = EditorGUILayout.ToggleLeft("Enable VRAM Optimization (4-float mode)", vramOptimization.boolValue);
+			EditorGUI.indentLevel--;
+			EditorGUI.EndDisabledGroup();
+
+			EditorGUI.EndDisabledGroup();
+
+			GUILayout.Space(10f);
+
+			EditorGUILayout.PropertyField(builtinMaterial, new GUIContent("Built-in Material"));
+
+			GUILayout.Space(5f);
+
+			EditorGUILayout.PropertyField(urpMaterial, new GUIContent("URP Material"));
+
+			GUILayout.Space(5f);
+
+			EditorGUILayout.PropertyField(shader, new GUIContent("Compute Shader"));
+
+			GUILayout.Space(5f);
+
+			EditorGUILayout.PropertyField(serializedObject.FindProperty("UIPrefab"), new GUIContent("UI Prefab"));
+
+			GUILayout.Space(5f);
 
 			if (EditorGUI.EndChangeCheck())
 			{
 				Undo.RecordObject(target, "Isosurface");
-				isosurface.SetValue(_threshold);
-				isosurface.SetColor(_color);
+				if (isosurface != null)
+				{
+					var prop = serializedObject.FindProperty("isThresholdInitialized");
+					if (prop != null) prop.boolValue = true;
+
+					if (_threshold != threshold.floatValue) isosurface.SetValue(_threshold);
+					isosurface.UpdateMaterialShader();
+				}
 				EditorUtility.SetDirty(target);
 			}
 
@@ -62,6 +116,9 @@ namespace VisAssets.SciVis.Structured.Isosurface
 	}
 #endif
 
+	// =========================================================================
+	// Main Class
+	// =========================================================================
 	public class Isosurface : MapperModuleTemplate
 	{
 		public enum SHADING_MODE
@@ -69,8 +126,19 @@ namespace VisAssets.SciVis.Structured.Isosurface
 			FLAT,
 			SMOOTH
 		};
-
+/*
+		[StructLayout(LayoutKind.Sequential)]
+		public struct VertexData
+		{
+			public Vector3 pos;
+			public Vector3 norm;
+			public Vector4 col;
+		}
+*/
 		DataElement element;
+		int []  dims;
+		float[] coords;
+		float[] values;
 
 		[Range(0f, 1f)]
 		public float slider;
@@ -80,574 +148,631 @@ namespace VisAssets.SciVis.Structured.Isosurface
 		public float min;
 		[SerializeField, ReadOnly]
 		public float max = 1f;
-		[SerializeField]
-		public Color color;
-		[SerializeField]
-		public SHADING_MODE shadingMode;
+		[SerializeField] public Color color;
+		[SerializeField] public SHADING_MODE shadingMode;
+		[SerializeField] public int triCount;
 
-		int[] coord_idx = new int[8];
-		float[] vlocal  = new float[8];
+		[SerializeField] private Material builtinMaterial;
+		[SerializeField] private Material urpMaterial;
+
+		int cell_i, cell_j, cell_k;
+
+		Mesh mesh;
 		List<Vector3> vertices;
 		List<Vector3> normals;
 		List<Color>   colors;
-		List<int>     triangles;
-		Material      material;
+		int[] indices;
+
+		public ComputeShader shader = null;
+		ComputeBuffer  tablesBuffer;
+
+		ComputeBuffer  cvmBuffer;
+		ComputeBuffer  cvBufferSingle;
+
+		ComputeBuffer  dummyFloatBuffer;
+		ComputeBuffer  dummyFloat4Buffer;
+
+		GraphicsBuffer vertexBuffer;
+		ComputeBuffer  counterBuffer;
+		ComputeBuffer  counterCheckBuffer;
+
+#if UNITY_ANDROID
+		int maximumVertexNum = 65536 * 15;
+#else
+		int maximumVertexNum = 65536 * 63;
+#endif
+
+		int[]   packedTables;
+		int     currentVolumeSize = -1;
+		private bool isCalculating = false;
+		private bool needsRecalculation = false;
+
+		[SerializeField, HideInInspector]
+		private bool isThresholdInitialized = false;
+
+		[SerializeField] public bool useGPU;
+		[SerializeField] public bool vramOptimization = true;
+
+#if UNITY_EDITOR
+		protected override void Reset()
+		{
+			base.Reset();
+		}
+#endif
 
 		public override void InitModule()
 		{
-			vertices  = new List<Vector3>();
-			normals   = new List<Vector3>();
-			colors    = new List<Color>();
-			triangles = new List<int>();
-			color     = new Color(0, 1f, 0, 1f);
-			material  = new Material(Shader.Find("Custom/SimplePhong"));
+			if (tablesBuffer != null) return;
 
-			shadingMode = SHADING_MODE.FLAT;
-			threshold = 0;
-			slider = 0;
-			min = 0;
-			max = 1f;
+			dims     = new int[3];
+			mesh     = new Mesh();
+			triCount = 0;
 
-			var meshFilter = GetComponent<MeshFilter>();
-			if (meshFilter != null)
+			if (dummyFloatBuffer == null)
 			{
-				meshFilter.hideFlags = HideFlags.HideInInspector;
+				dummyFloatBuffer = new ComputeBuffer(1, sizeof(float));
 			}
-			var meshRenderer = GetComponent<MeshRenderer>();
-			if (meshRenderer != null)
+
+			if (dummyFloat4Buffer == null)
 			{
-				meshRenderer.material = material;
-				meshRenderer.hideFlags = HideFlags.HideInInspector;
+				dummyFloat4Buffer = new ComputeBuffer(1, sizeof(float) * 4);
 			}
+
+			var isosurfaceTables = new IsosurfaceV5Tables();
+			packedTables = isosurfaceTables.PackingTables();
+
+			if (!useGPU)
+			{
+				vertices = new List<Vector3>();
+				normals  = new List<Vector3>();
+				colors   = new List<Color>();
+				mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
+			}
+			else
+			{
+				tablesBuffer  = new ComputeBuffer(packedTables.Length, sizeof(int));
+				counterBuffer = new ComputeBuffer(1, sizeof(uint), ComputeBufferType.Counter);
+				counterCheckBuffer = new ComputeBuffer(1, sizeof(uint), ComputeBufferType.IndirectArguments);
+				counterBuffer.SetCounterValue(0);
+				shader.SetInt("maximumVertexNum", maximumVertexNum);
+
+				mesh.vertexBufferTarget |= GraphicsBuffer.Target.Raw;
+				var vp = new VertexAttributeDescriptor(VertexAttribute.Position, VertexAttributeFormat.Float32, 3);
+				var vn = new VertexAttributeDescriptor(VertexAttribute.Normal,   VertexAttributeFormat.Float32, 3);
+				var vc = new VertexAttributeDescriptor(VertexAttribute.Color,    VertexAttributeFormat.Float32, 4);
+
+				mesh.SetVertexBufferParams(maximumVertexNum, vp, vn, vc);
+				mesh.SetIndexBufferParams(maximumVertexNum, IndexFormat.UInt32);
+				mesh.SetSubMesh(0, new SubMeshDescriptor(0, maximumVertexNum), MeshUpdateFlags.DontRecalculateBounds);
+
+				vertexBuffer = mesh.GetVertexBuffer(0);
+				indices = new int[maximumVertexNum];
+
+				for (int i = 0; i < maximumVertexNum; i++)
+				{
+					indices[i] = i;
+				}
+
+				mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
+				mesh.SetIndices(indices, MeshTopology.Triangles, 0);
+			}
+
+			UpdateMaterialShader();
 		}
 
 		public override int BodyFunc()
 		{
-			Debug.Log(" Exec : Isosurface module");
-			Calc();
+			if (pdf.dataLoaded)
+			{
+				Draw();
+			}
 
 			return 1;
 		}
 
-		public override void ReSetParameters()
-		{
-			element = pdf.elements[0];
-
-			min = element.min;
-			max = element.max;
-//			threshold = element.average + element.variance * 3f;
-//			threshold = min;
-//			slider = (threshold - min) / (max - min);
-			threshold = min + (max - min) * slider;
-		}
-
 		public override void SetParameters()
 		{
+			if (pdf.dataLoaded)
+			{
+				Calc();
+			}
 		}
 
-		public override void GetParameters()
+		public override void ReSetParameters()
 		{
-		}
+			if (!pdf.dataLoaded) return;
 
-		void OnValidate()
-		{
-			if (!IsDataLoadedToParent()) return;
+			StopAllCoroutines();
 
-			threshold = min + (max - min) * slider;
+			isCalculating = false;
+			needsRecalculation = false;
+
+			element = pdf.elements[0];
+			dims = element.dims;
+			coords = element.coords[3];
+			values = element.values;
+
+			PrepareDataBuffer();
+			InitLevel();
+			UpdateMaterialShader();
 			Calc();
-
-			activation.SetParameterChanged(1);
 		}
 
-		public void SetShadingMode(int mode)
+		private void OnDestroy()
 		{
-			shadingMode = (SHADING_MODE)mode;
+			StopAllCoroutines();
 
-			ParameterChanged();
+			if (TryGetComponent<MeshFilter>(out var filter))
+			{
+				filter.sharedMesh = null;
+			}
+
+			if (TryGetComponent<MeshRenderer>(out var renderer))
+			{
+				renderer.sharedMaterial = null;
+			}
+
+			DisposeBuffers();
+		}
+
+		public void UpdateMaterialShader()
+		{
+			var pipeline = UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline ?? UnityEngine.QualitySettings.renderPipeline;
+			bool isURP = pipeline != null;
+
+			Material targetMaterial = isURP ? urpMaterial : builtinMaterial;
+
+			if (TryGetComponent<MeshRenderer>(out var renderer))
+			{
+				renderer.sharedMaterial = targetMaterial;
+			}
+		}
+
+		private void DisposeBuffers()
+		{
+			if (tablesBuffer != null) tablesBuffer.Dispose();
+			if (counterBuffer != null) counterBuffer.Dispose();
+			if (counterCheckBuffer != null) counterCheckBuffer.Dispose();
+			if (vertexBuffer != null) vertexBuffer.Dispose();
+			if (cvmBuffer != null) cvmBuffer.Dispose();
+			if (cvBufferSingle != null) cvBufferSingle.Dispose();
+			if (dummyFloatBuffer != null) dummyFloatBuffer.Dispose();
+			if (dummyFloat4Buffer != null) dummyFloat4Buffer.Dispose();
+		}
+
+		private void PrepareDataBuffer()
+		{
+			if (!useGPU) return;
+
+			int volumeSize = dims[0] * dims[1] * dims[2];
+
+			if (volumeSize <= 0) return;
+
+			if (vramOptimization)
+			{
+				shader.EnableKeyword("VRAM_OPTIMIZATION_ON");
+
+				if (cvBufferSingle == null || currentVolumeSize != volumeSize)
+				{
+					if (cvBufferSingle != null)
+					{
+						cvBufferSingle.Dispose();
+					}
+
+					cvBufferSingle = new ComputeBuffer(volumeSize, sizeof(float) * 4);
+					currentVolumeSize = volumeSize;
+				}
+
+				Vector4[] cv = new Vector4[volumeSize];
+
+				Parallel.For(0, volumeSize, i => {
+					cv[i] = new Vector4(coords[i * 3 + 0], coords[i * 3 + 1], coords[i * 3 + 2], values[i]);
+				});
+
+				cvBufferSingle.SetData(cv);
+			}
+			else
+			{
+				shader.DisableKeyword("VRAM_OPTIMIZATION_ON");
+
+				if (cvmBuffer == null || currentVolumeSize != volumeSize)
+				{
+					if (cvmBuffer != null)
+					{
+						cvmBuffer.Dispose();
+					}
+
+					cvmBuffer = new ComputeBuffer(volumeSize * 13, sizeof(float));
+					currentVolumeSize = volumeSize;
+				}
+
+				float[] cvmData = new float[volumeSize * 13];
+
+				Parallel.For(0, volumeSize, i => {
+					cvmData[i * 13 + 0] = coords[i * 3 + 0];
+					cvmData[i * 13 + 1] = coords[i * 3 + 1];
+					cvmData[i * 13 + 2] = coords[i * 3 + 2];
+					cvmData[i * 13 + 3] = values[i];
+					for (int n = 4; n < 13; n++) cvmData[i * 13 + n] = 0;
+				});
+
+				cvmBuffer.SetData(cvmData);
+
+				int kernel = shader.FindKernel("GenCoordPrep");
+				shader.SetInts("dims", dims);
+
+				shader.SetBuffer(kernel, "cvm", cvmBuffer);
+				shader.SetBuffer(kernel, "cvBuffer", dummyFloat4Buffer);
+
+				uint sx, sy, sz;
+				shader.GetKernelThreadGroupSizes(kernel, out sx, out sy, out sz);
+				shader.Dispatch(kernel, (dims[0] + (int)sx - 1) / (int)sx, (dims[1] + (int)sy - 1) / (int)sy, (dims[2] + (int)sz - 1) / (int)sz);
+			}
+		}
+
+		public void Calc()
+		{
+			if (!useGPU)
+			{
+				RunCPUCalc();
+
+				return;
+			}
+
+			if (isCalculating)
+			{
+				needsRecalculation = true;
+
+				return;
+			}
+
+			StartCoroutine(CalcRoutine());
+		}
+
+		private IEnumerator CalcRoutine()
+		{
+			isCalculating = true;
+			needsRecalculation = false;
+
+			int kernel = shader.FindKernel("Calc");
+			shader.SetFloat("threshold", threshold);
+			shader.SetFloat("_min", element.min);
+			shader.SetFloat("_max", element.max);
+			shader.SetBool("useLegacyGPU", !vramOptimization);
+			shader.SetInts("dims", dims);
+			shader.SetInt("maximumVertexNum", maximumVertexNum);
+
+			counterBuffer.SetCounterValue(0);
+			shader.SetBuffer(kernel, "counter", counterBuffer);
+			tablesBuffer.SetData(packedTables);
+			shader.SetBuffer(kernel, "tables", tablesBuffer);
+			shader.SetBuffer(kernel, "vertices", vertexBuffer);
+
+			if (vramOptimization)
+			{
+				shader.EnableKeyword("VRAM_OPTIMIZATION_ON");
+				shader.SetBuffer(kernel, "cvBuffer", cvBufferSingle);
+				shader.SetBuffer(kernel, "cvm", dummyFloatBuffer);
+			}
+			else
+			{
+				shader.DisableKeyword("VRAM_OPTIMIZATION_ON");
+				shader.SetBuffer(kernel, "cvBuffer", dummyFloat4Buffer);
+				shader.SetBuffer(kernel, "cvm", cvmBuffer);
+			}
+
+			uint sx, sy, sz;
+			shader.GetKernelThreadGroupSizes(kernel, out sx, out sy, out sz);
+			shader.Dispatch(kernel, (dims[0] + (int)sx - 1) / (int)sx, (dims[1] + (int)sy - 1) / (int)sy, (dims[2] + (int)sz - 1) / (int)sz);
+
+			ComputeBuffer.CopyCount(counterBuffer, counterCheckBuffer, 0);
+			var reqCount = AsyncGPUReadback.Request(counterCheckBuffer);
+			yield return new WaitUntil(() => reqCount.done);
+
+			if (!reqCount.hasError)
+			{
+				triCount = (int)reqCount.GetData<uint>()[0];
+
+				int validVertexCount = Mathf.Clamp(triCount * 3, 3, maximumVertexNum);
+
+				if (mesh != null)
+				{
+					mesh.SetSubMesh(0, new SubMeshDescriptor(0, validVertexCount, MeshTopology.Triangles), MeshUpdateFlags.DontRecalculateBounds);
+				}
+			}
+
+			isCalculating = false;
+			if (needsRecalculation) Calc();
+		}
+
+		private int GetTriangleNum(int i) { return packedTables[i]; }
+		private int GetEdgeEndVert(int j, int i) { return packedTables[256 + j * 2 + i]; }
+		private int GetTriangle(int k, int j, int i) { return packedTables[256 + (12 * 2) + 3 * 4 * k + 3 * j + i]; }
+//		private int GetIndex(int i, int j, int k) { return (dims[1] * k + j) * dims[0] + i; }
+		private float GetCoord(int i, int j, int k, int axis) { return coords[GetIndex(i, j, k) * 3 + axis]; }
+//		private float GetValue(int i, int j, int k) { return values[GetIndex(i, j, k)]; }
+
+		[System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
+		private int GetIndex(int i, int j, int k) { return (dims[1] * k + j) * dims[0] + i; }
+
+		[System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
+		private float GetValue(int i, int j, int k) { return values[GetIndex(i, j, k)]; }
+
+		[System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
+		private Vector3 GetCoordVec(int i, int j, int k)
+		{
+			int idx = GetIndex(i, j, k) * 3;
+			return new Vector3(coords[idx], coords[idx + 1], coords[idx + 2]);
+		}
+
+		private void VertIntPosition(int vert, ref int i, ref int j, ref int k)
+		{
+			i = cell_i + (vert & 1);
+			j = cell_j + ((vert >> 1) & 1);
+			k = cell_k + ((vert >> 2) & 1);
+		}
+
+		private void RunCPUCalc()
+		{
+			vertices.Clear();
+			normals.Clear();
+			colors.Clear();
+			triCount = 0;
+
+			for (cell_k = 0; cell_k < dims[2] - 1; cell_k++)
+			{
+				for (cell_j = 0; cell_j < dims[1] - 1; cell_j++)
+				{
+					for (cell_i = 0; cell_i < dims[0] - 1; cell_i++)
+					{
+						UnitCube();
+					}
+				}
+			}
+
+			indices = new int[triCount * 3];
+
+			for (int i = 0; i < triCount * 3; i++)
+			{
+				indices[i] = i;
+			}
+
+			Draw();
+		}
+
+		private Vector3 Grad(int i, int j, int k)
+		{
+			int iPrev = i == 0 ? 0 : i - 1;
+			int iNext = i == dims[0] - 1 ? i : i + 1;
+			int jPrev = j == 0 ? 0 : j - 1;
+			int jNext = j == dims[1] - 1 ? j : j + 1;
+			int kPrev = k == 0 ? 0 : k - 1;
+			int kNext = k == dims[2] - 1 ? k : k + 1;
+
+			float divI = (i == 0 || i == dims[0] - 1) ? 1f : 2f;
+			float divJ = (j == 0 || j == dims[1] - 1) ? 1f : 2f;
+			float divK = (k == 0 || k == dims[2] - 1) ? 1f : 2f;
+
+			float dfd1 = (GetValue(iNext, j, k) - GetValue(iPrev, j, k)) / divI;
+			float dfd2 = (GetValue(i, jNext, k) - GetValue(i, jPrev, k)) / divJ;
+			float dfd3 = (GetValue(i, j, kNext) - GetValue(i, j, kPrev)) / divK;
+
+			Vector3 vPrevX = GetCoordVec(iPrev, j, k); Vector3 vNextX = GetCoordVec(iNext, j, k);
+			Vector3 vPrevY = GetCoordVec(i, jPrev, k); Vector3 vNextY = GetCoordVec(i, jNext, k);
+			Vector3 vPrevZ = GetCoordVec(i, j, kPrev); Vector3 vNextZ = GetCoordVec(i, j, kNext);
+
+			Vector3 dx = (vNextX - vPrevX) / divI;
+			Vector3 dy = (vNextY - vPrevY) / divJ;
+			Vector3 dz = (vNextZ - vPrevZ) / divK;
+
+			float jac = dx.x * (dy.y * dz.z - dy.z * dz.y) - dy.x * (dx.y * dz.z - dx.z * dz.y) + dz.x * (dx.y * dy.z - dx.z * dy.y);
+
+			if (jac == 0f) return Vector3.zero;
+
+			float gx = ((dy.y * dz.z - dy.z * dz.y) * dfd1 + (dy.z * dx.z - dx.y * dz.z) * dfd2 + (dx.y * dy.z - dy.y * dx.z) * dfd3) / jac;
+			float gy = ((dz.y * dy.x - dy.y * dz.x) * dfd1 + (dx.x * dz.z - dz.x * dx.z) * dfd2 + (dy.x * dx.z - dx.x * dy.z) * dfd3) / jac;
+			float gz = ((dy.x * dz.y - dz.x * dy.y) * dfd1 + (dz.x * dx.y - dx.x * dz.y) * dfd2 + (dx.x * dy.y - dy.x * dx.y) * dfd3) / jac;
+
+			Vector3 g = new Vector3(gx, gy, gz);
+			float gg = g.magnitude;
+
+			return gg > 0.0f ? -g / gg : Vector3.zero;
+		}
+
+		private void CrossPoint(int edge, out Vector3 vert, out Vector3 norm)
+		{
+			int i0 = 0, j0 = 0, k0 = 0, i1 = 0, j1 = 0, k1 = 0;
+			VertIntPosition(GetEdgeEndVert(edge, 0), ref i0, ref j0, ref k0);
+			VertIntPosition(GetEdgeEndVert(edge, 1), ref i1, ref j1, ref k1);
+
+			float val0 = GetValue(i0, j0, k0);
+			float val1 = GetValue(i1, j1, k1);
+
+			float weight0 = (val1 != val0) ? (val1 - threshold) / (val1 - val0) : 0f;
+			float weight1 = 1f - weight0;
+
+			Vector3 p0 = GetCoordVec(i0, j0, k0);
+			Vector3 p1 = GetCoordVec(i1, j1, k1);
+			vert = p0 * weight0 + p1 * weight1;
+
+			Vector3 n0 = Grad(i0, j0, k0);
+			Vector3 n1 = Grad(i1, j1, k1);
+			norm = n0 * weight0 + n1 * weight1;
+		}
+
+		private void AddTriangleGeom(Vector3 v0, Vector3 v1, Vector3 v2, Vector3 n0, Vector3 n1, Vector3 n2)
+		{
+			vertices.Add(v0);
+			vertices.Add(v1);
+			vertices.Add(v2);
+			normals.Add(n0);
+			normals.Add(n1);
+			normals.Add(n2);
+
+			Color c = GetColor();
+			colors.Add(c);
+			colors.Add(c);
+			colors.Add(c);
+		}
+
+		private Color GetColor()
+		{
+			float level = (element.max - threshold) / (element.max - element.min);
+			float r=0f, g=0f, b=0f, a=1f;
+
+			if (level < 0.5f)
+			{
+				r = 0f;
+			}
+			else if (level >= 0.5f && level < 5f / 6f)
+			{
+				r = 6f * (level - 0.5f);
+			}
+			else if (level >= 5f / 6f)
+			{
+				r = 1f;
+			}
+
+			if (level < 1f / 3f)
+			{
+				g = 3f * level;
+			}
+			else if (level >= 1f / 3f && level < 2f / 3f)
+			{
+				g = 1f;
+			}
+			else if (level >= 2f / 3f)
+			{
+				g = 1f - 3f * (level - 2f / 3f);
+			}
+
+			if (level < 1f/3f)
+			{
+				b = 1f;
+			}
+			else if (level >= 1f / 3f && level < 1f / 2f)
+			{
+				b = 1f - 6f * (level - 1f / 3f);
+			}
+			else if (level >= 1f / 2f)
+			{
+				b = 0f;
+			}
+
+			return new Color(r, g, b, a);
+		}
+
+		private int CellCode(int i0, int j0, int k0)
+		{
+			int sum = 0, code = 0;
+
+			for (int k = k0 + 1; k >= k0; k--)
+			{
+				for (int j = j0 + 1; j >= j0; j--)
+				{
+					for (int i = i0 + 1; i >= i0; i--)
+					{
+						int bit = (GetValue(i, j, k) > threshold ? 1 : 0);
+
+						code |= bit;
+
+						if (i != i0 || j != j0 || k != k0) code <<= 1;
+
+						sum += bit;
+					}
+				}
+			}
+
+			if (sum > 4)
+			{
+				code = (byte)~code;
+			}
+
+			return code;
+		}
+
+		private void UnitCube()
+		{
+			int code = CellCode(cell_i, cell_j, cell_k);
+			int p = GetTriangleNum(code);
+
+			while (p-- > 0)
+			{
+				int edge0 = GetTriangle(code, p, 0);
+				int edge1 = GetTriangle(code, p, 1);
+				int edge2 = GetTriangle(code, p, 2);
+
+				CrossPoint(edge0, out Vector3 p0, out Vector3 n0);
+				CrossPoint(edge1, out Vector3 p1, out Vector3 n1);
+				CrossPoint(edge2, out Vector3 p2, out Vector3 n2);
+
+				AddTriangleGeom(p0, p1, p2, n0, n1, n2);
+				triCount++;
+			}
+		}
+
+		private void InitLevel()
+		{
+			min = element.min;
+			max = element.max;
+
+			if (!isThresholdInitialized)
+			{
+				threshold = element.average + element.variance * 3f;
+				isThresholdInitialized = true;
+			}
+
+			threshold = Mathf.Clamp(threshold, min, max);
+			slider = (max > min) ? (threshold - min) / (max - min) : 0f;
+		}
+
+		public override void ResetUI()
+		{
+			if (element == null) return;
+
+			var sliderObj = UIPanel.transform.Find("Threshold/Slider");
+
+			if (sliderObj != null)
+			{
+				var sliderComp = sliderObj.GetComponent<Slider>();
+				if (sliderComp != null)
+				{
+					sliderComp.minValue = element.min;
+					sliderComp.maxValue = element.max;
+					sliderComp.value    = threshold;
+				}
+			}
 		}
 
 		public void SetValue(float value)
 		{
 			threshold = Mathf.Clamp(value, min, max);
 			slider = (threshold - min) / (max - min);
-
-			activation.SetParameterChanged(1);
+			activation.SetParameterChanged(ModuleState.PARAMETER_CHANGED);
 		}
 
-		public void SetColor(Color _color)
+		public void Draw()
 		{
-			color = _color;
-
-			activation.SetParameterChanged(1);
-		}
-
-		public override void ResetUI()
-		{
-			var slider = UIPanel.transform.Find("Threshold/Slider").GetComponent<Slider>();
-//			slider.value    = element.average + element.variance * 3f;
-			slider.value    = element.min;
-			slider.minValue = element.min;
-			slider.maxValue = element.max;
-		}
-
-		void Calc()
-		{
-			vertices.Clear();
-			colors.Clear();
-			normals.Clear();
-			triangles.Clear();
-
-			int mx = element.dims[0];
-			int my = element.dims[1];
-			int mz = element.dims[2];
-
-			int count = 0;
-			for (int k = 0; k < mz - 1; k++)
+			var meshFilter = GetComponent<MeshFilter>();
+			if (!useGPU)
 			{
-				for (int j = 0; j < my - 1; j++)
-				{
-					for (int i = 0; i < mx - 1; i++)
-					{
-						coord_idx[0] =  i      +  j      * mx +  k      * mx * my;
-						coord_idx[1] = (i + 1) +  j      * mx +  k      * mx * my;
-						coord_idx[2] = (i + 1) + (j + 1) * mx +  k      * mx * my;
-						coord_idx[3] =  i      + (j + 1) * mx +  k      * mx * my;
-						coord_idx[4] =  i      +  j      * mx + (k + 1) * mx * my;
-						coord_idx[5] = (i + 1) +  j      * mx + (k + 1) * mx * my;
-						coord_idx[6] = (i + 1) + (j + 1) * mx + (k + 1) * mx * my;
-						coord_idx[7] =  i      + (j + 1) * mx + (k + 1) * mx * my;
-
-						int vtype = 0;
-						for (int n = 0; n < 8; n++)
-						{
-							vlocal[n] = element.values[coord_idx[n]];
-							vtype |= ((vlocal[n] > threshold) ? 1 : 0) << n;
-						}
-
-						int tri = 0;
-						if (trinum[vtype] > 0)
-						{
-							tri = triindex[vtype * 14 + 1];
-
-							for (int n = 0; n < tri; n++)
-							{
-								List<int> edges = new List<int>();
-								int index = vtype * 14 + 2 + n * 3;
-								for (int v = 0; v < 3; v++)
-								{
-									int edge = triindex[index + v];
-									if (edge < 8)
-									{
-										if ((edge == 3) || (edge == 7))
-										{
-											edges.Add(edge);
-											edges.Add(edge - 3);
-										}
-										else
-										{
-											edges.Add(edge);
-											edges.Add(edge + 1);
-										}
-									}
-									else
-									{
-										edges.Add(edge % 8);
-										edges.Add(edge % 8 + 4);
-									}
-									triangles.Add(count * 3 + n * 3 + v);
-								}
-								AddGeometry(edges);
-							}
-							count += tri;
-						}
-					}
-				}
-			}
-
-			Vector3[] finalNormals = null;
-			if (shadingMode == SHADING_MODE.SMOOTH)
-			{
-				finalNormals = new Vector3[normals.Count()];
-				for (int n = 0; n < normals.Count(); n++)
-				{
-					if (finalNormals[n] == Vector3.zero)
-					{
-						List<int> index = new List<int>();
-						index.Add(n);
-						finalNormals[n] = normals[n];
-						for (int c = n + 1; c < normals.Count(); c++)
-						{
-							if (vertices[c] == vertices[n])
-							{
-								finalNormals[n] += normals[c];
-								finalNormals[n] = finalNormals[n].normalized;
-								index.Add(c);
-							}
-						}
-						for (int c = 1; c < index.Count(); c++)
-						{
-							finalNormals[index[c]] = finalNormals[n];
-						}
-					}
-				}
-			}
-
-			var mesh = new Mesh();
-			mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
-			mesh.SetVertices(vertices);
-			mesh.SetColors(colors);
-			if (shadingMode == SHADING_MODE.SMOOTH)
-			{
-				mesh.normals = finalNormals;
+				mesh.Clear();
+				mesh.SetVertices(vertices);
+				mesh.SetNormals(normals);
+				mesh.SetColors(colors);
+				mesh.SetIndices(indices, MeshTopology.Triangles, 0);
+				mesh.RecalculateBounds();
+				meshFilter.mesh = mesh;
 			}
 			else
 			{
-				mesh.SetNormals(normals);
-			}
-			mesh.SetTriangles(triangles, 0);
-			mesh.RecalculateBounds();
+				var scale = transform.localScale;
+				var v0 = Vector3.Scale(element.boundMin, scale);
+				var v1 = Vector3.Scale(element.boundMax, scale);
 
-			var meshFilter = GetComponent<MeshFilter>();
-			if (meshFilter != null)
-			{
-				meshFilter.mesh = mesh;
+				mesh.bounds = new UnityEngine.Bounds(v0 + (v1 - v0) / 2, (v1 - v0) * 2);
+				meshFilter.sharedMesh = mesh;
 			}
 		}
-
-		private void AddGeometry(List<int> edge)
-		{
-			float x0, y0, z0, x1, y1, z1, a, b;
-			float[] x = new float[3];
-			float[] y = new float[3];
-			float[] z = new float[3];
-			int p0, p1, idx0, idx1;
-
-			for (int i = 0; i < 3; i++)
-			{
-				p0 = edge[i * 2];
-				p1 = edge[i * 2 + 1];
-				idx0 = coord_idx[p0] * 3;
-				idx1 = coord_idx[p1] * 3;
-				x0 = element.coords[3][idx0];
-				y0 = element.coords[3][idx0 + 1];
-				z0 = element.coords[3][idx0 + 2];
-				x1 = element.coords[3][idx1];
-				y1 = element.coords[3][idx1 + 1];
-				z1 = element.coords[3][idx1 + 2];
-				a = Math.Abs(threshold - vlocal[p0]);
-				b = Math.Abs(threshold - vlocal[p1]);
-				x[i] = (a * x1 + b * x0) / (a + b);
-				y[i] = (a * y1 + b * y0) / (a + b);
-				z[i] = (a * z1 + b * z0) / (a + b);
-			}
-			var v0 = new Vector3(x[0], y[0], z[0]);
-			var v1 = new Vector3(x[1], y[1], z[1]);
-			var v2 = new Vector3(x[2], y[2], z[2]);
-			vertices.Add(v0);
-			vertices.Add(v1);
-			vertices.Add(v2);
-			var norm = Vector3.Normalize(Vector3.Cross(v1 - v0, v2 - v0));
-			normals.Add(new Vector3(norm.x, norm.y, norm.z));
-			normals.Add(new Vector3(norm.x, norm.y, norm.z));
-			normals.Add(new Vector3(norm.x, norm.y, norm.z));
-			for (int i = 0; i < 3; i++)
-			{
-				colors.Add(color);
-			}
-		}
-
-		private void AddGeometry(int v0, int v1)
-		{
-			float x0, y0, z0, x1, y1, z1;
-			float x, y, z, a, b;
-
-			int idx0 = coord_idx[v0] * 3;
-			int idx1 = coord_idx[v1] * 3;
-
-			x0 = element.coords[3][idx0];
-			y0 = element.coords[3][idx0 + 1];
-			z0 = element.coords[3][idx0 + 2];
-			x1 = element.coords[3][idx1];
-			y1 = element.coords[3][idx1 + 1];
-			z1 = element.coords[3][idx1 + 2];
-
-			a = Math.Abs(threshold - vlocal[v0]);
-			b = Math.Abs(threshold - vlocal[v1]);
-			x = (a * x1 + b * x0) / (a + b);
-			y = (a * y1 + b * y0) / (a + b);
-			z = (a * z1 + b * z0) / (a + b);
-			vertices.Add(new Vector3(x, y, z));
-			colors.Add(color);
-		}
-
-		int[] trinum = {
-			0,1,1,2,1,2,2,3,1,2,2,3,2,3,3,2,1,2,2,3,2,3,3,4,2,3,3,4,3,4,4,3,1,
-			2,2,3,2,3,3,4,2,3,3,4,3,4,4,3,2,3,3,2,3,4,4,3,3,4,4,3,4,3,3,2,1,2,
-			2,3,2,3,3,4,2,3,3,4,3,4,4,3,2,3,3,4,3,4,4,3,3,4,4,3,4,3,3,2,2,3,3,
-			4,3,4,2,3,3,4,4,3,4,3,3,2,3,4,4,3,4,3,3,2,4,3,3,2,3,2,2,1,1,2,2,3,
-			2,3,3,4,2,3,3,4,3,4,4,3,2,3,3,4,3,4,4,3,3,2,4,3,4,3,3,2,2,3,3,4,3,
-			4,4,3,3,4,4,3,4,3,3,2,3,4,4,3,4,3,3,2,4,3,3,2,3,2,2,1,2,3,3,4,3,4,
-			4,3,3,4,4,3,2,3,3,2,3,4,4,3,4,3,3,2,4,3,3,2,3,2,2,1,3,4,4,3,4,3,3,
-			2,4,3,3,2,3,2,2,1,2,3,3,2,3,2,2,1,3,2,2,1,2,1,1,0
-		};
-
-		int[] triindex = {
-	0,0,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-	1,1,3,0,8,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-	2,1,0,1,9,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-	3,2,3,1,8,8,1,9,-1,-1,-1,-1,-1,-1,
-	4,1,1,2,10,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-	5,2,3,0,8,1,2,10,-1,-1,-1,-1,-1,-1,
-	6,2,0,2,9,9,2,10,-1,-1,-1,-1,-1,-1,
-	7,3,9,8,10,10,8,2,3,2,8,-1,-1,-1,
-	8,1,2,3,11,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-	9,2,2,0,11,11,0,8,-1,-1,-1,-1,-1,-1,
-	10,2,0,1,9,2,3,11,-1,-1,-1,-1,-1,-1,
-	11,3,9,8,11,2,9,11,2,1,9,-1,-1,-1,
-	12,2,1,3,11,1,11,10,-1,-1,-1,-1,-1,-1,
-	13,3,8,11,10,1,8,10,1,0,8,-1,-1,-1,
-	14,3,10,9,11,9,3,11,3,9,0,-1,-1,-1,
-	15,2,9,8,10,8,11,10,-1,-1,-1,-1,-1,-1,
-	16,1,4,7,8,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-	17,2,0,4,3,3,4,7,-1,-1,-1,-1,-1,-1,
-	18,2,0,1,9,4,7,8,-1,-1,-1,-1,-1,-1,
-	19,3,3,1,7,7,1,4,4,1,9,-1,-1,-1,
-	20,2,1,2,10,4,7,8,-1,-1,-1,-1,-1,-1,
-			21,3,2,1,10,0,4,7,0,7,3,-1,-1,-1,
-			22,3,4,7,8,0,2,10,0,10,9,-1,-1,-1,
-			23,4,2,0,7,2,3,0,0,4,7,7,10,2,
-	24,2,2,3,11,4,7,8,-1,-1,-1,-1,-1,-1,
-	25,3,2,0,4,2,4,7,2,7,11,-1,-1,-1,
-	26,3,0,1,9,2,3,11,4,7, 8,-1,-1,-1,
-	27,4,2,1,11,1,7,11,1,4,7,4,1,9,
-			28,3,4,7,8,1,3,11,1,11,10,-1,-1,-1,
-			29,4,0,10,7,0,1,10,10,11,7,7,4,0,
-			30,4,4,7,8,9,10,11,11,9,3,3,9,0,
-	31,3,10,9,11,9,7,11,4,7,9,-1,-1,-1,
-	32,1,5,4,9,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-	33,2,3,0,8,5,4,9,-1,-1,-1,-1,-1,-1,
-	34,2,1,5,0,0,5,4,-1,-1,-1,-1,-1,-1,
-	35,3,3,1,5,3,5,4,3,4,8,-1,-1,-1,
-	36,2,1,2,10,5,4,9,-1,-1,-1,-1,-1,-1,
-	37,3,3,0,8,1,2,10,5,4, 9,-1,-1,-1,
-	38,3,0,2,4,4,2,5,5,2,10,-1,-1,-1,
-	39,4,3,2,8,2,4,8,4,2,5,5,2,10,
-	40,2,2,3,11,5,4,9,-1,-1,-1,-1,-1,-1,
-			41,3,5,4,9,0,2,11,0,11,8,-1,-1,-1,
-			42,3,3,2,11,0,4,5,0,5,1,-1,-1,-1,
-			43,4,1,11,4,1,2,11,11,8,4,4,5,1,
-			44,3,5,4,9,1,3,11,1,11,10,-1,-1,-1,
-			45,4,5,4,9,8,11,10,10,8,1,1,8,0,
-			46,4,0,11,5,0,3,11,11,10,5,5,4,0,
-	47,3,10,8,11,8,10,5,8,5,4,-1,-1,-1,
-	48,2,8,9,7,7,9,5,-1,-1,-1,-1,-1,-1,
-	49,3,3,5,7,5,3,9,9,3,0,-1,-1,-1,
-	50,3,1,5,7,1,7,8,0,1,8,-1,-1,-1,
-	51,2,3,1,7,1,5,7,-1,-1,-1,-1,-1,-1,
-			52,3,2,1,10,5,7,8,5,8,9,-1,-1,-1,
-			53,4,2,1,10,3,7,5,5,3,9,9,3,0,
-			54,4,0,10,7,0,2,10,10,5,7,7,8,0,
-	55,3,3,5,7,5,3,10,3,2,10,-1,-1,-1,
-			56,3,3,2,11,5,7,8,5,8,9,-1,-1,-1,
-			57,4,0,11,5,0,2,11,11,7,5,5,9,0,
-			58,4,3,2,11,1,5,7,7,1,8,8,1,0,
-	59,3,7,1,5,1,7,11,2,1,11,-1,-1,-1,
-	60,4,1,3,11,1,11,10,5,7,9,7,8,9,
-			61,3,1,9,0,5,7,11,5,11,10,-1,-1,-1,
-			62,3,0,3,8,5,7,11,5,11,10,-1,-1,-1,
-	63,2,11,10,7,7,10,5,-1,-1,-1,-1,-1,-1,
-	64,1,6,5,10,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-	65,2,3,0,8,6,5,10,-1,-1,-1,-1,-1,-1,
-	66,2,0,1,9,6,5,10,-1,-1,-1,-1,-1,-1,
-			67,3,6,5,10,1,3,8,1,8,9,-1,-1,-1,
-	68,2,2,6,1,1,6,5,-1,-1,-1,-1,-1,-1,
-			69,3,0,3,8,1,5,6,1,6,2,-1,-1,-1,
-	70,3,0,2,6,6,5,0,0,5,9,-1,-1,-1,
-			71,4,2,8,5,2,3,8,8,9,5,5,6,2,
-	72,2,2,3,11,6,5,10,-1,-1,-1,-1,-1,-1,
-			73,3,6,5,10,0,2,11,0,11,8,-1,-1,-1,
-	74,3,0,1,9,2,3,11,6,5,10,-1,-1,-1,
-			75,4,6,5,10,9,8,11,11,9,2,2,9,1,
-	76,3,1,3,5,5,3,6,6,3,11,-1,-1,-1,
-			77,4,0,10,6,0,1,10,10,5,6,6,11,0,
-			78,4,0,3,11,0,11,6,0,6,5,0,5,9,
-	79,3,9,8,11,6,9,11,6,5,9,-1,-1,-1,
-	80,2,4,7,8,6,5,10,-1,-1,-1,-1,-1,-1,
-			81,3,6,5,10,0,4,7,0,7,3,-1,-1,-1,
-	82,3,0,1,9,4,7,8,6,5,10,-1,-1,-1,
-			83,4,6,5,10,1,3,7,7,1,4,4,1,9,
-			84,3,4,7,8,1,5,6,1,6,2,-1,-1,-1,
-			85,4,0,2,1,0,1,3,4,6,5,4,5,7,
-			86,4,4,7,8,0,2,6,6,0,5,5,0,9,
-			87,3,5,4,9,2,6,7,2,7,3,-1,-1,-1,
-	88,3,2,3,11,4,7,8,6,5,10,-1,-1,-1,
-			89,4,6,5,10,2,0,4,4,2,7,7,2,11,
-			90,4,1,9,0,3,2,11,4,7,8,6,5,10,
-	91,3,2,1,10,4,5,9,6,7,11,-1,-1,-1,
-			92,4,4,7,8,3,1,5,5,3,6,6,3,11,
-			93,3,7,6,11,0,4,5,0,5,1,-1,-1,-1,
-	94,3,0,3,8,4,5,9,6,7,11,-1,-1,-1,
-	95,2,4,5,9,6,7,11,-1,-1,-1,-1,-1,-1,
-	96,2,9,10,4,4,10,6,-1,-1,-1,-1,-1,-1,
-			97,3,0,3,8,4,6,10,4,10,9,-1,-1,-1,
-	98,3,0,6,4,6,0,10,0,1,10,-1,-1,-1,
-			99,4,1,8,6,1,3,8,8,4,6,6,10,1,
-	100,3,4,2,6,2,4,9,1,2,9,-1,-1,-1,
-			101,4,0,3,8,2,6,4,4,2,9,9,2,1,
-	102,2,0,2,4,2,6,4,-1,-1,-1,-1,-1,-1,
-	103,3,4,2,6,2,4,8,3,2,8,-1,-1,-1,
-			104,3,3,2,11,4,6,10,4,10,9,-1,-1,-1,
-	105,4,2,8,11,2,0,8,4,9,10,6,4,10,
-			106,4,3,2,11,0,4,6,6,0,10,10,0,1,
-			107,3,2,1,10,4,6,11,4,11,8,-1,-1,-1,
-			108,4,1,6,9,1,10,6,6,4,9,9,11,1,
-			109,3,1,9,0,4,6,11,4,11,8,-1,-1,-1,
-	110,3,4,0,6,6,0,11,0,3,11,-1,-1,-1,
-	111,2,6,4,11,11,4,8,-1,-1,-1,-1,-1,-1,
-	112,3,8,9,10,6,8,10,6,7,8,-1,-1,-1,
-			113,4,0,7,10,0,3,7,7,6,10,10,9,0,
-			114,4,0,1,10,0,10,6,0,6,7,0,7,8,
-	115,3,3,1,7,7,1,6,6,1,10,-1,-1,-1,
-			116,4,1,10,7,1,2,10,10,6,7,7,9,1,
-			117,3,1,9,0,2,6,7,2,7,3,-1,-1,-1,
-	118,3,0,2,6,0,6,7,0,7,8,-1,-1,-1,
-	119,2,7,3,6,6,3,2,-1,-1,-1,-1,-1,-1,
-			120,4,3,2,11,8,9,10,10,8,6,6,8,7,
-			121,3,7,6,11,0,2,10,0,10,9,-1,-1,-1,
-	122,3,0,3,8,2,1,10,6,7,11,-1,-1,-1,
-	123,2,2,1,10,6,7,11,-1,-1,-1,-1,-1,-1,
-			124,3,7,6,11,1,3,8,1,8,9,-1,-1,-1,
-	125,2,1,0,9,6,7,11,-1,-1,-1,-1,-1,-1,
-	126,2,0,3,8,6,7,11,-1,-1,-1,-1,-1,-1,
-	127,1,6,7,11,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-	128,1,7,6,11,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-	129,2,3,0,8,7,6,11,-1,-1,-1,-1,-1,-1,
-	130,2,0,1,0,7,6,11,-1,-1,-1,-1,-1,-1,
-			131,3,7,6,11,1,3,8,1,8,9,-1,-1,-1,
-	132,2,1,2,10,7,6,11,-1,-1,-1,-1,-1,-1,
-	133,3,3,0,8,1,2,10,7,6,11,-1,-1,-1,
-			134,3,7,6,11,0,2,10,0,10,9,-1,-1,-1,
-			135,4,7,6,11,8,9,10,10,8,2,2,8,3,
-	136,2,3,7,2,2,7,6,-1,-1,-1,-1,-1,-1,
-	137,3,2,0,6,6,0,7,7,0,8,-1,-1,-1,
-			138,3,1,9,0,2,6,7,2,7,3,-1,-1,-1,
-			139,4,1,10,7,1,2,10,10,6,7,7,9,1,
-	140,3,1,3,7,1,7,6,1,6,10,-1,-1,-1,
-	141,4,1,0,10,10,0,6,6,0,7,7,0,8,
-			142,4,0,7,10,0,3,7,7,6,10,10,9,0,
-	143,3,9,8,10,8,6,10,7,6,8,-1,-1,-1,
-	144,2,4,6,8,8,6,11,-1,-1,-1,-1,-1,-1,
-	145,3,0,4,6,0,6,11,3,0,11,-1,-1,-1,
-			146,3,1,9,0,4,6,11,4,11,8,-1,-1,-1,
-			147,4,1,6,9,1,10,6,6,4,9,9,11,1,
-			148,3,2,1,10,4,6,11,4,11,8,-1,-1,-1,
-			149,4,2,1,10,0,4,6,6,0,11,11,0,3,
-	150,4,8,2,11,0,2,8,9,4,10,4,6,10,
-			151,3,3,2,11,4,6,10,4,10,9,-1,-1,-1,
-	152,3,2,4,6,4,2,8,2,3,8,-1,-1,-1,
-	153,2,2,0,4,6,2,4,-1,-1,-1,-1,-1,-1,
-			154,4,1,9,0,2,6,4,4,2,8,8,2,3,
-	155,3,2,4,6,4,2,9,2,1,9,-1,-1,-1,
-			156,4,1,6,8,1,10,6,6,4,8,8,3,1,
-	157,3,6,0,4,0,6,10,1,0,10,-1,-1,-1,
-			158,3,0,3,8,4,6,10,4,10,9,-1,-1,-1,
-	159,2,10,9,6,6,9,4,-1,-1,-1,-1,-1,-1,
-	160,2,5,4,9,7,6,11,-1,-1,-1,-1,-1,-1,
-	161,3,3,0,8,5,4,9,7,6,11,-1,-1,-1,
-			162,3,7,6,11,0,4,5,0,5,1,-1,-1,-1,
-			163,4,7,6,11,3,1,5,5,3,4,4,3,8,
-	164,3,1,2,10,5,4,9,7,6,11,-1,-1,-1,
-			165,4,0,3,8,2,1,10,5,4,9,7,6,11,
-			166,4,7,6,11,2,0,4,4,2,5,5,2,10,
-	167,3,3,2,11,7,4,8,5,6,10,-1,-1,-1,
-			168,3,5,4,9,2,6,7,2,7,3,-1,-1,-1,
-			169,4,5,4,9,0,2,6,6,0,7,7,0,8,
-			170,4,0,2,1,0,1,3,4,6,5,4,5,7,
-			171,3,4,7,8,1,5,6,1,6,2,-1,-1,-1,
-			172,4,5,4,9,1,3,7,7,1,6,6,1,10,
-	173,3,1,0,9,7,4,8,5,6,10,-1,-1,-1,
-			174,3,6,5,10,0,4,7,0,7,3,-1,-1,-1,
-	175,2,7,4,8,5,6,10,-1,-1,-1,-1,-1,-1,
-	176,3,8,9,11,9,6,11,5,6,9,-1,-1,-1,
-	177,4,3,0,11,0,6,11,6,0,5,5,0,9,
-			178,4,0,5,11,0,1,5,5,6,11,11,8,0,
-	179,3,3,1,5,3,5,6,3,6,11,-1,-1,-1,
-			180,4,2,1,10,9,8,11,11,9,6,6,9,5,
-	181,3,1,0,9,3,2,11,5,6,10,-1,-1,-1,
-			182,3,6,5,10,0,2,11,0,11,8,-1,-1,-1,
-	183,2,3,2,11,5,6,10,-1,-1,-1,-1,-1,-1,
-			184,4,2,8,5,2,3,8,8,9,5,5,6,2,
-	185,3,2,0,6,5,6,0,5,0,9,-1,-1,-1,
-			186,3,0,3,8,1,5,6,1,6,2,-1,-1,-1,
-	187,2,6,2,5,5,2,1,-1,-1,-1,-1,-1,-1,
-			188,3,6,5,10,1,3,8,1,8,9,-1,-1,-1,
-	189,2,1,0,9,5,6,10,-1,-1,-1,-1,-1,-1,
-	190,2,0,3,8,5,6,10,-1,-1,-1,-1,-1,-1,
-	191,1,5,6,10,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-	192,2,10,11,5,5,11,7,-1,-1,-1,-1,-1,-1,
-			193,3,0,3,8,5,7,11,5,11,10,-1,-1,-1,
-			194,3,1,9,0,5,7,11,5,11,10,-1,-1,-1,
-	195,4,3,1,11,11,1,10,7,5,9,8,7,9,
-	196,3,1,7,5,7,1,11,1,2,11,-1,-1,-1,
-			197,4,0,3,8,1,5,7,7,1,11,11,1,2,
-			198,4,0,11,5,0,2,11,11,7,5,5,9,0,
-			199,3,3,2,11,5,7,8,5,8,9,-1,-1,-1,
-	200,3,5,3,7,3,5,10,2,3,10,-1,-1,-1,
-			201,4,0,10,7,0,2,10,10,5,7,7,8,0,
-			202,4,1,9,0,3,7,5,5,3,10,10,3,2,
-			203,3,2,1,10,5,7,8,5,8,9,-1,-1,-1,
-	204,2,1,3,7,5,1,7,-1,-1,-1,-1,-1,-1,
-	205,3,5,1,7,7,1,8,1,0,8,-1,-1,-1,
-	206,3,5,3,7,3,5,9,3,9,0,-1,-1,-1,
-	207,2,9,8,5,5,8,7, -1,-1,-1,-1,-1,-1,
-	208,3,8,10,11,10,8,5,5,8,4,-1,-1,-1,
-			209,4,0,11,5,0,3,11,11,10,5,5,4,0,
-			210,4,1,9,0,8,11,10,10,8,5,5,8,4,
-			211,3,5,4,9,1,3,11,1,11,10,-1,-1,-1,
-			212,4,1,11,4,1,2,11,11,8,4,4,5,1,
-			213,3,3,2,11,0,4,5,0,5,1,-1,-1,-1,
-			214,3,5,4,9,0,2,11,0,11,8,-1,-1,-1,
-	215,2,3,2,11,4,5,9,-1,-1,-1,-1,-1,-1,
-	216,4,2,3,8,4,2,8,2,4,5,2,5,10,
-	217,3,2,0,4,2,4,5,2,5,10,-1,-1,-1,
-	218,3,0,3,8,2,1,10,4,5, 9,-1,-1,-1,
-	219,2,2,1,10,4,5,9,-1,-1,-1,-1,-1,-1,
-	220,3,1,3,5,5,3,4,4,3,8,-1,-1,-1,
-	221,2,5,1,4,4,1,0,-1,-1,-1,-1,-1,-1,
-	222,2,0,3,8,4,5,9,-1,-1,-1,-1,-1,-1,
-	223,1,4,5,9,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-	224,3,9,10,11,7,9,11,7,4,9,-1,-1,-1,
-			225,4,0,3,8,9,10,11,11,9,7,7,9,4,
-			226,4,0,10,7,0,1,10,10,11,7,7,4,0,
-			227,3,4,7,8,1,3,11,1,11,10,-1,-1,-1,
-	228,4,1,2,11,7,1,11,4,1,7,1,4,9,
-	229,3,1,0,9,3,2,11,7,4, 8,-1,-1,-1,
-	230,3,0,2,4,4,2,7,7,2,11,-1,-1,-1,
-	231,2,3,2,11,7,4,8,-1,-1,-1,-1,-1,-1,
-			232,4,2,7,9,2,3,7,7,4,9,9,10,2,
-			233,3,4,7,8,0,2,10,0,10,9,-1,-1,-1,
-			234,3,2,1,10,0,4,7,0,7,3,-1,-1,-1,
-	235,2,2,1,10,7,4,8,-1,-1,-1,-1,-1,-1,
-	236,3,1,3,7,1,7,4,1,4,9,-1,-1,-1,
-	237,2,1,0,9,7,4,8,-1,-1,-1,-1,-1,-1,
-	238,2,4,0,7,7,0,3,-1,-1,-1,-1,-1,-1,
-	239,1,7,4,8,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-	240,2,8,9,10,11,8,10,-1,-1,-1,-1,-1,-1,
-	241,3,9,10,11,3,9,11,9,3,0,-1,-1,-1,
-	242,3,11,8,10,8,1,10,0,1,8,-1,-1,-1,
-	243,2,3,1,11,11,1,10,-1,-1,-1,-1,-1,-1,
-	244,3,8,9,11,9,2,11,1,2,9,-1,-1,-1,
-	245,2,1,0,9,3,2,11,-1,-1,-1,-1,-1,-1,
-	246,2,11,8,2,2,8,0,-1,-1,-1,-1,-1,-1,
-	247,1,3,2,11,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-	248,3,8,9,10,8,10,2,2,3,8,-1,-1,-1,
-	249,2,2,0,9,2,9,10,-1,-1,-1,-1,-1,-1,
-	250,2,0,3,8,2,1,10,-1,-1,-1,-1,-1,-1,
-	251,1,2,1,10,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-	252,2,1,3,9,9,3,8,-1,-1,-1,-1,-1,-1,
-	253,1,1,0,9,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-	254,1,0,3,8,-1,-1,-1,-1,-1,-1,-1,-1,-1,
-	255,0,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1
-		};
 	}
 }

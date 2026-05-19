@@ -26,6 +26,7 @@ namespace VisAssets.SciVis.Structured.Slicer.UI
 				var selectedLabel =
 					this.GetComponentsInChildren<Text>().First(t => t.name == "Label").text;
 				var slicer = target.GetComponent<Slicer>();
+
 				if (slicer != null)
 				{
 					switch (selectedLabel)
@@ -42,9 +43,10 @@ namespace VisAssets.SciVis.Structured.Slicer.UI
 						default:
 							break;
 					}
-					if (slider != null)
+
+					if (slider != null && slicer.sliceHelper != null)
 					{
-						slider.GetComponent<Slider>().value = slicer.slice;
+						slider.GetComponent<Slider>().value = slicer.sliceHelper.slice;
 					}
 				}
 			}

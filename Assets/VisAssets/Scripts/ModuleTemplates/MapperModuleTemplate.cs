@@ -1,22 +1,96 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace VisAssets
 {
-	[RequireComponent(typeof(Activation))]
+	using ModuleState = Activation.ModuleState;
 
+	/// <summary>
+	/// Base class for all Mapper modules in VisAssets.
+	/// Handles data connection validation, module lifecycle, and coordinates parameter updates
+	/// with the parent DataField module.
+	/// </summary>
+	[RequireComponent(typeof(Activation))]
 	public class MapperModuleTemplate : ModuleTemplate
 	{
 		private GameObject parent;
 		private bool connection;
 
 		[ReadOnly]
-		public ModuleType moduleType = ModuleType.MAPPING;
+		public ModuleType  moduleType = ModuleType.MAPPING;
+
 		[HideInInspector]
 		public Activation  activation;
+
 		[SerializeField, HideInInspector]
 		public DataField   pdf;
+
+#if UNITY_EDITOR
+		/// <summary>
+		/// Called when the component is attached or reset in the Inspector.
+		/// Sets up default values, ensuring user modifications are respected at runtime.
+		/// </summary>
+		protected override void Reset()
+		{
+			base.Reset();
+
+			if (this.GetComponent<Activation>() == null)
+			{
+				this.gameObject.AddComponent<Activation>();
+			}
+
+			if (this.GetComponent<MeshFilter>() == null)
+			{
+				this.gameObject.AddComponent<MeshFilter>();
+			}
+
+			var meshRenderer = this.GetComponent<MeshRenderer>();
+			if (meshRenderer == null)
+			{
+				meshRenderer = this.gameObject.AddComponent<MeshRenderer>();
+			}
+
+			// Set default values (executed only during attach/reset to avoid overriding user changes)
+			// 1. Disable receiving shadows by default to prevent color distortion caused by self-shadowing.
+			meshRenderer.receiveShadows = false;
+			// 2. Enable ShadowCastingMode so the ShadowCaster pass runs, which is necessary for VolumeRenderer's depth texture calculations.
+			meshRenderer.shadowCastingMode = ShadowCastingMode.On;
+
+			Component[] targetOrder = new Component[]
+			{
+				this.GetComponent<Activation>(),
+				this, // MapperModuleTemplate
+				this.GetComponent<MeshFilter>(),
+				meshRenderer
+			};
+
+			int targetIndex = 1; // targetIndex = 0 is Transform
+
+			foreach (Component comp in targetOrder)
+			{
+				if (comp == null) continue;
+
+				Component[] currentComps = GetComponents<Component>();
+				int currentIndex = System.Array.IndexOf(currentComps, comp);
+
+				while (currentIndex > targetIndex)
+				{
+					UnityEditorInternal.ComponentUtility.MoveComponentUp(comp);
+					currentIndex--;
+				}
+
+				while (currentIndex < targetIndex)
+				{
+					UnityEditorInternal.ComponentUtility.MoveComponentDown(comp);
+					currentIndex++;
+				}
+
+				targetIndex++;
+			}
+		}
+#endif
 
 		void Awake()
 		{
@@ -37,7 +111,7 @@ namespace VisAssets
 			}
 
 			var transform = GetComponent<Transform>();
-			transform.hideFlags = HideFlags.HideInInspector;
+//			transform.hideFlags = HideFlags.HideInInspector;
 		}
 
 		void Start()
@@ -48,6 +122,7 @@ namespace VisAssets
 			{
 				parent = transform.parent.gameObject;
 				pdf = parent.GetComponent<DataField>();
+
 				if (pdf != null)
 				{
 					if ((pdf.dataType == DataField.DataType.RAW) ||
@@ -61,15 +136,19 @@ namespace VisAssets
 			if (connection)
 			{
 				GetParameters();
+
 				InitModule();
+
 				SetupUI();
 			}
 			else
 			{
 				string errString = "";
+
 				errString += "ERROR: Mapper modules should put under a Read Module or a Filter Module.\n";
 				errString += "Module name : " + this.name + " is stoped.";
 				Debug.Log(errString);
+
 				gameObject.SetActive(false);
 			}
 		}
@@ -83,34 +162,45 @@ namespace VisAssets
 				if (!CheckConnection()) return;
 			}
 */
-			int parentupdate = activation.GetParentChanged();
-			int paramupdate  = activation.GetParameterChanged();
-			int update = parentupdate + paramupdate;
+			ModuleState parentupdate = activation.GetParentChanged();
+			ModuleState paramupdate  = activation.GetParameterChanged();
+
+			int update = (int)parentupdate + (int)paramupdate;
 
 			if (update != 0)
 			{
 				if (!IsDataLoadedToParent()) return;
 
-				if (paramupdate == 1)
+				if (paramupdate == ModuleState.PARAMETER_CHANGED)
 				{
 					SetParameters();
 				}
-				if (parentupdate == 1)
+
+				if (parentupdate == ModuleState.PARAMETER_CHANGED)
 				{
 					ReSetParameters();
+
 					ResetUICore();
 				}
+
 				GetParameters();
+
 				if (BodyFunc() != 1)
 				{
 					Debug.Log("ERROR: in mapper module func");
 				}
-				activation.SetParameterChanged(0);
-				activation.SetParentChanged(0);
+
+				activation.SetParameterChanged(ModuleState.UNCHANGED);
+				activation.SetParentChanged(ModuleState.UNCHANGED);
 			}
+
 			IdleFunc();
 		}
 
+		/// <summary>
+		/// Checks if the module is correctly parented to a valid module.
+		/// Initializes the module if the connection is successful.
+		/// </summary>
 		bool CheckConnection()
 		{
 			connection = false;
@@ -119,6 +209,7 @@ namespace VisAssets
 			{
 				parent = transform.parent.gameObject;
 				pdf = parent.GetComponent<DataField>();
+
 				if (pdf != null)
 				{
 					if ((pdf.dataType == DataField.DataType.RAW) |
@@ -138,47 +229,77 @@ namespace VisAssets
 				}
 
 				GetParameters();
+
 				InitModule();
+
 				SetupUI();
+
 				return true;
 			}
 			else
 			{
 				string errString = "";
+
 				errString += "ERROR: Mapper modules should put under a Read Module or a Filter Module.\n";
 				errString += "Module name : " + this.name + " is stoped.";
 				Debug.Log(errString);
+
 				gameObject.SetActive(false);
 
 				return false;
 			}
 		}
 
+		/// <summary>
+		/// Method overridden by derived modules for initialization setup.
+		/// </summary>
 		public virtual void InitModule()
 		{
 		}
 
+		/// <summary>
+		/// The main execution function overridden by derived modules.
+		/// </summary>
 		public virtual int BodyFunc()
 		{
 			return 0;
 		}
 
+		/// <summary>
+		/// Called every frame when the module is not actively updating its data.
+		/// Overridden by modules that require continuous animation (e.g., Particle Flow).
+		/// </summary>
 		public virtual void IdleFunc()
 		{
 		}
 
+		/// <summary>
+		/// Applies changes made to the module's own UI or Inspector parameters.
+		/// Called immediately before execution when the module's local settings are modified.
+		/// </summary>
 		public virtual void SetParameters()
 		{
 		}
 
-		public virtual void ReSetParameters()
-		{
-		}
-
+		/// <summary>
+		/// Retrieves current parameter values from the UI to synchronize internal states 
+		/// before the main execution (BodyFunc) occurs.
+		/// </summary>
 		public virtual void GetParameters()
 		{
 		}
 
+		/// <summary>
+		/// Re-initializes parameters and internal states when the upstream parent module 
+		/// (e.g., DataField) is updated or new data is loaded.
+		/// </summary>
+		public virtual void ReSetParameters()
+		{
+		}
+
+		/// <summary>
+		/// Verifies if the parent DataField component has finished loading data.
+		/// </summary>
 		public bool IsDataLoadedToParent()
 		{
 			if (pdf == null)
@@ -194,9 +315,25 @@ namespace VisAssets
 			return true;
 		}
 
+		/// <summary>
+		/// Signals the activation component that a parameter has been modified, triggering an update.
+		/// </summary>
 		public void ParameterChanged()
 		{
-			activation.SetParameterChanged(1);
+			if (activation != null)
+			{
+				activation.SetParameterChanged(ModuleState.PARAMETER_CHANGED);
+			}
 		}
+	}
+
+	/// <summary>
+	/// Interface for receiving a colormap texture (Look-Up Table) from the Colormap Editor.
+	/// </summary>
+	public interface IColormapReceiver
+	{
+		void ApplyColormap(Texture2D colormapTexture);
+
+		Gradient GetGradient();
 	}
 }

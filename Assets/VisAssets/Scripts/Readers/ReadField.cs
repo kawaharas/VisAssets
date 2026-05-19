@@ -1,349 +1,365 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
-using System.Text;
+using System.Threading.Tasks;
 using UnityEngine;
-using UnityEngine.Networking;
-using UnityEngine.UI;
-using SimpleFileBrowser;
 #if UNITY_EDITOR
 using UnityEditor;
-using UnityEditor.Compilation;
 #endif
 
-namespace VisAssets
+namespace VisAssets.SciVis.Structured.DataLoader
 {
-	using FieldType = DataElement.FieldType;
+	using ModuleState = Activation.ModuleState;
+	using FieldType   = DataElement.FieldType;
 
+	// =========================================================================
+	// Editor Extension
+	// =========================================================================
 #if UNITY_EDITOR
 	[CustomEditor(typeof(ReadField))]
-	public class ReadFieldEditor : Editor
+	public class ReadFieldEditor : ReadModuleTemplateEditor
 	{
-		SerializedProperty filename;
-		SerializedProperty loadAtStartup;
-		SerializedProperty useEmbeddedData;
 		SerializedProperty useDummyData;
 
-		public void OnEnable()
+		/// <summary>
+		/// Overrides the base class method. Initializes serialized properties.
+		/// </summary>
+		protected override void OnEnable()
 		{
-			filename        = serializedObject.FindProperty("filename");
-			loadAtStartup   = serializedObject.FindProperty("loadAtStartup");
-			useEmbeddedData = serializedObject.FindProperty("useEmbeddedData");
-			useDummyData    = serializedObject.FindProperty("useDummyData");
+			base.OnEnable();
+
+			useDummyData = serializedObject.FindProperty("useDummyData");
 		}
 
-		public override void OnInspectorGUI()
+		/// <summary>
+		/// Overrides the base class method. Draws data source settings, disabling them if dummy data is used.
+		/// </summary>
+		protected override void DrawDataSourceSettings()
 		{
-			var readField = target as ReadField;
+			EditorGUI.BeginDisabledGroup(useDummyData.boolValue);
 
-			serializedObject.Update();
-			EditorGUI.BeginChangeCheck();
+			base.DrawDataSourceSettings();
 
-			EditorGUILayout.LabelField("Filename:");
-			filename.stringValue = EditorGUILayout.TextField(filename.stringValue);
-			GUILayout.Space(10f);
-			loadAtStartup.boolValue = EditorGUILayout.ToggleLeft("Load At Startup", loadAtStartup.boolValue);
-			GUILayout.Space(5f);
-			useEmbeddedData.boolValue = EditorGUILayout.ToggleLeft("Use Embedded Data", useEmbeddedData.boolValue);
-			GUILayout.Space(5f);
-
-			var message = new GUIContent("If you use an embedded data, it must be placed in \"Assets/StreamingAssets\".");
-			EditorGUILayout.BeginHorizontal(GUI.skin.box);
-			GUILayout.Space(5f);
-			GUIStyle style = new GUIStyle(GUI.skin.label);
-			style.alignment = TextAnchor.MiddleLeft;
-			style.wordWrap = true;
-			style.fontSize = 10;
-			style.CalcSize(message);
-			EditorGUILayout.LabelField(message, style);
-			GUILayout.Space(5f);
-			EditorGUILayout.EndHorizontal();
-
-			EditorGUI.BeginDisabledGroup(useEmbeddedData.boolValue);
-			useDummyData.boolValue = EditorGUILayout.ToggleLeft("Use Dummy Data", useDummyData.boolValue);
 			EditorGUI.EndDisabledGroup();
-			GUILayout.Space(5f);
-			readField.currentStep = EditorGUILayout.IntField("Current Step:", readField.currentStep);
-			EditorGUILayout.Space();
+		}
 
-			if (EditorGUI.EndChangeCheck())
-			{
-			}
-			serializedObject.ApplyModifiedProperties();
+		/// <summary>
+		/// Overrides the base class method. Draws additional data format settings specific to this module.
+		/// </summary>
+		protected override void DrawDataFormatSettingsExtension()
+		{
+			GUILayout.Space(5f);
+
+			useDummyData.boolValue = EditorGUILayout.ToggleLeft("Use Dummy Data (for Test)", useDummyData.boolValue);
+
+			GUILayout.Space(5f);
 		}
 	}
 #endif
 
+	// =========================================================================
+	// Main Class
+	// =========================================================================
 	public class ReadField : ReadModuleTemplate
 	{
-		public string filename = string.Empty;
 		public bool useDummyData;
-		public bool useEmbeddedData;
-		string textString = string.Empty;
 		public string debugString = string.Empty;
 
+		// Data structure for passing data between the background and main threads
+		private class ParsedTextData
+		{
+			public List<int> dims = new List<int>();
+			public List<float>[] coords = new List<float>[4];
+			public List<float>[] values = null;
+			public int vlen = 0;
+			public FieldType fieldType = FieldType.UNDEFINED;
+		}
+
+#if UNITY_EDITOR
+		/// <summary>
+		/// Resets the component to its default values and applies component reordering.
+		/// </summary>
+		protected override void Reset()
+		{
+			// Execute the base class component reordering logic.
+			base.Reset();
+
+			sourceType = DataSourceType.FILE;
+
+			useUndefMenu      = false;
+			usePrecisionMenu  = false;
+			useByteswapMenu   = false;
+			useHeaderSkipMenu = false;
+		}
+#endif
+
+		/// <summary>
+		/// Overrides the base class method. Initializes module-specific settings.
+		/// </summary>
 		public override void InitModule()
 		{
 		}
 
+		/// <summary>
+		/// Overrides the base class method. The main execution function of the module that triggers the data loading.
+		/// </summary>
 		public override int BodyFunc()
 		{
-			int ret;
+			if (string.IsNullOrEmpty(dataSource) && !useDummyData) return 0;
 
-			if (useEmbeddedData)
-			{
-				ret = ReadDataFile();
-			}
-			else
-			{
-				if (useDummyData)
-				{
-					ret = SetDummyData();
-				}
-				else
-				{
-					ret = ReadDataFile();
-				}
-			}
+			StartCoroutine(LoadData());
 
-			return ret;
+			return 1;
 		}
 
-		public override void GetParameters()
-		{
-		}
-
+		/// <summary>
+		/// Manually triggers a parameter change notification to force an update.
+		/// </summary>
 		public void Exec()
 		{
-			if ((filename != "") || (useDummyData == true))
+			if (!string.IsNullOrEmpty(dataSource) || useDummyData)
 			{
-				activation.SetParameterChanged(1);
+				activation.SetParameterChanged(ModuleState.PARAMETER_CHANGED);
 			}
 		}
 
-		private IEnumerator ReadFile(string filename, Action<string> callback = null)
-		{
-			string url;
-
-			if (Application.platform == RuntimePlatform.Android)
-			{
-				if (useEmbeddedData)
-				{
-					url = System.IO.Path.Combine(Application.streamingAssetsPath, filename);
-					if (url.Contains("://"))
-					{
-						var www = new UnityWebRequest(url);
-						www.downloadHandler = new DownloadHandlerBuffer();
-						yield return www.SendWebRequest();
-						textString = www.downloadHandler.text;
-					}
-					else
-					{
-						textString = FileBrowserHelpers.ReadTextFromFile(url);
-					}
-				}
-				else
-				{
-					url = filename;
-					textString = FileBrowserHelpers.ReadTextFromFile(url);
-				}
-				debugString += url + '\n';
-
-				if (UIPanel != null)
-				{
-					var debugText = UIPanel.transform.Find("DebugText");
-					if (debugText != null)
-					{
-						var text = debugText.GetComponent<Text>();
-						if (text != null)
-						{
-							text.text = debugString;
-						}
-					}
-				}
-//				UIPanel.transform.Find("DebugText").GetComponent<Text>().text = debugString;
-			}
-			else
-			{
-				if (useEmbeddedData)
-				{
-					url = System.IO.Path.Combine(Application.streamingAssetsPath, filename);
-				}
-				else
-				{
-					url = "file://" + filename;
-				}
-//				debugString += url;
-//				UIPanel.transform.Find("DebugText").GetComponent<Text>().text = debugString + '\n';
-				var www = UnityWebRequest.Get(url);
-				yield return www.SendWebRequest();
-
-#if UNITY_2020_2_OR_NEWER
-				if (www.result == UnityWebRequest.Result.ProtocolError ||
-					www.result == UnityWebRequest.Result.ConnectionError)
-#else
-				if (www.isHttpError || www.isNetworkError)
-#endif
-				{
-					Debug.Log(www.error);
-				}
-				else
-				{
-					textString = www.downloadHandler.text;
-					if (callback != null)
-					{
-						callback(www.downloadHandler.text);
-					}
-				}
-			}
-		}
-
-		private void ResponseCallback(string inputdata)
-		{
-			textString = inputdata;
-		}
-
+		/// <summary>
+		/// Coroutine that orchestrates the text data loading, parsing, and application processes.
+		/// </summary>
 		IEnumerator LoadData()
 		{
-			yield return StartCoroutine(ReadFile(filename, ResponseCallback));
+			if (useDummyData)
+			{
+				SetDummyData();
 
-			List<int> dims = new List<int>();
-			List<float>[] coords = null;
-			List<float>[] values = null;
+				yield return StartCoroutine(CalcStatsForCurrentElementsRoutine());
 
-			int tmp, ndim, column;
-			int vlen = 0;
-			FieldType fieldType = FieldType.UNDEFINED;
-			float tmpf;
+				ApplyLoadedData();
 
-			MemoryStream memoryStream = new MemoryStream();
-			StreamWriter writer = new StreamWriter(memoryStream);
-			writer.Write(textString);
-			writer.Flush();
-			memoryStream.Position = 0;
+				yield break;
+			}
 
-			coords = new List<float>[4]; // 0:x, 1:y, 2:z, 3:(x, y, z)
+			string loadedText = null;
+			bool hasError = false;
+
+			// Load text file
+			yield return StartCoroutine(FetchTextRoutine(
+				dataSource,
+				onSuccess: (text) => { loadedText = text; },
+				onError: (err) => { hasError = true; }
+			));
+
+			if (hasError || string.IsNullOrEmpty(loadedText)) yield break;
+
+			// Run text parsing in the background
+			Task<ParsedTextData> parseTask = Task.Run(() => ParseTextDataInBackground(loadedText));
+
+			// Wait for parsing to complete without blocking the main thread
+			yield return new WaitUntil(() => parseTask.IsCompleted);
+
+			if (parseTask.Exception != null)
+			{
+				Debug.LogError($"[ReadField] Parse Exception: {parseTask.Exception.InnerException.Message}");
+				yield break;
+			}
+
+			// Store the parsing result in DataField on the main thread
+			ApplyParsedData(parseTask.Result);
+
+			yield return StartCoroutine(CalcStatsForCurrentElementsRoutine());
+
+			ApplyLoadedData();
+		}
+
+		/// <summary>
+		/// Parses comma-separated text data into a structured format on a background thread.
+		/// </summary>
+		private ParsedTextData ParseTextDataInBackground(string textString)
+		{
+			ParsedTextData result = new ParsedTextData();
+
 			for (int i = 0; i < 4; i++)
 			{
-				coords[i] = new List<float>();
+				result.coords[i] = new List<float>();
 			}
+
 			try
 			{
-				using (StreamReader streamReader = new StreamReader(memoryStream))
+				using (StringReader streamReader = new StringReader(textString))
 				{
 					string line = streamReader.ReadLine();
 					string[] stringList = line.Split(',');
-					ndim = stringList.Length;
+					int ndim = stringList.Length;
 					int size = 1;
+
 					for (int i = 0; i < ndim; i++)
 					{
-						tmp = int.Parse(stringList[i]);
-						dims.Add(tmp);
+						int tmp = int.Parse(stringList[i]);
+						result.dims.Add(tmp);
 						size *= tmp;
 					}
 
 					for (int i = 0; i < size; i++)
 					{
 						line = streamReader.ReadLine();
+
+						if (string.IsNullOrEmpty(line)) continue;
+
 						stringList = line.Split(',');
-						column = stringList.Length;
+						int column = stringList.Length;
+
 						if (i == 0)
 						{
-							if (column == 1)
+							if (column <= 3)
 							{
-								vlen = 1;
-								fieldType = FieldType.UNIFORM;
+								result.vlen = column;
+								result.fieldType = FieldType.UNIFORM;
 							}
-							else if (column == 2)
+							else
 							{
-								vlen = 2;
-								fieldType = FieldType.UNIFORM;
-							}
-							else if (column == 3)
-							{
-								vlen = 3;
-								fieldType = FieldType.UNIFORM;
-							}
-							else if (column == 4)
-							{
-								vlen = 1;
-								fieldType = FieldType.IRREGULAR;
-							}
-							else if (column > 4)
-							{
-								vlen = column - 3;
-								fieldType = FieldType.IRREGULAR;
+								result.vlen = column == 4 ? 1 : column - 3;
+								result.fieldType = FieldType.IRREGULAR;
 							}
 
-							values = new List<float>[vlen];
-							for (int j = 0; j < vlen; j++)
+							result.values = new List<float>[result.vlen];
+							for (int j = 0; j < result.vlen; j++)
 							{
-								values[j] = new List<float>();
+								result.values[j] = new List<float>();
 							}
 						}
 
-						if (fieldType == FieldType.UNIFORM)
+						if (result.fieldType == FieldType.UNIFORM)
 						{
-							for (int j = 0; j < vlen; j++)
+							for (int j = 0; j < result.vlen; j++)
 							{
-								tmpf = float.Parse(stringList[j]);
-								values[j].Add(tmpf);
+								result.values[j].Add(float.Parse(stringList[j]));
 							}
 						}
-						else if (fieldType == FieldType.IRREGULAR)
+						else if (result.fieldType == FieldType.IRREGULAR)
 						{
 							for (int j = 0; j < 3; j++)
 							{
-								tmpf = float.Parse(stringList[j]);
-								coords[3].Add(tmpf);
+								result.coords[3].Add(float.Parse(stringList[j]));
 							}
-							for (int j = 0; j < vlen; j++)
+							for (int j = 0; j < result.vlen; j++)
 							{
-								tmpf = float.Parse(stringList[j + 3]);
-								values[j].Add(tmpf);
+								result.values[j].Add(float.Parse(stringList[j + 3]));
 							}
-						}
-						else
-						{
-							Debug.Log(" Now this system support to type 1 or 2\n");
 						}
 					}
 				}
 			}
-			catch (IOException e)
+			catch (Exception e)
 			{
-				Debug.Log("Exception : " + e);
+				Debug.LogError("Exception parsing data: " + e);
+				return null;
 			}
 
-			df.CreateElements(vlen);
-			for (int i = 0; i < vlen; i++)
+			// For safety, recheck if the field type is irregular or rectilinear
+			if (result.fieldType == FieldType.IRREGULAR)
 			{
-				df.elements[i].SetDims(dims);
-				df.elements[i].SetCoords(coords);
-				df.elements[i].SetValues(values[i]);
-				df.elements[i].SetFieldType(fieldType);
+				if (RecheckCoordinate(result.coords, result.dims))
+				{
+					result.fieldType = FieldType.RECTILINEAR;
+				}
+			}
+
+			return result;
+		}
+
+		/// <summary>
+		/// Applies the successfully parsed text data into the DataField elements on the main thread.
+		/// </summary>
+		private void ApplyParsedData(ParsedTextData data)
+		{
+			if (data == null || data.vlen == 0) return;
+
+			df.CreateElements(data.vlen);
+			for (int i = 0; i < data.vlen; i++)
+			{
+				df.elements[i].SetDims(data.dims);
+				df.elements[i].SetCoords(data.coords);
+				if (useUndef)
+				{
+					df.elements[i].SetUndef(undef);
+				}
+				df.elements[i].SetValues(data.values[i]);
+				df.elements[i].SetFieldType(data.fieldType);
 				df.elements[i].SetActive(true);
 			}
-			df.dataLoaded = true;
 		}
 
-		private int ReadDataFile()
+		/// <summary>
+		/// Re-evaluates irregular coordinate data to determine if it can be represented as a rectilinear grid.
+		/// </summary>
+		private bool RecheckCoordinate(List<float>[] coords, List<int> dims)
 		{
-			if (filename == "") return 0;
+			var check = new bool[3] {true, true, true};
 
-			StartCoroutine(LoadData());
-			return 1;
+			for (int i = 0; i < dims[0]; i++)
+			{
+				coords[0].Add(coords[3][i * 3]);
+			}
+			for (int j = 0; j < dims[1]; j++)
+			{
+				coords[1].Add(coords[3][dims[0] * j * 3 + 1]);
+			}
+			for (int k = 0; k < dims[2]; k++)
+			{
+				coords[2].Add(coords[3][dims[0] * dims[1] * k * 3 + 2]);
+			}
+
+			// Check axes
+			for (int k = 0; k < dims[2]; k++)
+			{
+				for (int j = 0; j < dims[1]; j++)
+				{
+					for (int i = 0; i < dims[0]; i++)
+					{
+						int idx = (dims[0] * dims[1] * k + dims[0] * j + i) * 3;
+
+						if (coords[0][i] != coords[3][idx])
+						{
+							check[0] = false;
+							break;
+						}
+
+						if (coords[1][j] != coords[3][idx + 1])
+						{
+							check[1] = false;
+							break;
+						}
+
+						if (coords[2][k] != coords[3][idx + 2])
+						{
+							check[2] = false;
+							break;
+						}
+					}
+				}
+			}
+
+			if (check[0] && check[1] && check[2]) return true;
+
+			for (int i = 0; i < 3; i++)
+			{
+				coords[i].Clear();
+			}
+
+			return false;
 		}
 
-		private int SetDummyData()
+		/// <summary>
+		/// Generates and assigns dummy scalar data for testing purposes when no external file is provided.
+		/// </summary>
+		private void SetDummyData()
 		{
 			List<int> dims = new List<int>();
 			List<float>[] coords;
 			List<float>[] values;
 			float x, y, z, p1, p2;
-			int mx, my, mz;
-			mx = my = mz = 11;
+			int mx = 11, my = 11, mz = 11;
 			int vlen = 2;
 
 			dims.Add(mx);
@@ -355,19 +371,23 @@ namespace VisAssets
 			{
 				values[i] = new List<float>();
 			}
-			coords = new List<float>[4]; // 0:x, 1:y, 2:z, 3:(x, y, z)
+
+			coords = new List<float>[4];
 			for (int i = 0; i < 4; i++)
 			{
 				coords[i] = new List<float>();
 			}
+
 			for (int i = 0; i < mx; i++)
 			{
 				coords[0].Add(i - mx / 2);
 			}
+
 			for (int i = 0; i < my; i++)
 			{
 				coords[1].Add(i - my / 2);
 			}
+
 			for (int i = 0; i < mz; i++)
 			{
 				coords[2].Add(i - mz / 2);
@@ -390,7 +410,6 @@ namespace VisAssets
 				}
 			}
 
-			// merge coordinates to 4th list
 			for (int k = 0; k < dims[2]; k++)
 			{
 				for (int j = 0; j < dims[1]; j++)
@@ -413,9 +432,6 @@ namespace VisAssets
 				df.elements[i].SetFieldType(FieldType.RECTILINEAR);
 				df.elements[i].SetActive(true);
 			}
-			df.dataLoaded = true;
-
-			return 1;
 		}
 	}
 }

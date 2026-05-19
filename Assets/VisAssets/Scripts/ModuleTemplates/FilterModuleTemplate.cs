@@ -4,6 +4,8 @@ using UnityEngine;
 
 namespace VisAssets
 {
+	using ModuleState = Activation.ModuleState;
+
 	[RequireComponent(typeof(Activation))]
 	[RequireComponent(typeof(DataField))]
 
@@ -18,6 +20,58 @@ namespace VisAssets
 		public DataField  df;
 		[HideInInspector]
 		public DataField  pdf;
+
+#if UNITY_EDITOR
+		/// <summary>
+		/// Called when the component is attached or reset in the Inspector.
+		/// Sets up required components and reorders them: Activation -> Script -> DataField
+		/// </summary>
+		protected override void Reset()
+		{
+			base.Reset();
+
+			if (this.GetComponent<Activation>() == null)
+			{
+				this.gameObject.AddComponent<Activation>();
+			}
+
+			if (this.GetComponent<DataField>() == null)
+			{
+				this.gameObject.AddComponent<DataField>();
+			}
+
+			Component[] targetOrder = new Component[]
+			{
+				this.GetComponent<Activation>(),
+				this, // FilterModuleTemplate
+				this.GetComponent<DataField>()
+			};
+
+			int targetIndex = 1; // targetIndex = 0 is Transform
+
+			foreach (Component comp in targetOrder)
+			{
+				if (comp == null) continue;
+
+				Component[] currentComps = GetComponents<Component>();
+				int currentIndex = System.Array.IndexOf(currentComps, comp);
+
+				while (currentIndex > targetIndex)
+				{
+					UnityEditorInternal.ComponentUtility.MoveComponentUp(comp);
+					currentIndex--;
+				}
+
+				while (currentIndex < targetIndex)
+				{
+					UnityEditorInternal.ComponentUtility.MoveComponentDown(comp);
+					currentIndex++;
+				}
+
+				targetIndex++;
+			}
+		}
+#endif
 
 		void Awake()
 		{
@@ -77,9 +131,9 @@ namespace VisAssets
 		{
 			if (!connection) return;
 
-			int parentupdate = activation.GetParentChanged();
-			int paramupdate  = activation.GetParameterChanged();
-			int update = parentupdate + paramupdate;
+			ModuleState parentupdate = activation.GetParentChanged();
+			ModuleState paramupdate  = activation.GetParameterChanged();
+			int update = (int)parentupdate + (int)paramupdate;
 
 			if (update != 0)
 			{
@@ -88,11 +142,11 @@ namespace VisAssets
 				// turn off flag until data loading is complete
 				df.dataLoaded = false;
 
-				if (paramupdate == 1)
+				if (paramupdate == ModuleState.PARAMETER_CHANGED)
 				{
 					SetParameters();
 				}
-				if (parentupdate == 1)
+				if (parentupdate == ModuleState.PARAMETER_CHANGED)
 				{
 					ReSetParameters();
 					ResetUICore();
@@ -109,8 +163,8 @@ namespace VisAssets
 					// error
 //					Debug.Log("ERROR: in filter module func");
 				}
-				activation.SetParameterChanged(0);
-				activation.SetParentChanged(0);
+				activation.SetParameterChanged(ModuleState.UNCHANGED);
+				activation.SetParentChanged(ModuleState.UNCHANGED);
 			}
 		}
 
@@ -118,7 +172,7 @@ namespace VisAssets
 		{
 			if (!IsDataLoadedToParent()) return;
 
-			activation.SetParameterChanged(1);
+			activation.SetParameterChanged(ModuleState.PARAMETER_CHANGED);
 		}
 
 		public virtual void InitModule()
@@ -152,7 +206,7 @@ namespace VisAssets
 				if (child.GetComponent<Activation>())
 				{
 					Activation c = child.GetComponent<Activation>();
-					c.SetParentChanged(1);
+					c.SetParentChanged(ModuleState.PARAMETER_CHANGED);
 				}
 			}
 		}
@@ -175,7 +229,7 @@ namespace VisAssets
 
 		public void ParameterChanged()
 		{
-			activation.SetParameterChanged(1);
+			activation.SetParameterChanged(ModuleState.PARAMETER_CHANGED);
 		}
 	}
 }

@@ -12,14 +12,22 @@ namespace VisAssets.SciVis.Structured.Bounds
 {
 	using FieldType = DataElement.FieldType;
 
+	// =========================================================================
+	// Editor Extension
+	// =========================================================================
 #if UNITY_EDITOR
 	[CustomEditor(typeof(Bounds))]
 	public class BoundsEditor : Editor
 	{
 		SerializedProperty color;
+		SerializedProperty builtinMaterial;
+		SerializedProperty urpMaterial;
+
 		private void OnEnable()
 		{
-			color = serializedObject.FindProperty("color");
+			color           = serializedObject.FindProperty("color");
+			builtinMaterial = serializedObject.FindProperty("builtinMaterial");
+			urpMaterial     = serializedObject.FindProperty("urpMaterial");
 		}
 
 		public override void OnInspectorGUI()
@@ -27,24 +35,44 @@ namespace VisAssets.SciVis.Structured.Bounds
 			var bounds = target as Bounds;
 
 			serializedObject.Update();
+
 			EditorGUI.BeginChangeCheck();
 
-			GUILayout.Space(10f);
+			GUILayout.Space(5f);
+
 			color.colorValue = EditorGUILayout.ColorField("Color:", color.colorValue);
-			GUILayout.Space(10f);
+
+			GUILayout.Space(5f);
+
+			EditorGUILayout.PropertyField(builtinMaterial, new GUIContent("Built-in Material"));
+
+			GUILayout.Space(5f);
+
+			EditorGUILayout.PropertyField(urpMaterial, new GUIContent("URP Material"));
+
+			GUILayout.Space(5f);
+
+			EditorGUILayout.PropertyField(serializedObject.FindProperty("UIPrefab"), new GUIContent("UI Prefab"));
+
+			GUILayout.Space(5f);
+
 			if (GUILayout.Button("Load Default Values"))
 			{
 				color.colorValue = new Color(1f, 1f, 1f, 1f);
 			}
-			GUILayout.Space(10f);
+
+			GUILayout.Space(5f);
 
 			if (EditorGUI.EndChangeCheck())
 			{
 				Undo.RecordObject(target, "Bounds");
+
 				if (EditorApplication.isPlaying)
 				{
 					bounds.SetColor(color.colorValue);
 				}
+				bounds.UpdateMaterialShader();
+
 				EditorUtility.SetDirty(target);
 			}
 
@@ -53,6 +81,9 @@ namespace VisAssets.SciVis.Structured.Bounds
 	}
 #endif
 
+	// =========================================================================
+	// Main Class
+	// =========================================================================
 	public class Bounds : MapperModuleTemplate
 	{
 		// accessor for input data loaded to the parent module
@@ -66,6 +97,12 @@ namespace VisAssets.SciVis.Structured.Bounds
 		[SerializeField]
 		public Color  color = new Color(1f, 1f, 1f, 1f);
 
+		[SerializeField]
+		private Material builtinMaterial;
+
+		[SerializeField]
+		private Material urpMaterial;
+
 		int[] indices = new int[24]
 		{
 			0, 1, 2, 3, 0, 2, 1, 3,
@@ -73,20 +110,29 @@ namespace VisAssets.SciVis.Structured.Bounds
 			0, 4, 1, 5, 2, 6, 3, 7
 		};
 
+#if UNITY_EDITOR
+		protected override void Reset()
+		{
+			base.Reset();
+		}
+#endif
+
 		public override void InitModule()
 		{
 			vertices = new List<Vector3>();
 			colors   = new List<Color>();
-			material = new Material(Shader.Find("Sprites/Default"));
 
 			mesh = new Mesh();
 			mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
-			var meshFilter = GetComponent<MeshFilter>();
-			meshFilter.mesh = mesh;
+
+			var meshFilter   = GetComponent<MeshFilter>();
+			meshFilter.mesh  = mesh;
 			meshFilter.hideFlags = HideFlags.HideInInspector;
+
 			var meshRenderer = GetComponent<MeshRenderer>();
-			meshRenderer.material = material;
 			meshRenderer.hideFlags = HideFlags.HideInInspector;
+
+			UpdateMaterialShader();
 		}
 
 		public override int BodyFunc()
@@ -101,6 +147,9 @@ namespace VisAssets.SciVis.Structured.Bounds
 			elements = pdf.elements;
 		}
 
+		/// <summary>
+		/// Calculates the bounding box vertices and assigns colors for rendering.
+		/// </summary>
 		public void Calc()
 		{
 			vertices.Clear();
@@ -108,6 +157,7 @@ namespace VisAssets.SciVis.Structured.Bounds
 
 			float[] min = new float[3];
 			float[] max = new float[3];
+
 			for (int i = 0; i < 3; i++)
 			{
 				min[i] = float.MaxValue;
@@ -117,6 +167,7 @@ namespace VisAssets.SciVis.Structured.Bounds
 			for (int n = 0; n < pdf.elements.Length; n++)
 			{
 				FieldType fieldType = pdf.elements[n].fieldType;
+
 				if (fieldType == FieldType.UNIFORM)
 				{
 					for (int i = 0; i < 3; i++)
@@ -136,11 +187,13 @@ namespace VisAssets.SciVis.Structured.Bounds
 				else if (fieldType == FieldType.IRREGULAR)
 				{
 					float[] coord3 = elements[n].coords[3];
+
 					for (int m = 0; m < elements[n].size; m++)
 					{
 						for (int i = 0; i < 3; i++)
 						{
 							float v = coord3[m * 3 + i];
+
 							min[i] = Math.Min(min[i], v);
 							max[i] = Math.Max(max[i], v);
 						}
@@ -148,7 +201,7 @@ namespace VisAssets.SciVis.Structured.Bounds
 				}
 				else
 				{
-					// not implemented yet
+					// Not implemented yet
 				}
 			}
 
@@ -160,6 +213,7 @@ namespace VisAssets.SciVis.Structured.Bounds
 			vertices.Add(new Vector3(max[0], max[1], min[2]));
 			vertices.Add(new Vector3(min[0], max[1], max[2]));
 			vertices.Add(new Vector3(max[0], max[1], max[2]));
+
 			for (int i = 0; i < 8; i++)
 			{
 				colors.Add(color);
@@ -171,6 +225,9 @@ namespace VisAssets.SciVis.Structured.Bounds
 			mesh.RecalculateBounds();
 		}
 
+		/// <summary>
+		/// Updates the color of the bounds and triggers a parameter change event.
+		/// </summary>
 		public void SetColor(Color _color)
 		{
 			color = _color;
@@ -178,12 +235,34 @@ namespace VisAssets.SciVis.Structured.Bounds
 			ParameterChanged();
 		}
 
-		int GetIndex(int i, int j, int k)
+		/// <summary>
+		/// Retrieves the 1D array index corresponding to 3D grid coordinates.
+		/// </summary>
+		private int GetIndex(int i, int j, int k)
 		{
 			int[] dims = elements[0].dims;
 			int index = dims[1] * dims[0] * k + dims[0] * j + i;
 
 			return index;
+		}
+
+		/// <summary>
+		/// Detects the active render pipeline and applies the appropriate material.
+		/// </summary>
+		public void UpdateMaterialShader()
+		{
+			var meshRenderer = GetComponent<MeshRenderer>();
+			if (meshRenderer == null) return;
+
+			var pipeline = UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline ?? UnityEngine.QualitySettings.renderPipeline;
+			bool isURP = pipeline != null;
+
+			Material targetMaterial = isURP ? urpMaterial : builtinMaterial;
+
+			if (targetMaterial != null)
+			{
+				meshRenderer.sharedMaterial = targetMaterial;
+			}
 		}
 	}
 }

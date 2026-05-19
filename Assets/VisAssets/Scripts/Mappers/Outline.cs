@@ -12,6 +12,9 @@ namespace VisAssets.SciVis.Structured.Outline
 {
 	using FieldType = DataElement.FieldType;
 
+	// =========================================================================
+	// Editor Extension
+	// =========================================================================
 #if UNITY_EDITOR
 	[CustomEditor(typeof(Outline))]
 	public class OutlineEditor : Editor
@@ -19,11 +22,16 @@ namespace VisAssets.SciVis.Structured.Outline
 		SerializedProperty color;
 		SerializedProperty drawOuterMesh;
 		SerializedProperty drawInnerMesh;
+		SerializedProperty builtinMaterial;
+		SerializedProperty urpMaterial;
+
 		private void OnEnable()
 		{
-			color         = serializedObject.FindProperty("color");
-			drawOuterMesh = serializedObject.FindProperty("drawOuterMesh");
-			drawInnerMesh = serializedObject.FindProperty("drawInnerMesh");
+			color           = serializedObject.FindProperty("color");
+			drawOuterMesh   = serializedObject.FindProperty("drawOuterMesh");
+			drawInnerMesh   = serializedObject.FindProperty("drawInnerMesh");
+			builtinMaterial = serializedObject.FindProperty("builtinMaterial");
+			urpMaterial     = serializedObject.FindProperty("urpMaterial");
 		}
 
 		public override void OnInspectorGUI()
@@ -31,32 +39,56 @@ namespace VisAssets.SciVis.Structured.Outline
 			var outline = target as Outline;
 
 			serializedObject.Update();
+
 			EditorGUI.BeginChangeCheck();
 
-			GUILayout.Space(10f);
+			GUILayout.Space(5f);
+
 			color.colorValue = EditorGUILayout.ColorField("Color:", color.colorValue);
-			GUILayout.Space(10f);
+
+			GUILayout.Space(5f);
+
 			drawOuterMesh.boolValue = EditorGUILayout.Toggle("Draw Outer Mesh", drawOuterMesh.boolValue);
-			GUILayout.Space(10f);
+
+			GUILayout.Space(5f);
+
 			drawInnerMesh.boolValue = EditorGUILayout.Toggle("Draw Inner Mesh", drawInnerMesh.boolValue);
-			GUILayout.Space(10f);
+
+			GUILayout.Space(5f);
+
+			EditorGUILayout.PropertyField(builtinMaterial, new GUIContent("Built-in Material"));
+
+			GUILayout.Space(5f);
+
+			EditorGUILayout.PropertyField(urpMaterial, new GUIContent("URP Material"));
+
+			GUILayout.Space(5f);
+
+			EditorGUILayout.PropertyField(serializedObject.FindProperty("UIPrefab"), new GUIContent("UI Prefab"));
+
+			GUILayout.Space(5f);
+
 			if (GUILayout.Button("Load Default Values"))
 			{
 				color.colorValue = new Color(1f, 1f, 1f, 0.3f);
 				drawOuterMesh.boolValue = false;
 				drawInnerMesh.boolValue = false;
 			}
-			EditorGUILayout.Space();
+
+			GUILayout.Space(5f);
 
 			if (EditorGUI.EndChangeCheck())
 			{
 				Undo.RecordObject(target, "Outline");
+
 				if (EditorApplication.isPlaying)
 				{
 					outline.SetColor(color.colorValue);
 					outline.SetStateOuterMesh(drawOuterMesh.boolValue);
 					outline.SetStateInnerMesh(drawInnerMesh.boolValue);
 				}
+				outline.UpdateMaterialShader();
+
 				EditorUtility.SetDirty(target);
 			}
 
@@ -65,42 +97,61 @@ namespace VisAssets.SciVis.Structured.Outline
 	}
 #endif
 
+	// =========================================================================
+	// Main Class
+	// =========================================================================
 	public class Outline : MapperModuleTemplate
 	{
-		// accessors for input data loaded to the parent module
-		DataElement   element;
-		int []        dims;
-		float [][]    coords;
+		private DataElement   element;
+		private int[]         dims;
+		private float[][]     coords;
 
-		List<Vector3> vertices;
-		List<Color>   colors;
-		List<int>     indices;
-		int           vertexCount;
-		Mesh          mesh;
-		Material      material;
+		private List<Vector3> vertices;
+		private List<Color>   colors;
+		private List<int>     indices;
+		private int           vertexCount;
+		private Mesh          mesh;
+		private Material      material;
 
 		[SerializeField]
-		public Color  color = new Color(1f, 1f, 1f, 0.3f);
+		public Color color = new Color(1f, 1f, 1f, 0.3f);
+
 		[SerializeField]
-		public bool   drawOuterMesh;
+		private Material builtinMaterial;
+
 		[SerializeField]
-		public bool   drawInnerMesh;
+		private Material urpMaterial;
+
+		[SerializeField]
+		public bool drawOuterMesh;
+
+		[SerializeField]
+		public bool drawInnerMesh;
+
+#if UNITY_EDITOR
+		protected override void Reset()
+		{
+			base.Reset();
+		}
+#endif
 
 		public override void InitModule()
 		{
 			vertices = new List<Vector3>();
 			colors   = new List<Color>();
 			indices  = new List<int>();
-			material = new Material(Shader.Find("Sprites/Default"));
 
 			mesh = new Mesh();
 			mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
+
 			var meshFilter   = GetComponent<MeshFilter>();
 			meshFilter.mesh  = mesh;
 			meshFilter.hideFlags = HideFlags.HideInInspector;
+
 			var meshRenderer = GetComponent<MeshRenderer>();
-			meshRenderer.material = material;
 			meshRenderer.hideFlags = HideFlags.HideInInspector;
+
+			UpdateMaterialShader();
 		}
 
 		public override int BodyFunc()
@@ -117,6 +168,9 @@ namespace VisAssets.SciVis.Structured.Outline
 			coords  = element.coords;
 		}
 
+		/// <summary>
+		/// Calculates the vertices and indices for the inner and outer grid lines.
+		/// </summary>
 		public void Calc()
 		{
 			vertices.Clear();
@@ -125,106 +179,51 @@ namespace VisAssets.SciVis.Structured.Outline
 			vertexCount = 0;
 
 			FieldType fieldType = element.fieldType;
+			bool isIrregular = (fieldType == FieldType.IRREGULAR);
 
-			if ((fieldType == FieldType.UNIFORM) ||
-				(fieldType == FieldType.RECTILINEAR))
+			if (fieldType == FieldType.UNIFORM || fieldType == FieldType.RECTILINEAR || isIrregular)
 			{
 				for (int axis = 0; axis < 3; axis++)
 				{
-					int NI, NJ;
+					// Determine the other two axes defining the cross-section
+					int dimA = (axis == 0) ? 1 : 0;
+					int dimB = (axis == 2) ? 1 : 2;
 
-					if (axis == 0)
-					{
-						NI = dims[1];
-						NJ = dims[2];
-					}
-					else if (axis == 1)
-					{
-						NI = dims[0];
-						NJ = dims[2];
-					}
-					else
-					{
-						NI = dims[1];
-						NJ = dims[0];
-					}
+					int sizeA = dims[dimA];
+					int sizeB = dims[dimB];
 
-					for (int j = 0; j < NJ; j++)
+					for (int b = 0; b < sizeB; b++)
 					{
-						for (int i = 0; i < NI; i++)
+						for (int a = 0; a < sizeA; a++)
 						{
-							if ((j == 0) || (j == NJ - 1))
+							bool isEdge  = (a == 0 || a == sizeA - 1) && (b == 0 || b == sizeB - 1);
+							bool isOuter = (a == 0 || a == sizeA - 1) || (b == 0 || b == sizeB - 1);
+
+							// Edges are always drawn. Outer and Inner lines depend on UI toggles.
+							bool shouldDraw = isEdge || (isOuter && drawOuterMesh) || (!isOuter && drawInnerMesh);
+
+							if (shouldDraw)
 							{
-								if ((i != 0) && (i != NI - 1))
+								int[] idx0 = new int[3];
+								int[] idx1 = new int[3];
+
+								// Assign generalized cross-section coordinates
+								idx0[dimA] = a; idx0[dimB] = b;
+								idx1[dimA] = a; idx1[dimB] = b;
+
+								if (!isIrregular)
 								{
-									if (drawOuterMesh)
-									{
-										if (axis == 0)
-										{
-											AddLine(0, i, j, dims[axis] - 1, i, j);
-										}
-										else if (axis == 1)
-										{
-											AddLine(i, 0, j, i, dims[axis] - 1, j);
-										}
-										else
-										{
-											AddLine(i, j, 0, i, j, dims[axis] - 1);
-										}
-									}
+									idx0[axis] = 0;
+									idx1[axis] = dims[axis] - 1;
+									AddLine(idx0[0], idx0[1], idx0[2], idx1[0], idx1[1], idx1[2]);
 								}
 								else
 								{
-									if (axis == 0)
+									for (int n = 0; n < dims[axis] - 1; n++)
 									{
-										AddLine(0, i, j, dims[axis] - 1, i, j);
-									}
-									else if (axis == 1)
-									{
-										AddLine(i, 0, j, i, dims[axis] - 1, j);
-									}
-									else
-									{
-										AddLine(i, j, 0, i, j, dims[axis] - 1);
-									}
-								}
-							}
-							else
-							{
-								if ((i == 0) || (i == NI - 1))
-								{
-									if (drawOuterMesh)
-									{
-										if (axis == 0)
-										{
-											AddLine(0, i, j, dims[axis] - 1, i, j);
-										}
-										else if (axis == 1)
-										{
-											AddLine(i, 0, j, i, dims[axis] - 1, j);
-										}
-										else
-										{
-											AddLine(i, j, 0, i, j, dims[axis] - 1);
-										}
-									}
-								}
-								else
-								{
-									if (drawInnerMesh)
-									{
-										if (axis == 0)
-										{
-											AddLine(0, i, j, dims[axis] - 1, i, j);
-										}
-										else if (axis == 1)
-										{
-											AddLine(i, 0, j, i, dims[axis] - 1, j);
-										}
-										else
-										{
-											AddLine(i, j, 0, i, j, dims[axis] - 1);
-										}
+										idx0[axis] = n;
+										idx1[axis] = n + 1;
+										AddLine2(idx0[0], idx0[1], idx0[2], idx1[0], idx1[1], idx1[2]);
 									}
 								}
 							}
@@ -232,135 +231,18 @@ namespace VisAssets.SciVis.Structured.Outline
 					}
 				}
 			}
-			else if (fieldType == FieldType.IRREGULAR)
-			{
-				for (int axis = 0; axis < 3; axis++)
-				{
-					int NI, NJ;
 
-					if (axis == 0)
-					{
-						NI = dims[1];
-						NJ = dims[2];
-					}
-					else if (axis == 1)
-					{
-						NI = dims[0];
-						NJ = dims[2];
-					}
-					else
-					{
-						NI = dims[1];
-						NJ = dims[0];
-					}
-
-					for (int j = 0; j < NJ; j++)
-					{
-						for (int i = 0; i < NI; i++)
-						{
-							if ((j == 0) || (j == NJ - 1))
-							{
-								if ((i != 0) && (i != NI - 1))
-								{
-									if (drawOuterMesh)
-									{
-										for (int n = 0; n < dims[axis] - 2; n++)
-										{
-											if (axis == 0)
-											{
-												AddLine2(n, i, j, n + 1, i, j);
-											}
-											else if (axis == 1)
-											{
-												AddLine2(i, n, j, i, n + 1, j);
-											}
-											else
-											{
-												AddLine2(i, j, n, i, j, n + 1);
-											}
-										}
-									}
-								}
-								else
-								{
-									for (int n = 0; n < dims[axis] - 2; n++)
-									{
-										if (axis == 0)
-										{
-											AddLine2(n, i, j, n + 1, i, j);
-										}
-										else if (axis == 1)
-										{
-											AddLine2(i, n, j, i, n + 1, j);
-										}
-										else
-										{
-											AddLine2(i, j, n, i, j, n + 1);
-										}
-									}
-								}
-							}
-							else
-							{
-								if ((i == 0) || (i == NI - 1))
-								{
-									if (drawOuterMesh)
-									{
-										for (int n = 0; n < dims[axis] - 2; n++)
-										{
-											if (axis == 0)
-											{
-												AddLine2(n, i, j, n + 1, i, j);
-											}
-											else if (axis == 1)
-											{
-												AddLine2(i, n, j, i, n + 1, j);
-											}
-											else
-											{
-												AddLine2(i, j, n, i, j, n + 1);
-											}
-										}
-									}
-								}
-								else
-								{
-									if (drawInnerMesh)
-									{
-										for (int n = 0; n < dims[axis] - 2; n++)
-										{
-											if (axis == 0)
-											{
-												AddLine2(n, i, j, n + 1, i, j);
-											}
-											else if (axis == 1)
-											{
-												AddLine2(i, n, j, i, n + 1, j);
-											}
-											else
-											{
-												AddLine2(i, j, n, i, j, n + 1);
-											}
-										}
-									}
-								}
-							}
-						}
-					}
-				}
-			}
-			else
-			{
-				// not implemented yet
-			}
-
-			mesh.Clear(); // for safety : mesh must be clear every time it is recalculated.
+			// For safety: mesh must be cleared every time it is recalculated.
+			mesh.Clear();
 			mesh.SetVertices(vertices);
 			mesh.SetColors(colors);
 			mesh.SetIndices(indices, MeshTopology.Lines, 0);
 			mesh.RecalculateBounds();
 		}
 
+		/// <summary>
+		/// Updates the solid color of the outline mesh and triggers a parameter change event.
+		/// </summary>
 		public void SetColor(Color _color)
 		{
 			color = _color;
@@ -368,31 +250,42 @@ namespace VisAssets.SciVis.Structured.Outline
 			ParameterChanged();
 		}
 
-		int GetIndex(int i, int j, int k)
+		/// <summary>
+		/// Retrieves the 1D array index corresponding to 3D grid coordinates.
+		/// </summary>
+		private int GetIndex(int i, int j, int k)
 		{
-			int[] dims = element.dims;
-			int index = dims[1] * dims[0] * k + dims[0] * j + i;
+			int[] d = element.dims;
+			int index = d[1] * d[0] * k + d[0] * j + i;
 
 			return index;
 		}
 
+		/// <summary>
+		/// Toggles the rendering of the outer boundary mesh.
+		/// </summary>
 		public void SetStateOuterMesh(bool state)
 		{
 			drawOuterMesh = state;
-			
+
 			ParameterChanged();
 		}
 
+		/// <summary>
+		/// Toggles the rendering of the inner grid mesh.
+		/// </summary>
 		public void SetStateInnerMesh(bool state)
 		{
 			drawInnerMesh = state;
-			
+
 			ParameterChanged();
 		}
 
-		void AddLine(int i0, int j0, int k0, int i1, int j1, int k1)
+		/// <summary>
+		/// Adds a line segment for Uniform and Rectilinear grid types.
+		/// </summary>
+		private void AddLine(int i0, int j0, int k0, int i1, int j1, int k1)
 		{
-			// for uniform and rectilinear
 			vertices.Add(new Vector3(coords[0][i0], coords[1][j0], coords[2][k0]));
 			vertices.Add(new Vector3(coords[0][i1], coords[1][j1], coords[2][k1]));
 			colors.Add(color);
@@ -402,9 +295,11 @@ namespace VisAssets.SciVis.Structured.Outline
 			vertexCount += 2;
 		}
 
-		void AddLine2(int i0, int j0, int k0, int i1, int j1, int k1)
+		/// <summary>
+		/// Adds a line segment for Irregular grid types.
+		/// </summary>
+		private void AddLine2(int i0, int j0, int k0, int i1, int j1, int k1)
 		{
-			// for irregular
 			int idx0 = GetIndex(i0, j0, k0) * 3;
 			int idx1 = GetIndex(i1, j1, k1) * 3;
 			vertices.Add(new Vector3(coords[3][idx0], coords[3][idx0 + 1], coords[3][idx0 + 2]));
@@ -414,6 +309,25 @@ namespace VisAssets.SciVis.Structured.Outline
 			indices.Add(vertexCount);
 			indices.Add(vertexCount + 1);
 			vertexCount += 2;
+		}
+
+		/// <summary>
+		/// Detects the active render pipeline and applies the appropriate material.
+		/// </summary>
+		public void UpdateMaterialShader()
+		{
+			var meshRenderer = GetComponent<MeshRenderer>();
+			if (meshRenderer == null) return;
+
+			var pipeline = UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline ?? UnityEngine.QualitySettings.renderPipeline;
+			bool isURP = pipeline != null;
+
+			Material targetMaterial = isURP ? urpMaterial : builtinMaterial;
+
+			if (targetMaterial != null)
+			{
+				meshRenderer.sharedMaterial = targetMaterial;
+			}
 		}
 	}
 }
