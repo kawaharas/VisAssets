@@ -57,7 +57,15 @@ namespace VisAssets.SciVis.Structured.Isosurface
 
 			GUILayout.Space(10f);
 
-			var _threshold = EditorGUILayout.Slider("Threshold: ", threshold.floatValue, min.floatValue, max.floatValue);
+			float _threshold;
+			if (EditorApplication.isPlaying && max.floatValue > min.floatValue)
+			{
+				_threshold = EditorGUILayout.Slider("Threshold: ", threshold.floatValue, min.floatValue, max.floatValue);
+			}
+			else
+			{
+				_threshold = EditorGUILayout.FloatField("Threshold: ", threshold.floatValue);
+			}
 
 			GUILayout.Space(5f);
 
@@ -97,6 +105,7 @@ namespace VisAssets.SciVis.Structured.Isosurface
 
 			GUILayout.Space(5f);
 
+/*
 			if (EditorGUI.EndChangeCheck())
 			{
 				Undo.RecordObject(target, "Isosurface");
@@ -106,6 +115,35 @@ namespace VisAssets.SciVis.Structured.Isosurface
 					if (prop != null) prop.boolValue = true;
 
 					if (_threshold != threshold.floatValue) isosurface.SetValue(_threshold);
+					isosurface.UpdateMaterialShader();
+				}
+				EditorUtility.SetDirty(target);
+			}
+*/
+			if (EditorGUI.EndChangeCheck())
+			{
+				Undo.RecordObject(target, "Isosurface");
+
+				if (isosurface != null)
+				{
+					var prop = serializedObject.FindProperty("isThresholdInitialized");
+					if (prop != null) prop.boolValue = true;
+
+					if (_threshold != threshold.floatValue)
+					{
+						threshold.floatValue = _threshold;
+
+						var sliderProp = serializedObject.FindProperty("slider");
+						if (sliderProp != null && max.floatValue > min.floatValue)
+						{
+							sliderProp.floatValue = (_threshold - min.floatValue) / (max.floatValue - min.floatValue);
+						}
+
+						if (Application.isPlaying)
+						{
+							isosurface.SetValue(_threshold);
+						}
+					}
 					isosurface.UpdateMaterialShader();
 				}
 				EditorUtility.SetDirty(target);
@@ -412,6 +450,9 @@ namespace VisAssets.SciVis.Structured.Isosurface
 
 		public void Calc()
 		{
+			if (element == null) return;
+			if (useGPU && (tablesBuffer == null || vertexBuffer == null)) return;
+
 			if (!useGPU)
 			{
 				RunCPUCalc();
@@ -748,7 +789,11 @@ namespace VisAssets.SciVis.Structured.Isosurface
 		{
 			threshold = Mathf.Clamp(value, min, max);
 			slider = (threshold - min) / (max - min);
-			activation.SetParameterChanged(ModuleState.PARAMETER_CHANGED);
+
+			if (Application.isPlaying && activation != null)
+			{
+				activation.SetParameterChanged(ModuleState.PARAMETER_CHANGED);
+			}
 		}
 
 		public void Draw()
