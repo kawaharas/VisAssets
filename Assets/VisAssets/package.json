@@ -5,13 +5,15 @@
     "email": "kawahara@jamstec.go.jp",
     "url": "https://github.com/kawaharas/VisAssets"
   },
-  "version": "0.4.0-pre",
+  "version": "0.4.0",
   "unity": "2022.3",
   "description": "Visualization Framework for Unity",
   "dependencies": {
     "com.unity.inputsystem": "1.14.0",
     "com.unity.xr.interaction.toolkit": "2.6.4",
     "com.unity.xr.legacyinputhelpers": "2.1.12",
-    "com.unity.textmeshpro": "3.0.6"
+    "com.unity.textmeshpro": "3.0.9",
+    "com.unity.xr.management": "4.5.4",
+    "com.unity.render-pipelines.universal": "14.0.12"
   }
 }

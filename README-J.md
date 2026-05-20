@@ -1,28 +1,43 @@
 # VisAssets
 
- VisAssets��Unity�p�̉����t���[�����[�N�ł��B  
- Unity�̃q�G�����L�[�E�B���h�E��Ń��W���[����ڑ����邱�Ƃɂ������A�v���P�[�V�������\�z���邱�Ƃ��ł��܂��B
+ VisAssetsはUnity用の可視化フレームワークです。  
+ Unityのヒエラルキーウィンドウ上でモジュールを接続することにより可視化アプリケーションを構築することができます。
 
+![VisAssets Simulation View](images/image-0.png)
 
-## �ȒP�Ȏg����
+## 簡単な使い方
 
- VisAssets��[RuntimeFileBrowser](https://github.com/yasirkula/UnitySimpleFileBrowser)���v���W�F�N�g�ɃC���|�[�g���܂��B  
- Assets/VisAssets/Prefabs���̃T���v�����W���[������K�v�ȃ��W���[�����q�G�����L�[�E�B���h�E�Ƀh���b�O�A���h�h���b�v���܂��B
+### 動作検証済み環境
+- **Unity 2022.3 LTS** (Unity 2022.3.62f3 で動作確認済み)
 
-## ���W���[���Ԃ̐ڑ����[��
-- �f�[�^�Ǎ��p���W���[���̓t�B���^�����O���W���[���ƃ}�b�s���O���W���[���̐e�ɂȂ邱�Ƃ��ł��܂��B
-- �t�B���^�����O���W���[���̓t�B���^�����O���W���[���ƃ}�b�s���O���W���[���̐e�ɂȂ邱�Ƃ��ł��܂��B
-- �}�b�s���O���W���[���͂�����̃��W���[���̐e�ɂ��Ȃ邱�Ƃ��ł��܂���B
+### インポート方法 (Unity Package Manager)
 
-    �����W���[�����K�؂ɐڑ�����Ă��Ȃ��ꍇ�A���̃��W���[���͎��s���ɔ�A�N�e�B�u������܂��B
+1. Unityエディタを開き、メニューから `Window` ＞ `Package Manager` を開きます。
+2. 左上の `+` ボタンを押し、`Add package from git URL...` を選択します。
+3. 下記のGit URLを入力し、`Add` ボタンを押します。
+   ```text
+   [https://github.com/kawaharas/VisAssets.git?path=/Assets/VisAssets](https://github.com/kawaharas/VisAssets.git?path=/Assets/VisAssets)
+   ```
+4. 依存パッケージである [RuntimeFileBrowser](https://github.com/yasirkula/UnitySimpleFileBrowser) も同様にプロジェクトへインポートしてください。
+5. メニューの `Window` ＞ `TextMeshPro` ＞ `Import TMP Essential Resources` を選択し、TMPの必須リソースをインポートしてください。（※自動インポートスクリプトにより、インポート時に自動でウィンドウが開く場合はそのままインポートを実行してください）
 
-## �V���ȃ��W���[���̊J��
+インポート完了後、`Packages/VisAssets/Prefabs` 内のサンプルモジュールから必要なモジュールをヒエラルキーウィンドウにドラッグアンドドロップして使用します。
 
- �e���v���[�g�N���X���p������C#�X�N���v�g�̃I�[�o�[���C�h�֐��ɉ������[�`�����������邱�ƂŁA�V���ȃ��W���[�����J�����邱�Ƃ��ł��܂��B����VisAssets�ɂ́AReadModuleTemplate�AFilterModuleTemplate�AMapperModuleTemplate��3��ނ̃e���v���[�g�N���X������܂��B������ Assets/VisAssets/Scripts/ModuleTemplates ���ɂ���܂��B
+## モジュール間の接続ルール
 
- 1) �e���v���[�g�N���X���p������C#�X�N���v�g���쐬���܂��B
- 2) ��̃Q�[���I�u�W�F�N�g���쐬���܂��B
- 3) 2)�ō쐬������̃Q�[���I�u�W�F�N�g�Ƀ��W���[����ʂɉ����ĉ��L�̃X�N���v�g����уR���|�[�l���g���A�^�b�`���܂��B
+- データ読込用モジュールはフィルタリングモジュールとマッピングモジュールの親になることができます。
+- フィルタリングモジュールはフィルタリングモジュールとマッピングモジュールの親になることができます。
+- マッピングモジュールはいずれのモジュールの親にもなることができません。
+
+    ※モジュールが適切に接続されていない場合、そのモジュールは実行時に非アクティブ化されます。
+
+## 新たなモジュールの開発
+
+ テンプレートクラスを継承したC#スクリプトのオーバーライド関数に可視化ルーチンを実装することで、新たなモジュールを開発することができます。現在VisAssetsには、ReadModuleTemplate、FilterModuleTemplate、MapperModuleTemplateの3種類のテンプレートクラスがあります。これらは Packages/VisAssets/Scripts/ModuleTemplates 内にあります。
+
+ 1) テンプレートクラスを継承したC#スクリプトを作成します。
+ 2) 空のゲームオブジェクトを作成します。
+ 3) 2)で作成した空のゲームオブジェクトにモジュール種別に応じて下記のスクリプトおよびコンポーネントをアタッチします。
 
     |  |Activation.cs |DataField.cs |{YourOwnScript}.cs |MeshFilter |MeshRenderer |Material |
     |---|:-:|:-:|:-:|:-:|:-:|:-:|
@@ -30,52 +45,68 @@
     |FilterModule | o | o | o | | | |
     |MapperModule | o | | o | o | o | o |
 
-    Activation.cs��DataField.cs���A�^�b�`����Ă��Ȃ��ꍇ�A�e���v���[�g�N���X�͂����������I�ɃQ�[���I�u�W�F�N�g�ɃA�^�b�`���܂��B 
-    �V�[����ŉ������ʂ������_�����O���邽�߁AMeshFilter��MeshRenderer���}�b�s���O���W���[���ɃA�^�b�`����K�v������܂��B
-    �܂��A�}�e���A����V�F�[�_�ɂ��Ă��K�؂ɐݒ肷��K�v������܂��B
+    Activation.csとDataField.csがアタッチされていない場合、テンプレートクラスはそれらを自動的にゲームオブジェクトにアタッチします。 
+    シーン上で可視化結果をレンダリングするため、MeshFilterとMeshRendererをマッピングモジュールにアタッチする必要があります。
+    また、マテリアルやシェーダについても適切に設定する必要があります。
 
- 4) �Q�[���I�u�W�F�N�g�̃^�O���� "VisModule" �ɕύX���܂��B
- 5) �Q�[���I�u�W�F�N�g���v���n�u�����܂��B
+ 4) ゲームオブジェクトのタグ名を "VisModule" に変更します。
+ 5) ゲームオブジェクトをプレハブ化します。
 
-## �T���v�����W���[��
+## サンプルモジュール
 
-|���W���[����|�@�\ |���N���X |
+|モジュール名|機能 |基底クラス |
 |---|---|---|
-|ReadField |�e�L�X�g�t�@�C���̓ǂݍ��� |ReadModuleTemplate |
-|ReadV5 |VFIVE�p�f�[�^�̓ǂݍ��� |ReadModuleTemplate |
-|ReadGrADS |GrADS�p�f�[�^�̓ǂݍ��� |ReadModuleTemplate |
-|ExtractScalar |���̓f�[�^����̒P�ꐬ���̒��o |FilterModuleTemplate |
-|ExtractVector |���̓f�[�^�����1�`3�����̒��o |FilterModuleTemplate |
-|Interpolator |���}��Ԃɂ��_�E���T�C�Y |FilterModuleTemplate |
-|Bounds |�f�[�^�̋��E���̕`�� |MapperModuleTemplate |
-|Slicer |�f�ʐ}�̕`�� |MapperModuleTemplate |
-|Isosurface |���l�ʂ̕`�� |MapperModuleTemplate |
-|Arrows |�x�N�g�������ŕ\�� |MapperModuleTemplate |
-|UIManager |���[�U�C���^�t�F�[�X | |
-|Animator |���Ԕ��W�f�[�^�̃R���g���[�� | |
+|ReadField |テキストファイルの読み込み |ReadModuleTemplate |
+|ReadV5 |VFIVE用データの読み込み |ReadModuleTemplate |
+|ReadGrADS |GrADS用データの読み込み |ReadModuleTemplate |
+|ReadRAW | 書式なしバイナリ（ベタバイナリ／Fortranレコードマーカー対応）ファイルの読み込み |ReadModuleTemplate |
+|ReadUncompressedDICOM|圧縮なしDICOM形式の医療画像データの読み込み|ReadModuleTemplate |
+|ExtractScalar |入力データからの単一成分の抽出 |FilterModuleTemplate |
+|ExtractVector |入力データからの1～3成分の抽出 |FilterModuleTemplate |
+|Downsize |内挿補間によるダウンサイズ |FilterModuleTemplate |
+|VectorMagnitude |ベクトルデータからの大きさ（スカラー）の算出 |FilterModuleTemplate |
+|Remap |格子構造の再マッピングやデータ補間 |FilterModuleTemplate |
+|Bounds |データの境界線の描画 |MapperModuleTemplate |
+|Outline |計算格子のワイヤーフレーム描画 |MapperModuleTemplate |
+|Slicer |断面図の描画 |MapperModuleTemplate |
+|Isosurface |等値面の描画 |MapperModuleTemplate |
+|Arrows |ベクトル場を矢印で表示 |MapperModuleTemplate |
+|Topo |地形の描画 |MapperModuleTemplate |
+|VolumeRenderer |3Dテクスチャを用いたボリュームレンダリング |MapperModuleTemplate |
+|ContourLines |スカラーフィールドに対する等値線（コンターライン）の描画|MapperModuleTemplate |
+|StreamLines |ベクトル場に沿った流線（またはリボン）の描画（開始点をインタラクティブに指定）|MapperModuleTemplate |
+|ParticleTracer |ベクトル場に沿った粒子の軌跡（流跡線）の描画（開始点を平面上に一様に指定）|MapperModuleTemplate |
+|UIManager |ユーザインタフェース | |
+|Animator |時間発展データのコントロール | |
 
-## �T���v�����W���[���̃e�X�g�ɗp�����f�[�^�Z�b�g
+## サンプルモジュールのテストに用いたデータセット
 
-- ReadField�p�f�[�^: �{�p�b�P�[�W�ɓ��� (Assets/StreamingAssets/Sample3D3.txt)  
+- ReadField用データ: 本パッケージに同梱 (Assets/StreamingAssets/Sample3D3.txt) 
+  ※Unity Package Managerからインポートした場合、自動で配置されません。サンプルを実行する前に、`Packages/VisAssets/StreamingAssets/Sample3D3.txt` を、ご自身のプロジェクトの `Assets/StreamingAssets/Sample3D3.txt` へ手動でコピー（フォルダがない場合は作成）してください。
+
+- ReadVFIVE用データ: [入手先](https://www.jamstec.go.jp/ceist/aeird/avcrg/vfive.ja.html) (sample_little.tar.gz, sample_big2.tar.gz)  
+    sample_little.tar.gz用モジュール設定 (dynamo): Precesion: DOUBLE, Byteswap: off, Header: on  
+    sample_big2.tar.gz用モジュール設定 (ABC flow): Precesion: DOUBLE, Byteswap: on, Header: on  
   
-- ReadVFIVE�p�f�[�^: [�����](https://www.jamstec.go.jp/ceist/aeird/avcrg/vfive.ja.html) (sample_little.tar.gz, sample_big2.tar.gz)  
-    sample_little.tar.gz�p���W���[���ݒ� (dynamo): Precesion: DOUBLE, Byteswap: off, Header: on  
-    sample_big2.tar.gz�p���W���[���ݒ� (ABC flow): Precesion: DOUBLE, Byteswap: on, Header: on  
-  
-- ReadGrADS�p�f�[�^: [�����](http://cola.gmu.edu/grads/) (example.tar.gz)
+- ReadGrADS用データ: [入手先](http://cola.gmu.edu/grads/) (example.tar.gz)
 
 
-## �T���v���A�v���P�[�V����
+## サンプルアプリケーション
 
-�T���v���A�v���P�[�V������ Assets/VisAssets/Scenes �ɂ���܂��B
-�ǂݍ��݌�AUnity�G�f�B�^��Ŏ��s���Ă��������B
+サンプルアプリケーションは Assets/VisAssets/Scenes にあります。
+読み込み後、Unityエディタ上で実行してください。
 
 - ReadFieldSample.scene
 - ReadV5Sample.scene
 - ReadGrADSSample.scene
 
+## ライセンス
+
+本フレームワークは、MITライセンスをベースとした独自のライセンス（販売権の除外）の下で提供されています。
+商業目的等での**有償での販売・再販を除き**、無償で自由に使用・改変・再配布が可能です。詳細は [LICENSE](LICENSE) ファイルをご確認ください。
+
 ## Citation
 
- �{�n�p��, �쌴�T���Y, 
- ["�Q�[���G���W����p����VR�����t���[�����[�N�̊J��"](https://www.jstage.jst.go.jp/article/tjsst/12/2/12_59/_article/-char/ja/), 
- ���{�V�~�����[�V�����w��_����, Vol.12, No.2, pp59-67 (2020), doi:10.11308/tjsst.12.59
+ 宮地英生, 川原慎太郎, 
+ ["ゲームエンジンを用いたVR可視化フレームワークの開発"](https://www.jstage.jst.go.jp/article/tjsst/12/2/12_59/_article/-char/ja/), 
+ 日本シミュレーション学会論文誌, Vol.12, No.2, pp59-67 (2020), doi:10.11308/tjsst.12.59
