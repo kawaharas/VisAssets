@@ -81,15 +81,20 @@
 
 ## サンプルモジュールのテストに用いたデータセット
 
-- ReadField用データ: 本パッケージに同梱 (Assets/StreamingAssets/Sample3D3.txt) 
-  ※Unity Package Managerからインポートした場合、自動で配置されません。サンプルを実行する前に、`Packages/VisAssets/StreamingAssets/Sample3D3.txt` を、ご自身のプロジェクトの `Assets/StreamingAssets/Sample3D3.txt` へ手動でコピー（フォルダがない場合は作成）してください。
+- **ReadField用データ:** [GitHubリポジトリから取得](https://github.com/kawaharas/VisAssets/blob/main/Assets/StreamingAssets/Sample3D3.txt)  
+  ※Unity Package Managerからインポートした場合、このファイルは含まれません。サンプルを実行する前に、上記URLから `Sample3D3.txt` を直接ダウンロードし、ご自身のプロジェクトの `Assets/StreamingAssets/` フォルダ内（フォルダがない場合は作成）に配置してください。
 
-- ReadVFIVE用データ: [入手先](https://www.jamstec.go.jp/ceist/aeird/avcrg/vfive.ja.html) (sample_little.tar.gz, sample_big2.tar.gz)  
+- **ReadVFIVE用データ:** [入手先](https://www.jamstec.go.jp/ceist/aeird/avcrg/vfive.ja.html) (sample_little.tar.gz, sample_big2.tar.gz)  
     sample_little.tar.gz用モジュール設定 (dynamo): Precesion: DOUBLE, Byteswap: off, Header: on  
     sample_big2.tar.gz用モジュール設定 (ABC flow): Precesion: DOUBLE, Byteswap: on, Header: on  
   
-- ReadGrADS用データ: [入手先](http://cola.gmu.edu/grads/) (example.tar.gz)
+- **ReadGrADS用データ:** [入手先](http://cola.gmu.edu/grads/) (example.tar.gz)
 
+- **Topo用データ:** [入手先](https://www.ncei.noaa.gov/products/etopo-global-relief-model)  
+  上記のサイト等から下記の地形データを別途取得し、ご自身のプロジェクトの `Assets/StreamingAssets/` フォルダ内（フォルダがない場合は作成）に配置してください。
+  - ETOPO1 (`etopo1_ice_g_i2.bin`)
+  - ETOPO2 (`ETOPO2v2g_i2_LSB.bin`)
+  - ETOPO5 (`ETOPO5.DOS`)
 
 ## サンプルアプリケーション
 

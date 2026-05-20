@@ -87,15 +87,20 @@ Once imported, locate the sample modules in `Packages/VisAssets/Prefabs`, then d
 
 ## Sample dataset for the sample modules
 
-- for ReadField: include in unitypackage (Assets/StreamingAssets/Sample3D3.txt)
-  *Note: When installing via Unity Package Manager, this file is not automatically deployed. Before running the sample scene, please manually copy `Packages/VisAssets/StreamingAssets/Sample3D3.txt` to your project's `Assets/StreamingAssets/Sample3D3.txt` (create the directory if it does not exist).*
+- **for ReadField:** [Download from GitHub Repository](https://github.com/kawaharas/VisAssets/blob/main/Assets/StreamingAssets/Sample3D3.txt)  
+  *Note: When installing via Unity Package Manager, this file is not included in the package due to the path filtering. Before running the sample scene, please download `Sample3D3.txt` directly from the URL above and place it into your project's `Assets/StreamingAssets/` directory (create the directory if it does not exist).*
   
-- for ReadVFIVE: from [here](https://www.jamstec.go.jp/ceist/aeird/avcrg/vfive.ja.html) (sample_little.tar.gz, sample_big2.tar.gz)  
+- **for ReadVFIVE:** from [here](https://www.jamstec.go.jp/ceist/aeird/avcrg/vfive.ja.html) (sample_little.tar.gz, sample_big2.tar.gz)  
     module settings for sample_little.tar.gz (dynamo): Precesion: DOUBLE, Byteswap: off, Header: on  
     module settings for sample_big2.tar.gz (ABC flow): Precesion: DOUBLE, Byteswap: on, Header: on  
   
-- for ReadGrADS: from [here](http://cola.gmu.edu/grads/) (example.tar.gz)
+- **for ReadGrADS:** from [here](http://cola.gmu.edu/grads/) (example.tar.gz)
 
+- **for Topo:** Available from [here](https://www.ncei.noaa.gov/products/etopo-global-relief-model)  
+  Please manually download the following terrain data files from the source and place them inside your project's `Assets/StreamingAssets/` directory (create the directory if it does not exist):
+  - ETOPO1 (`etopo1_ice_g_i2.bin`)
+  - ETOPO2 (`ETOPO2v2g_i2_LSB.bin`)
+  - ETOPO5 (`ETOPO5.DOS`)
 
 ## Sample Scenes
 
