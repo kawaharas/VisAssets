@@ -102,6 +102,35 @@ Once imported, locate the sample modules in `Packages/VisAssets/Prefabs`, then d
   - ETOPO2 (`ETOPO2v2g_i2_LSB.bin`)
   - ETOPO5 (`ETOPO5.DOS`)
 
+## Sample Applications
+
+- ReadFieldSample.scene
+- ReadGrADSSample.scene
+- ReadV5Sample.scene
+- ReadV5Sample_ABCFlow.scene
+- ReadV5Sample_VR.scene
+
+*Note: Due to Unity Package Manager specifications, sample scenes located in `Packages/VisAssets/Scenes` cannot be run or edited directly. Before running the sample scenes, please manually copy the respective scene files to your project's `Assets/Scenes` directory (or any directory under `Assets`).*
+
+- **for ReadField:** [Download from GitHub Repository](https://github.com/kawaharas/VisAssets/blob/main/Assets/StreamingAssets/Sample3D3.txt)  
+  Please download `Sample3D3.txt` directly from the URL above and place it into your project's `Assets/StreamingAssets/` directory (create the directory if it does not exist).
+
+- **for Topo:** Available from [here](https://www.ncei.noaa.gov/products/etopo-global-relief-model)  
+  Please manually download the following terrain data files from the source and place them inside your project's `Assets/StreamingAssets/` directory:
+  - ETOPO1 (`etopo1_ice_g_i2.bin`)
+  - ETOPO2 (`ETOPO2v2g_i2_LSB.bin`)
+  - ETOPO5 (`ETOPO5.DOS`)
+  
+- **for ReadVFIVE:** Available from [here](https://www.jamstec.go.jp/ceist/aeird/avcrg/vfive.ja.html) (sample_little.tar.gz, sample_big2.tar.gz)  
+  Extract the downloaded datasets and place them into the designated subdirectories under your project's `Assets/StreamingAssets/`:
+  - for `sample_little.tar.gz` (dynamo): Place under `Assets/StreamingAssets/vfive/dynamo/`  
+    Module settings: Precesion: DOUBLE, Byteswap: off, Header: on  
+  - for `sample_big2.tar.gz` (ABC flow): Place under `Assets/StreamingAssets/vfive/abc_flow/`  
+    Module settings: Precesion: DOUBLE, Byteswap: on, Header: on  
+  
+- **for ReadGrADS:** Available from [here](http://cola.gmu.edu/grads/) (example.tar.gz)  
+  Extract the downloaded dataset and place it inside your project's `Assets/StreamingAssets/grads/` directory.
+
 ## Sample Scenes
 
 There are three sample scenes in Assets/VisAssets/Scenes.  

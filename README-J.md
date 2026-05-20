@@ -79,31 +79,34 @@
 |UIManager |ユーザインタフェース | |
 |Animator |時間発展データのコントロール | |
 
-## サンプルモジュールのテストに用いたデータセット
+## サンプルアプリケーション
+
+- ReadFieldSample.scene
+- ReadGrADSSample.scene
+- ReadV5Sample.scene
+- ReadV5Sample_ABCFlow.scene
+- ReadV5Sample_VR.scene
+
+※ Unity Package Managerの仕様上、`Packages/VisAssets/Scenes` 内にあるサンプルシーンは直接編集や実行が推奨されません。サンプルシーンを実行する際は、事前に該当のシーンファイルをプロジェクトの `Assets/Scenes` フォルダなどへコピーしてからご利用ください。
 
 - **ReadField用データ:** [GitHubリポジトリから取得](https://github.com/kawaharas/VisAssets/blob/main/Assets/StreamingAssets/Sample3D3.txt)  
-  ※Unity Package Managerからインポートした場合、このファイルは含まれません。サンプルを実行する前に、上記URLから `Sample3D3.txt` を直接ダウンロードし、ご自身のプロジェクトの `Assets/StreamingAssets/` フォルダ内（フォルダがない場合は作成）に配置してください。
-
-- **ReadVFIVE用データ:** [入手先](https://www.jamstec.go.jp/ceist/aeird/avcrg/vfive.ja.html) (sample_little.tar.gz, sample_big2.tar.gz)  
-    sample_little.tar.gz用モジュール設定 (dynamo): Precesion: DOUBLE, Byteswap: off, Header: on  
-    sample_big2.tar.gz用モジュール設定 (ABC flow): Precesion: DOUBLE, Byteswap: on, Header: on  
+  ※上記URLから `Sample3D3.txt` を直接ダウンロードし、ご自身のプロジェクトの `Assets/StreamingAssets/` フォルダ内（フォルダがない場合は作成）に配置してください。
   
-- **ReadGrADS用データ:** [入手先](http://cola.gmu.edu/grads/) (example.tar.gz)
+- **ReadVFIVE用データ:** [入手先](https://www.jamstec.go.jp/ceist/aeird/avcrg/vfive.ja.html) (sample_little.tar.gz, sample_big2.tar.gz)  
+  ダウンロードしたデータを解凍し、ご自身のプロジェクトの `Assets/StreamingAssets/` 以下の指定フォルダ内に配置してください。
+  - `sample_little.tar.gz` 用 (dynamo): `Assets/StreamingAssets/vfive/dynamo/` 以下  
+    モジュール設定: Precesion: DOUBLE, Byteswap: off, Header: on  
+  - `sample_big2.tar.gz` 用 (ABC flow): `Assets/StreamingAssets/vfive/abc_flow/` 以下  
+    モジュール設定: Precesion: DOUBLE, Byteswap: on, Header: on  
+  
+- **ReadGrADS用データ:** [入手先](http://cola.gmu.edu/grads/) (example.tar.gz)  
+  ダウンロードしたデータを解凍し、ご自身のプロジェクトの `Assets/StreamingAssets/grads/` フォルダ内に配置してください。
 
 - **Topo用データ:** [入手先](https://www.ncei.noaa.gov/products/etopo-global-relief-model)  
-  上記のサイト等から下記の地形データを別途取得し、ご自身のプロジェクトの `Assets/StreamingAssets/` フォルダ内（フォルダがない場合は作成）に配置してください。
+  上記のサイト等から下記の地形データを別途取得し、ご自身のプロジェクトの `Assets/StreamingAssets/` フォルダ内に配置してください。
   - ETOPO1 (`etopo1_ice_g_i2.bin`)
   - ETOPO2 (`ETOPO2v2g_i2_LSB.bin`)
   - ETOPO5 (`ETOPO5.DOS`)
-
-## サンプルアプリケーション
-
-サンプルアプリケーションは Assets/VisAssets/Scenes にあります。
-読み込み後、Unityエディタ上で実行してください。
-
-- ReadFieldSample.scene
-- ReadV5Sample.scene
-- ReadGrADSSample.scene
 
 ## ライセンス
 
