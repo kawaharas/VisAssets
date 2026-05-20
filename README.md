@@ -18,7 +18,7 @@
 2. Click the `+` button in the top-left corner and select `Add package from git URL...`.
 3. Enter the following Git URL and click `Add`.
    ```text
-   [https://github.com/kawaharas/VisAssets.git?path=/Assets/VisAssets](https://github.com/kawaharas/VisAssets.git?path=/Assets/VisAssets)
+   https://github.com/kawaharas/VisAssets.git?path=/Assets/VisAssets
    ```
 4. Please ensure the dependency [RuntimeFileBrowser](https://github.com/yasirkula/UnitySimpleFileBrowser) is imported into your project as well.
 5. Navigate to `Window` ＞ `TextMeshPro` ＞ `Import TMP Essential Resources` from the top menu to import the required TMP assets. (*If the import dialog pops up automatically via the auto-import script, simply click "Import"*)

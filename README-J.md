@@ -16,7 +16,7 @@
 2. 左上の `+` ボタンを押し、`Add package from git URL...` を選択します。
 3. 下記のGit URLを入力し、`Add` ボタンを押します。
    ```text
-   [https://github.com/kawaharas/VisAssets.git?path=/Assets/VisAssets](https://github.com/kawaharas/VisAssets.git?path=/Assets/VisAssets)
+   https://github.com/kawaharas/VisAssets.git?path=/Assets/VisAssets
    ```
 4. 依存パッケージである [RuntimeFileBrowser](https://github.com/yasirkula/UnitySimpleFileBrowser) も同様にプロジェクトへインポートしてください。
 5. メニューの `Window` ＞ `TextMeshPro` ＞ `Import TMP Essential Resources` を選択し、TMPの必須リソースをインポートしてください。（※自動インポートスクリプトにより、インポート時に自動でウィンドウが開く場合はそのままインポートを実行してください）
