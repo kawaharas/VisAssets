@@ -78,7 +78,7 @@ MonoBehaviour:
     prev_axis: 0
     prev_slice: 0
     prev_value: 0
-  scale: 0
+  scale: 1
   maxScale: 0
   restrictToSlice: 0
   normalize: 0
@@ -96,6 +96,7 @@ MonoBehaviour:
   dims: 
   useUndef: 0
   undef: 0
+  isScaleInitialized: 0
 --- !u!33 &5426426549086042513
 MeshFilter:
   m_ObjectHideFlags: 0

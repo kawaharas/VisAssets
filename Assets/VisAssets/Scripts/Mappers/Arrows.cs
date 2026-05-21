@@ -23,6 +23,7 @@ namespace VisAssets.SciVis.Structured.Arrows
 		SerializedProperty slice;
 		SerializedProperty restrictToSlice;
 		SerializedProperty arrowscale;
+		SerializedProperty scale;
 		SerializedProperty normalize;
 		SerializedProperty useMagnitudeColor;
 		SerializedProperty arrowPrefab;
@@ -35,6 +36,7 @@ namespace VisAssets.SciVis.Structured.Arrows
 			slice             = serializedObject.FindProperty("sliceHelper.slice");
 			restrictToSlice   = serializedObject.FindProperty("restrictToSlice");
 			arrowscale        = serializedObject.FindProperty("arrowscale");
+			scale             = serializedObject.FindProperty("scale");
 			normalize         = serializedObject.FindProperty("normalize");
 			useMagnitudeColor = serializedObject.FindProperty("useMagnitudeColor");
 			arrowPrefab       = serializedObject.FindProperty("arrowPrefab");
@@ -102,10 +104,12 @@ namespace VisAssets.SciVis.Structured.Arrows
 			GUILayout.Space(5f);
 
 			EditorGUI.BeginChangeCheck();
-			if (arrowscale != null)
+
+			if (scale != null)
 			{
-				EditorGUILayout.Slider(arrowscale, 0f, arrows.maxArrowScale, new GUIContent("Scale: "));
+				EditorGUILayout.Slider(scale, 0f, 10f, new GUIContent("Scale: "));
 			}
+
 			if (EditorGUI.EndChangeCheck())
 			{
 				Undo.RecordObject(target, "Arrows");
@@ -392,7 +396,8 @@ namespace VisAssets.SciVis.Structured.Arrows
 			Vector3 worldDir = localToWorld.MultiplyVector(localDir);
 
 			Quaternion worldRot = Quaternion.identity;
-			float baseScale     = normalize ? (maxMagnitude * arrowscale) : cachedScales[index];
+			float baseScale     = normalize ? (arrowscale * 80.0f) : cachedScales[index]; // 80 percent of grid
+			baseScale *= scale;
 
 			if (worldDir.sqrMagnitude > 1e-8f)
 			{
