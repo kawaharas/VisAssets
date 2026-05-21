@@ -31,6 +31,7 @@ namespace VisAssets.SciVis.Structured.Isosurface
 	{
 		SerializedProperty slider, threshold, min, max, shadingMode, useGPU, vramOptimization, triCount, shader;
 		SerializedProperty builtinMaterial, urpMaterial;
+		SerializedProperty castShadows, receiveShadows;
 
 		private void OnEnable()
 		{
@@ -45,6 +46,8 @@ namespace VisAssets.SciVis.Structured.Isosurface
 			shader      = serializedObject.FindProperty("shader");
 			builtinMaterial = serializedObject.FindProperty("builtinMaterial");
 			urpMaterial     = serializedObject.FindProperty("urpMaterial");
+			castShadows     = serializedObject.FindProperty("castShadows");
+			receiveShadows  = serializedObject.FindProperty("receiveShadows");
 		}
 
 		public override void OnInspectorGUI()
@@ -86,6 +89,14 @@ namespace VisAssets.SciVis.Structured.Isosurface
 			EditorGUI.EndDisabledGroup();
 
 			EditorGUI.EndDisabledGroup();
+
+			GUILayout.Space(5f);
+
+			castShadows.boolValue = EditorGUILayout.ToggleLeft("Cast Shadows", castShadows.boolValue);
+
+			GUILayout.Space(5f);
+
+			receiveShadows.boolValue = EditorGUILayout.ToggleLeft("Receive Shadows", receiveShadows.boolValue);
 
 			GUILayout.Space(10f);
 
@@ -144,8 +155,10 @@ namespace VisAssets.SciVis.Structured.Isosurface
 							isosurface.SetValue(_threshold);
 						}
 					}
+
 					isosurface.UpdateMaterialShader();
 				}
+
 				EditorUtility.SetDirty(target);
 			}
 
@@ -230,6 +243,8 @@ namespace VisAssets.SciVis.Structured.Isosurface
 
 		[SerializeField] public bool useGPU;
 		[SerializeField] public bool vramOptimization = true;
+		[SerializeField] private bool castShadows = false;
+		[SerializeField] private bool receiveShadows = false;
 
 #if UNITY_EDITOR
 		protected override void Reset()
@@ -363,6 +378,12 @@ namespace VisAssets.SciVis.Structured.Isosurface
 			if (TryGetComponent<MeshRenderer>(out var renderer))
 			{
 				renderer.sharedMaterial = targetMaterial;
+
+				renderer.shadowCastingMode = castShadows
+					? UnityEngine.Rendering.ShadowCastingMode.On
+					: UnityEngine.Rendering.ShadowCastingMode.Off;
+					
+				renderer.receiveShadows = receiveShadows;
 			}
 		}
 
