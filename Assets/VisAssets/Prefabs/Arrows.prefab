@@ -89,7 +89,7 @@ MonoBehaviour:
   builtinMaterial: {fileID: 2100000, guid: ada00ed10dd8e5f4baee50716f30973b, type: 2}
   urpMaterial: {fileID: 2100000, guid: a41ee75998a24f24c8ace8eb8f42b147, type: 2}
   arrowPrefab: {fileID: 919132149155446097, guid: 510fc7f3e2e947f46a8468754bf760a7, type: 3}
-  arrowscale: 0
+  arrowscale: 0.002
   scale_weight: 0.9
   maxArrowScale: 10
   activeElements: 
