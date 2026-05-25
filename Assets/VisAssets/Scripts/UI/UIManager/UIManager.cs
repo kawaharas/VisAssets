@@ -3,12 +3,12 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
-using UnityEngine.XR;
-using UnityEngine.SpatialTracking;
-using VisAssets.SciVis.Structured.StreamLines;
 
 #if UNITY_XR_MANAGEMENT
+using UnityEngine.XR;
 using UnityEngine.XR.Management;
+using UnityEngine.SpatialTracking;
+using VisAssets.SciVis.Structured.StreamLines;
 #endif
 
 #if UNITY_EDITOR
@@ -71,7 +71,6 @@ namespace VisAssets
 		public bool inputValue;
 		public ButtonState ButtonA = ButtonState.RELEASED;
 		public ButtonState ButtonTrigger = ButtonState.RELEASED;
-		RaycastHit hitInfo;
 
 		public GameObject moduleSelector;
 		public GameObject paramChanger;
@@ -80,10 +79,17 @@ namespace VisAssets
 
 		public GameObject currentModule;
 
+#if UNITY_XR_MANAGEMENT
+		RaycastHit hitInfo;
+#endif
+
 		void Awake()
 		{
 			currentModule = null;
+
+#if UNITY_XR_MANAGEMENT
 			hitInfo = new RaycastHit();
+#endif
 		}
 
 		void Start()
@@ -143,6 +149,7 @@ namespace VisAssets
 
 		void Update()
 		{
+#if UNITY_XR_MANAGEMENT
 			if (IsXRActive)
 			{
 				var canvas = transform.Find("Canvas");
@@ -192,10 +199,8 @@ namespace VisAssets
 									var streamLines = currentModule.GetComponent<StreamLines>();
 									if (streamLines != null)
 									{
-										if (tip != null)
-										{
-											streamLines.AddSeed(tip);
-										}
+										Vector3 localTip = streamLines.transform.InverseTransformPoint(tip);
+										streamLines.AddSeed(localTip);
 									}
 								}
 							}
@@ -248,6 +253,7 @@ namespace VisAssets
 
 				DrawPointer();
 			}
+#endif
 
 			if (Application.platform != RuntimePlatform.Android)
 			{
@@ -370,6 +376,7 @@ namespace VisAssets
 			}
 		}
 
+#if UNITY_XR_MANAGEMENT
 		void DrawPointer()
 		{
 			if (laserPointer != null)
@@ -430,5 +437,6 @@ namespace VisAssets
 				}
 			}
 		}
+#endif
 	}
 }

@@ -269,10 +269,19 @@ namespace VisAssets.SciVis.Structured.StreamLines
 			headSphere.transform.localScale    = Vector3.Scale(Vector3.one / 20f, manager.upstreamReciprocalScale);
 
 			var sphereRenderer = headSphere.GetComponent<MeshRenderer>();
+			var sphereFilter   = headSphere.GetComponent<MeshFilter>();
 
 			if (sphereRenderer != null)
 			{
 				Color tipColor = manager.useMagnitudeColor ? magColors[magColors.Count - 1] : manager.sphereColor;
+
+				Mesh sphereMesh = sphereFilter.sharedMesh;
+				Color[] sphereCols = new Color[sphereMesh.vertexCount];
+				for (int v = 0; v < sphereCols.Length; v++)
+				{
+					sphereCols[v] = tipColor;
+				}
+				sphereMesh.SetColors(sphereCols);
 
 				sphereRenderer.GetPropertyBlock(propBlock);
 				propBlock.SetColor("_Color", tipColor);

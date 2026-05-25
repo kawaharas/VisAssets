@@ -1,4 +1,4 @@
-Shader "VisAssets/VolumeRenderer_URP"
+Shader "VisAssets/URP_VolumeRenderer"
 {
     Properties
     {
