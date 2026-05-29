@@ -135,67 +135,89 @@ namespace VisAssets
 */
 		void Start()
 		{
-			if (Application.platform != RuntimePlatform.Android)
-			{
-				if (cardboardButton != null)
-				{
-					cardboardButton.SetActive(false);
-				}
-			}
+		    if (Application.platform != RuntimePlatform.Android)
+		    {
+		        if (cardboardButton != null)
+		        {
+		            cardboardButton.SetActive(false);
+		        }
+		    }
 
-			if (IsXRActive)
-			{
-				var canvas = transform.Find("Canvas");
-				canvas.gameObject.SetActive(false);
+		    if (IsXRActive)
+		    {
+		        var canvas = transform.Find("Canvas");
+		        if (canvas != null)
+		        {
+		            canvas.gameObject.SetActive(false);
+		        }
 
-				var mainCamera = Camera.main;
-				if (mainCamera != null)
-				{
-					var mainCamData = mainCamera.GetComponent<UnityEngine.Rendering.Universal.UniversalAdditionalCameraData>();
+		        var mainCamera = Camera.main;
+		        if (mainCamera != null)
+		        {
+		            var uiCamObj = GameObject.Find("UI Camera");
+		            Camera uiCamera = null;
 
-					var uiCamObj = GameObject.Find("UI Camera");
-					Camera uiCamera = null;
+		            if (uiCamObj == null)
+		            {
+		                uiCamObj = new GameObject("UI Camera");
+		                uiCamera = uiCamObj.AddComponent<Camera>();
+		                uiCamObj.transform.parent = mainCamera.transform;
+		                uiCamObj.transform.localPosition = Vector3.zero;
+		                uiCamObj.transform.localRotation = Quaternion.identity;
 
-					if (uiCamObj == null)
-					{
-						uiCamObj = new GameObject("UI Camera");
-						uiCamera = uiCamObj.AddComponent<Camera>();
-						uiCamObj.transform.parent = mainCamera.transform;
-						uiCamObj.transform.localPosition = Vector3.zero;
-						uiCamObj.transform.localRotation = Quaternion.identity;
+		                uiCamera.clearFlags = CameraClearFlags.Depth;
+		                uiCamera.cullingMask = 1 << LayerMask.NameToLayer("UI");
 
-						var uiCamData = uiCamObj.AddComponent<UnityEngine.Rendering.Universal.UniversalAdditionalCameraData>();
-						uiCamData.renderType = UnityEngine.Rendering.Universal.CameraRenderType.Overlay;
+		                mainCamera.cullingMask = ~(1 << LayerMask.NameToLayer("UI"));
 
-						uiCamera.clearFlags = CameraClearFlags.Depth;
-						uiCamera.cullingMask = 1 << LayerMask.NameToLayer("UI");
+		                System.Type additionalDataComponentType = System.Type.GetType("UnityEngine.Rendering.Universal.UniversalAdditionalCameraData, Unity.RenderPipelines.Universal.Runtime");
+		                if (additionalDataComponentType != null)
+		                {
+		                    var mainCamData = mainCamera.GetComponent(additionalDataComponentType);
 
-						mainCamera.cullingMask = ~(1 << LayerMask.NameToLayer("UI"));
+		                    var uiCamData = uiCamObj.AddComponent(additionalDataComponentType);
+		                    var renderTypeField = additionalDataComponentType.GetProperty("renderType");
+		                    System.Type renderTypeEnum = System.Type.GetType("UnityEngine.Rendering.Universal.CameraRenderType, Unity.RenderPipelines.Universal.Runtime");
+		                    if (renderTypeField != null && renderTypeEnum != null)
+		                    {
+		                        var overlayValue = System.Enum.Parse(renderTypeEnum, "Overlay");
+		                        renderTypeField.SetValue(uiCamData, overlayValue);
+		                    }
 
-						if (mainCamData != null)
-						{
-							mainCamData.cameraStack.Add(uiCamera);
-						}
-					}
-					else
-					{
-						uiCamera = uiCamObj.GetComponent<Camera>();
-					}
+		                    var cameraStackProperty = additionalDataComponentType.GetProperty("cameraStack");
+		                    if (cameraStackProperty != null && mainCamData != null)
+		                    {
+		                        var stack = cameraStackProperty.GetValue(mainCamData) as System.Collections.IList;
+		                        if (stack != null)
+		                        {
+		                            stack.Add(uiCamera);
+		                        }
+		                    }
+		                }
+		                else
+		                {
+		                    uiCamera.depth = mainCamera.depth + 1;
+		                }
+		            }
+		            else
+		            {
+		                uiCamera = uiCamObj.GetComponent<Camera>();
+		            }
 
-					if (canvas != null)
-					{
-						var canvasComp = canvas.GetComponent<Canvas>();
-						canvasComp.renderMode = RenderMode.WorldSpace;
-						canvasComp.worldCamera = uiCamera;
-					}
-				}
+		            if (canvas != null)
+		            {
+		                var canvasComp = canvas.GetComponent<Canvas>();
+		                canvasComp.renderMode = RenderMode.WorldSpace;
+		                canvasComp.worldCamera = uiCamera;
+		            }
+		        }
 
-				SetupPointer();
-			}
-			else
-			{
-				SetupDesktopCanvas();
-			}
+		        SetupPointer();
+		    }
+		    else
+		    {
+		        SetupDesktopCanvas();
+		    }
 		}
 
 		public bool IsXRActive
