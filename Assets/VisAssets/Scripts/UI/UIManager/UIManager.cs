@@ -91,7 +91,7 @@ namespace VisAssets
 			hitInfo = new RaycastHit();
 #endif
 		}
-
+/*
 		void Start()
 		{
 			if (Application.platform != RuntimePlatform.Android)
@@ -124,6 +124,71 @@ namespace VisAssets
 				}
 
 				canvas.GetComponent<Canvas>().renderMode = RenderMode.WorldSpace;
+
+				SetupPointer();
+			}
+			else
+			{
+				SetupDesktopCanvas();
+			}
+		}
+*/
+		void Start()
+		{
+			if (Application.platform != RuntimePlatform.Android)
+			{
+				if (cardboardButton != null)
+				{
+					cardboardButton.SetActive(false);
+				}
+			}
+
+			if (IsXRActive)
+			{
+				var canvas = transform.Find("Canvas");
+				canvas.gameObject.SetActive(false);
+
+				var mainCamera = Camera.main;
+				if (mainCamera != null)
+				{
+					var mainCamData = mainCamera.GetComponent<UnityEngine.Rendering.Universal.UniversalAdditionalCameraData>();
+
+					var uiCamObj = GameObject.Find("UI Camera");
+					Camera uiCamera = null;
+
+					if (uiCamObj == null)
+					{
+						uiCamObj = new GameObject("UI Camera");
+						uiCamera = uiCamObj.AddComponent<Camera>();
+						uiCamObj.transform.parent = mainCamera.transform;
+						uiCamObj.transform.localPosition = Vector3.zero;
+						uiCamObj.transform.localRotation = Quaternion.identity;
+
+						var uiCamData = uiCamObj.AddComponent<UnityEngine.Rendering.Universal.UniversalAdditionalCameraData>();
+						uiCamData.renderType = UnityEngine.Rendering.Universal.CameraRenderType.Overlay;
+
+						uiCamera.clearFlags = CameraClearFlags.Depth;
+						uiCamera.cullingMask = 1 << LayerMask.NameToLayer("UI");
+
+						mainCamera.cullingMask = ~(1 << LayerMask.NameToLayer("UI"));
+
+						if (mainCamData != null)
+						{
+							mainCamData.cameraStack.Add(uiCamera);
+						}
+					}
+					else
+					{
+						uiCamera = uiCamObj.GetComponent<Camera>();
+					}
+
+					if (canvas != null)
+					{
+						var canvasComp = canvas.GetComponent<Canvas>();
+						canvasComp.renderMode = RenderMode.WorldSpace;
+						canvasComp.worldCamera = uiCamera;
+					}
+				}
 
 				SetupPointer();
 			}
