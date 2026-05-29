@@ -234,7 +234,8 @@ namespace VisAssets
 			}
 		}
 
-		void Update()
+//		void Update()
+		void LateUpdate()
 		{
 #if UNITY_XR_MANAGEMENT
 			if (IsXRActive)
