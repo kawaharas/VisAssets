@@ -132,7 +132,7 @@ public class ChannelEditor : MonoBehaviour
 			rt.anchorMin = new Vector2(0.5f, 0.5f);
 			rt.anchorMax = new Vector2(0.5f, 0.5f);
 			rt.pivot     = new Vector2(0.5f, 0.5f);
-			rt.sizeDelta = new Vector2(8f, 8f);
+			rt.sizeDelta = new Vector2(12f, 12f);
 		}
 
 		handle.lockX = isXLocked;
