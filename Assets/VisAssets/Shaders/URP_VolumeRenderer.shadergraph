@@ -266,6 +266,20 @@
         {
             "m_OutputSlot": {
                 "m_Node": {
+                    "m_Id": "604c45f2f08e4a1a8df0a8e402da571c"
+                },
+                "m_SlotId": 0
+            },
+            "m_InputSlot": {
+                "m_Node": {
+                    "m_Id": "f5b7c41df16c411cafeedece1c40fc7d"
+                },
+                "m_SlotId": 19
+            }
+        },
+        {
+            "m_OutputSlot": {
+                "m_Node": {
                     "m_Id": "6194707c45bb40c58995e90fb425a7d9"
                 },
                 "m_SlotId": 0
@@ -1305,6 +1319,31 @@
 
 {
     "m_SGVersion": 0,
+    "m_Type": "UnityEditor.ShaderGraph.Vector4MaterialSlot",
+    "m_ObjectId": "5b8024f5b74e43ffb3f918f92444b9b1",
+    "m_Id": 19,
+    "m_DisplayName": "ScreenPos",
+    "m_SlotType": 0,
+    "m_Hidden": false,
+    "m_ShaderOutputName": "ScreenPos",
+    "m_StageCapability": 3,
+    "m_Value": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0,
+        "w": 0.0
+    },
+    "m_DefaultValue": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 0.0,
+        "w": 0.0
+    },
+    "m_Labels": []
+}
+
+{
+    "m_SGVersion": 0,
     "m_Type": "UnityEditor.ShaderGraph.Vector1MaterialSlot",
     "m_ObjectId": "5cafc306bae74ac1ab6b10e2d9087780",
     "m_Id": 4,
@@ -1397,8 +1436,8 @@
         "m_Expanded": true,
         "m_Position": {
             "serializedVersion": "2",
-            "x": -87.0,
-            "y": -236.00001525878907,
+            "x": -368.0,
+            "y": -247.99998474121095,
             "width": 208.0,
             "height": 302.0
         }
@@ -1440,9 +1479,9 @@
         "m_Expanded": true,
         "m_Position": {
             "serializedVersion": "2",
-            "x": -614.9999389648438,
-            "y": -573.0,
-            "width": 208.00003051757813,
+            "x": 165.00001525878907,
+            "y": -102.00003814697266,
+            "width": 207.99998474121095,
             "height": 312.0
         }
     },
@@ -2168,9 +2207,9 @@
         "m_Expanded": true,
         "m_Position": {
             "serializedVersion": "2",
-            "x": -627.9999389648438,
-            "y": -236.00001525878907,
-            "width": 122.00003051757813,
+            "x": -909.0,
+            "y": -247.99998474121095,
+            "width": 122.0,
             "height": 244.9999542236328
         }
     },
@@ -2230,10 +2269,10 @@
         "m_Expanded": true,
         "m_Position": {
             "serializedVersion": "2",
-            "x": 186.00006103515626,
-            "y": -163.0000457763672,
-            "width": 207.99990844726563,
-            "height": 314.0
+            "x": -127.0,
+            "y": -160.00001525878907,
+            "width": 208.0,
+            "height": 313.9999694824219
         }
     },
     "m_Slots": [
@@ -2372,10 +2411,10 @@
         "m_Expanded": true,
         "m_Position": {
             "serializedVersion": "2",
-            "x": -87.0,
-            "y": -573.0,
+            "x": -368.0,
+            "y": -585.0,
             "width": 208.0,
-            "height": 302.0
+            "height": 301.9999694824219
         }
     },
     "m_Slots": [
@@ -2523,8 +2562,8 @@
         "m_Expanded": true,
         "m_Position": {
             "serializedVersion": "2",
-            "x": -481.9999694824219,
-            "y": -236.00001525878907,
+            "x": -763.0,
+            "y": -247.99998474121095,
             "width": 213.0,
             "height": 338.9999694824219
         }
@@ -2949,10 +2988,10 @@
         "m_Expanded": true,
         "m_Position": {
             "serializedVersion": "2",
-            "x": -372.9999694824219,
-            "y": -573.0,
-            "width": 208.0,
-            "height": 313.9999694824219
+            "x": -654.0,
+            "y": -585.0,
+            "width": 208.00003051757813,
+            "height": 314.0
         }
     },
     "m_Slots": [
@@ -3383,9 +3422,6 @@
     },
     "m_Slots": [
         {
-            "m_Id": "fad6a567f2ae4c26a505140d0164ea8f"
-        },
-        {
             "m_Id": "fd8f2acb0b2b449ebb3e15944f252cf3"
         },
         {
@@ -3438,6 +3474,12 @@
         },
         {
             "m_Id": "0370bfa51a8146cc867a22679e9d692b"
+        },
+        {
+            "m_Id": "5b8024f5b74e43ffb3f918f92444b9b1"
+        },
+        {
+            "m_Id": "fad6a567f2ae4c26a505140d0164ea8f"
         }
     ],
     "synonyms": [
