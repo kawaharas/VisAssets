@@ -81,6 +81,7 @@ namespace VisAssets
 
 #if UNITY_XR_MANAGEMENT
 		RaycastHit hitInfo;
+		private List<InputDevice> rightHandDevices;
 #endif
 
 		void Awake()
@@ -89,9 +90,10 @@ namespace VisAssets
 
 #if UNITY_XR_MANAGEMENT
 			hitInfo = new RaycastHit();
+			rightHandDevices = new List<InputDevice>();
 #endif
 		}
-/*
+
 		void Start()
 		{
 			if (Application.platform != RuntimePlatform.Android)
@@ -105,25 +107,75 @@ namespace VisAssets
 			if (IsXRActive)
 			{
 				var canvas = transform.Find("Canvas");
-				canvas.gameObject.SetActive(false);
-
-				if (SystemInfo.graphicsDeviceType != UnityEngine.Rendering.GraphicsDeviceType.Vulkan)
+				if (canvas != null)
 				{
-					var mainCamera = Camera.main;
-					var obj = new GameObject("UI Camera");
-					obj.AddComponent<Camera>();
-					obj.transform.parent = mainCamera.transform;
-					var uiCamera = obj.GetComponent<Camera>();
-					uiCamera.clearFlags = CameraClearFlags.Depth;
-					uiCamera.cullingMask = 1 << LayerMask.NameToLayer("UI");
-					uiCamera.transform.localPosition = Vector3.zero;
-					uiCamera.depth = mainCamera.GetComponent<Camera>().depth + 1;
-					mainCamera.cullingMask = ~(1 << LayerMask.NameToLayer("UI"));
-
-					canvas.GetComponent<Canvas>().worldCamera = uiCamera;
+					canvas.gameObject.SetActive(false);
 				}
 
-				canvas.GetComponent<Canvas>().renderMode = RenderMode.WorldSpace;
+				var mainCamera = Camera.main;
+				if (mainCamera != null)
+				{
+					var uiCamObj = GameObject.Find("UI Camera");
+					Camera uiCamera = null;
+
+					if (uiCamObj == null)
+					{
+						uiCamObj = new GameObject("UI Camera");
+						uiCamera = uiCamObj.AddComponent<Camera>();
+						uiCamObj.transform.parent = mainCamera.transform;
+						uiCamObj.transform.localPosition = Vector3.zero;
+						uiCamObj.transform.localRotation = Quaternion.identity;
+
+						uiCamera.clearFlags = CameraClearFlags.Depth;
+						uiCamera.cullingMask = 1 << LayerMask.NameToLayer("UI");
+
+						mainCamera.cullingMask = ~(1 << LayerMask.NameToLayer("UI"));
+
+						System.Type additionalDataComponentType =
+							System.Type.GetType("UnityEngine.Rendering.Universal.UniversalAdditionalCameraData, Unity.RenderPipelines.Universal.Runtime");
+
+						if (additionalDataComponentType != null)
+						{
+							var mainCamData = mainCamera.GetComponent(additionalDataComponentType);
+							var uiCamData = uiCamObj.AddComponent(additionalDataComponentType);
+							var renderTypeField = additionalDataComponentType.GetProperty("renderType");
+
+							System.Type renderTypeEnum =
+								System.Type.GetType("UnityEngine.Rendering.Universal.CameraRenderType, Unity.RenderPipelines.Universal.Runtime");
+
+							if (renderTypeField != null && renderTypeEnum != null)
+							{
+								var overlayValue = System.Enum.Parse(renderTypeEnum, "Overlay");
+								renderTypeField.SetValue(uiCamData, overlayValue);
+							}
+
+							var cameraStackProperty = additionalDataComponentType.GetProperty("cameraStack");
+							if (cameraStackProperty != null && mainCamData != null)
+							{
+								var stack = cameraStackProperty.GetValue(mainCamData) as System.Collections.IList;
+								if (stack != null)
+								{
+									stack.Add(uiCamera);
+								}
+							}
+						}
+						else
+						{
+							uiCamera.depth = mainCamera.depth + 1;
+						}
+					}
+					else
+					{
+						uiCamera = uiCamObj.GetComponent<Camera>();
+					}
+
+					if (canvas != null)
+					{
+						var canvasComp = canvas.GetComponent<Canvas>();
+						canvasComp.renderMode = RenderMode.WorldSpace;
+						canvasComp.worldCamera = uiCamera;
+					}
+				}
 
 				SetupPointer();
 			}
@@ -131,93 +183,6 @@ namespace VisAssets
 			{
 				SetupDesktopCanvas();
 			}
-		}
-*/
-		void Start()
-		{
-		    if (Application.platform != RuntimePlatform.Android)
-		    {
-		        if (cardboardButton != null)
-		        {
-		            cardboardButton.SetActive(false);
-		        }
-		    }
-
-		    if (IsXRActive)
-		    {
-		        var canvas = transform.Find("Canvas");
-		        if (canvas != null)
-		        {
-		            canvas.gameObject.SetActive(false);
-		        }
-
-		        var mainCamera = Camera.main;
-		        if (mainCamera != null)
-		        {
-		            var uiCamObj = GameObject.Find("UI Camera");
-		            Camera uiCamera = null;
-
-		            if (uiCamObj == null)
-		            {
-		                uiCamObj = new GameObject("UI Camera");
-		                uiCamera = uiCamObj.AddComponent<Camera>();
-		                uiCamObj.transform.parent = mainCamera.transform;
-		                uiCamObj.transform.localPosition = Vector3.zero;
-		                uiCamObj.transform.localRotation = Quaternion.identity;
-
-		                uiCamera.clearFlags = CameraClearFlags.Depth;
-		                uiCamera.cullingMask = 1 << LayerMask.NameToLayer("UI");
-
-		                mainCamera.cullingMask = ~(1 << LayerMask.NameToLayer("UI"));
-
-		                System.Type additionalDataComponentType = System.Type.GetType("UnityEngine.Rendering.Universal.UniversalAdditionalCameraData, Unity.RenderPipelines.Universal.Runtime");
-		                if (additionalDataComponentType != null)
-		                {
-		                    var mainCamData = mainCamera.GetComponent(additionalDataComponentType);
-
-		                    var uiCamData = uiCamObj.AddComponent(additionalDataComponentType);
-		                    var renderTypeField = additionalDataComponentType.GetProperty("renderType");
-		                    System.Type renderTypeEnum = System.Type.GetType("UnityEngine.Rendering.Universal.CameraRenderType, Unity.RenderPipelines.Universal.Runtime");
-		                    if (renderTypeField != null && renderTypeEnum != null)
-		                    {
-		                        var overlayValue = System.Enum.Parse(renderTypeEnum, "Overlay");
-		                        renderTypeField.SetValue(uiCamData, overlayValue);
-		                    }
-
-		                    var cameraStackProperty = additionalDataComponentType.GetProperty("cameraStack");
-		                    if (cameraStackProperty != null && mainCamData != null)
-		                    {
-		                        var stack = cameraStackProperty.GetValue(mainCamData) as System.Collections.IList;
-		                        if (stack != null)
-		                        {
-		                            stack.Add(uiCamera);
-		                        }
-		                    }
-		                }
-		                else
-		                {
-		                    uiCamera.depth = mainCamera.depth + 1;
-		                }
-		            }
-		            else
-		            {
-		                uiCamera = uiCamObj.GetComponent<Camera>();
-		            }
-
-		            if (canvas != null)
-		            {
-		                var canvasComp = canvas.GetComponent<Canvas>();
-		                canvasComp.renderMode = RenderMode.WorldSpace;
-		                canvasComp.worldCamera = uiCamera;
-		            }
-		        }
-
-		        SetupPointer();
-		    }
-		    else
-		    {
-		        SetupDesktopCanvas();
-		    }
 		}
 
 		public bool IsXRActive
@@ -234,112 +199,12 @@ namespace VisAssets
 			}
 		}
 
-//		void Update()
-		void LateUpdate()
+		void Update()
 		{
 #if UNITY_XR_MANAGEMENT
 			if (IsXRActive)
 			{
-				var canvas = transform.Find("Canvas");
-				var inputDevices = new List<InputDevice>();
-				InputDevices.GetDevicesAtXRNode(XRNode.RightHand, inputDevices);
-				foreach (var device in inputDevices)
-				{
-					// primary button (show VRUI)
-					if (device.TryGetFeatureValue(CommonUsages.primaryButton, out inputValue) && inputValue)
-					{
-						if (ButtonA == ButtonState.RELEASED)
-						{
-							ShowUIManager();
-							ButtonA = ButtonState.PRESSED;
-						}
-						else if (ButtonA == ButtonState.PRESSED)
-						{
-							ButtonA = ButtonState.KEEP_PRESSING;
-						}
-					}
-					else
-					{
-						canvas.gameObject.SetActive(false);
-						ButtonA = ButtonState.RELEASED;
-					}
-
-					// trigger button (operate VRUI)
-					if (!canvas.gameObject.activeSelf)
-					{
-						if (device.TryGetFeatureValue(CommonUsages.triggerButton, out inputValue) && inputValue)
-						{
-							if (ButtonTrigger == ButtonState.RELEASED)
-							{
-								ButtonTrigger = ButtonState.PRESSED;
-							}
-							else if (ButtonTrigger == ButtonState.PRESSED)
-							{
-								ButtonTrigger = ButtonState.KEEP_PRESSING;
-							}
-						}
-						else
-						{
-							if (ButtonTrigger != ButtonState.RELEASED)
-							{
-								if (currentModule != null && currentModule.name.StartsWith("StreamLines"))
-								{
-									var streamLines = currentModule.GetComponent<StreamLines>();
-									if (streamLines != null)
-									{
-										Vector3 localTip = streamLines.transform.InverseTransformPoint(tip);
-										streamLines.AddSeed(localTip);
-									}
-								}
-							}
-							ButtonTrigger = ButtonState.RELEASED;
-						}
-					}
-				}
-
-				// toggle visible state of laser pointer
-				if (canvas.gameObject.activeSelf)
-				{
-					// For VRUI
-					if (ButtonA == ButtonState.PRESSED)
-					{
-						laserPointer.SetActive(true);
-					}
-					else if (ButtonA == ButtonState.RELEASED)
-					{
-						laserPointer.SetActive(false);
-					}
-				}
-				else
-				{
-					if (currentModule == null)
-					{
-						laserPointer.SetActive(false);
-						return;
-					}
-
-					// For Streamline module
-					if (currentModule.name.StartsWith("StreamLines"))
-					{
-						if (ButtonTrigger == ButtonState.PRESSED)
-						{
-							laserPointer.SetActive(true);
-						}
-						else if (ButtonTrigger == ButtonState.RELEASED)
-						{
-							laserPointer.SetActive(false);
-						}
-					}
-					else
-					{
-						if (ButtonTrigger == ButtonState.RELEASED)
-						{
-							laserPointer.SetActive(false);
-						}
-					}
-				}
-
-				DrawPointer();
+				UpdatePointer();
 			}
 #endif
 
@@ -465,65 +330,167 @@ namespace VisAssets
 		}
 
 #if UNITY_XR_MANAGEMENT
-		void DrawPointer()
+		void UpdatePointer()
 		{
-			if (laserPointer != null)
-			{
-				var centerEyePosition = new Vector3();
-				var centerEyeDevices  = new List<InputDevice>();
+				var canvas = transform.Find("Canvas");
 
-				InputDevices.GetDevicesAtXRNode(XRNode.CenterEye, centerEyeDevices);
-
-				foreach (var device in centerEyeDevices)
+				if (rightHandDevices.Count > 0)
 				{
-					device.TryGetFeatureValue(CommonUsages.devicePosition, out centerEyePosition);
-				}
+					var device = rightHandDevices[0];
 
-				var inputDevices = new List<InputDevice>();
-				InputDevices.GetDevicesAtXRNode(XRNode.RightHand, inputDevices);
-
-				foreach (var device in inputDevices)
-				{
-					Vector3 origin;
-					Quaternion quaternion;
-					device.TryGetFeatureValue(CommonUsages.devicePosition, out origin);
-					device.TryGetFeatureValue(CommonUsages.deviceRotation, out quaternion);
-
-					origin -= centerEyePosition - Camera.main.transform.position;
-
-					tip = origin + quaternion * new Vector3(0f, 0f, 1f);
-					var renderer = laserPointer.GetComponent<LineRenderer>();
-					renderer.useWorldSpace = true;
-					renderer.SetPosition(0, origin);
-					renderer.SetPosition(1, tip);
-					renderer.startWidth = 0.002f;
-					renderer.endWidth   = 0.002f;
-
-					float maxRayDistance = 1.2f;
-					var ray = new Ray(origin, (tip - origin).normalized);
-
-					if (Physics.Raycast(ray, out hitInfo, Mathf.Infinity))
+					if (device.isValid)
 					{
-						renderer.SetPosition(0, origin);
-						renderer.SetPosition(1, hitInfo.point);
+						// primary button (show VRUI)
+						if (device.TryGetFeatureValue(CommonUsages.primaryButton, out inputValue) && inputValue)
+						{
+							if (ButtonA == ButtonState.RELEASED)
+							{
+								ShowUIManager();
+								ButtonA = ButtonState.PRESSED;
+							}
+							else if (ButtonA == ButtonState.PRESSED)
+							{
+								ButtonA = ButtonState.KEEP_PRESSING;
+							}
+						}
+						else
+						{
+							if (canvas != null)
+							{
+								canvas.gameObject.SetActive(false);
+							}
 
-//						laserPointer.GetComponent<Pointer>().ShowPointer(hitInfo.point);
+							ButtonA = ButtonState.RELEASED;
+						}
+
+						// trigger button (operate VRUI)
+						if (canvas != null && !canvas.gameObject.activeSelf)
+						{
+							if (device.TryGetFeatureValue(CommonUsages.triggerButton, out inputValue) && inputValue)
+							{
+								if (ButtonTrigger == ButtonState.RELEASED)
+								{
+									ButtonTrigger = ButtonState.PRESSED;
+								}
+								else if (ButtonTrigger == ButtonState.PRESSED)
+								{
+									ButtonTrigger = ButtonState.KEEP_PRESSING;
+								}
+							}
+							else
+							{
+								if (ButtonTrigger != ButtonState.RELEASED)
+								{
+									if (currentModule != null && currentModule.name.StartsWith("StreamLines"))
+									{
+										var streamLines = currentModule.GetComponent<StreamLines>();
+
+										if (streamLines != null)
+										{
+											Vector3 localTip = streamLines.transform.InverseTransformPoint(tip);
+											streamLines.AddSeed(localTip);
+										}
+									}
+								}
+								ButtonTrigger = ButtonState.RELEASED;
+							}
+						}
+
+						// toggle visible state of laser pointer
+						if (canvas != null && canvas.gameObject.activeSelf)
+						{
+							if (ButtonA == ButtonState.PRESSED)
+							{
+								laserPointer.SetActive(true);
+							}
+							else if (ButtonA == ButtonState.RELEASED)
+							{
+								laserPointer.SetActive(false);
+							}
+						}
+						else
+						{
+							if (currentModule == null)
+							{
+								laserPointer.SetActive(false);
+							}
+							else if (currentModule.name.StartsWith("StreamLines"))
+							{
+								if (ButtonTrigger == ButtonState.PRESSED)
+								{
+									laserPointer.SetActive(true);
+								}
+								else if (ButtonTrigger == ButtonState.RELEASED)
+								{
+									laserPointer.SetActive(false);
+								}
+							}
+							else
+							{
+								if (ButtonTrigger == ButtonState.RELEASED)
+								{
+									laserPointer.SetActive(false);
+								}
+							}
+						}
+
+						if (laserPointer != null && laserPointer.activeSelf && Camera.main != null)
+						{
+							Vector3 originRaw = Vector3.zero;
+							Quaternion rotationRaw = Quaternion.identity;
+
+							device.TryGetFeatureValue(CommonUsages.devicePosition, out originRaw);
+							device.TryGetFeatureValue(CommonUsages.deviceRotation, out rotationRaw);
+
+							Transform camT = Camera.main.transform;
+							Vector3 finalOrigin = Vector3.zero;
+							Quaternion finalRotation = Quaternion.identity;
+
+							if (camT.parent != null)
+							{
+								Transform originParent = camT.parent;
+								finalOrigin   = originParent.position + (originParent.rotation * originRaw);
+								finalRotation = originParent.rotation * rotationRaw;
+							}
+							else
+							{
+								Vector3 centerEye = Vector3.zero;
+								var centerEyeDevices = new List<InputDevice>();
+								InputDevices.GetDevicesAtXRNode(XRNode.CenterEye, centerEyeDevices);
+
+								foreach (var d in centerEyeDevices)
+								{
+									d.TryGetFeatureValue(CommonUsages.devicePosition, out centerEye);
+								}
+
+								finalOrigin = originRaw - centerEye + camT.position;
+								finalRotation = rotationRaw;
+							}
+
+							tip = finalOrigin + finalRotation * new Vector3(0f, 0f, 1f);
+							var renderer = laserPointer.GetComponent<LineRenderer>();
+							renderer.useWorldSpace = true;
+							renderer.SetPosition(0, finalOrigin);
+							renderer.SetPosition(1, tip);
+							renderer.startWidth = 0.002f;
+							renderer.endWidth   = 0.002f;
+
+							float maxRayDistance = 1.2f;
+							var ray = new Ray(finalOrigin, (tip - finalOrigin).normalized);
+
+							if (Physics.Raycast(ray, out hitInfo, Mathf.Infinity))
+							{
+								renderer.SetPosition(0, finalOrigin);
+								renderer.SetPosition(1, hitInfo.point);
+							}
+							else
+							{
+								renderer.SetPosition(0, finalOrigin);
+								renderer.SetPosition(1, finalOrigin + (tip - finalOrigin).normalized * maxRayDistance);
+							}
+						}
 					}
-					else
-					{
-						renderer.SetPosition(0, origin);
-						renderer.SetPosition(1, origin + (tip - origin).normalized * maxRayDistance);
-
-//						laserPointer.GetComponent<Pointer>().HidePointer();
-					}
-
-//					RaycastHit hitInfo;
-//					float distance = 10f;
-//					Physics.Raycast(origin, quaternion.eulerAngles, out hitInfo);
-//					GameObject pointedObject = hitInfo.collider.gameObject;
-//					pointedObject.transform.SendMessage("OnPointerEnter");
 				}
-			}
 		}
 #endif
 	}
